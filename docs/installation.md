@@ -4,147 +4,329 @@ layout: default
 
 # Installation Guide
 
+Get the Squad-SpecKit Bridge up and running in your project. This guide covers prerequisites, installation, verification, and troubleshooting.
+
 ## Prerequisites
 
-Before installing the Squad-SpecKit Bridge, ensure your environment has:
+Before installing the bridge, ensure you have:
 
-- **Node.js** 18.0 or higher
-- **npm** 8.0 or higher
-- **Squad** initialized in your project (`.squad/` directory present)
-- **Spec Kit** initialized in your project (`.specify/` directory present)
+- **Node.js 18.0+** — Runtime environment
+- **npm 8.0+** — Package manager
+- **Squad** (`.squad/` directory) — Initialized in your repository
+- **Spec Kit** (`.specify/` directory) — Initialized in your repository
 
 ### Verify Prerequisites
 
 ```bash
-# Check Node.js version
-node --version  # Should be v18.0.0 or higher
+# Check Node.js version (should be 18.0.0 or higher)
+$ node --version
+v20.11.0  ✓
 
-# Check npm version
-npm --version   # Should be 8.0.0 or higher
+# Check npm version (should be 8.0.0 or higher)
+$ npm --version
+10.2.4  ✓
 
-# Verify Squad and Spec Kit are initialized
-ls -la .squad/   # Should exist
-ls -la .specify/ # Should exist
+# Verify Squad is initialized
+$ ls -la .squad/
+total 8
+drwxr-xr-x  agents/
+drwxr-xr-x  decisions.md
+drwxr-xr-x  skills/
+
+# Verify Spec Kit is initialized
+$ ls -la .specify/
+total 8
+drwxr-xr-x  extensions/
+drwxr-xr-x  memory/
+drwxr-xr-x  templates/
+```
+
+If either is missing, initialize the framework first:
+
+```bash
+# Initialize Squad
+npx squad init
+
+# Initialize Spec Kit
+npx speckit init
 ```
 
 ## Installation Steps
 
-### 1. Initialize the Bridge
+### Step 1: Install via npm
 
-Run the initialization command in your project root:
+In your repository root, run:
 
 ```bash
-npx squad-speckit-bridge init
+$ npx squad-speckit-bridge install
 ```
 
-### 2. What the Init Command Does
+This command:
+- Detects Squad and Spec Kit in your repository
+- Deploys bridge components to both frameworks
+- Creates a `bridge.config.json` configuration file
+- Validates the installation
 
-The `init` command performs the following setup:
+### Step 2: Review Installation Output
 
-- **Creates Squad plugin** — Adds a skill definition (`.squad/skills/speckit-bridge/`) that teaches Squad agents about the bridge workflow
-- **Installs Spec Kit extension** — Adds hook scripts (`.specify/extensions/squad-bridge/`) for automated task review and learning sync
-- **Generates bridge configuration** — Creates `bridge.config.json` with default settings (memory budget, relevance scoring, issue creation templates)
-- **Sets up GitHub Actions workflows** (optional) — Configures CI/CD workflows for automated design review ceremonies
-- **Updates documentation** — Adds bridge-specific README sections
+Expected successful output:
 
-### 3. Verify Installation
+```
+Squad-SpecKit Bridge v0.1.0
 
-After initialization, verify everything is in place:
+Detecting frameworks...
+  ✓ Squad detected at .squad/
+  ✓ Spec Kit detected at .specify/
+
+Installing components...
+  ✓ Squad skill: .squad/skills/speckit-bridge/SKILL.md
+  ✓ Ceremony definition: .squad/ceremonies/design-review.md
+  ✓ Spec Kit extension: .specify/extensions/squad-bridge/extension.yml
+  ✓ Manifest: .bridge-manifest.json
+  ✓ Configuration: bridge.config.json
+
+Installation complete. 5 files created.
+Next: Run `npx squad-speckit-bridge status` to verify.
+```
+
+### Step 3: Verify Installation
 
 ```bash
-# Check Squad plugin installed
-ls -la .squad/skills/speckit-bridge/
-
-# Check Spec Kit extension installed
-ls -la .specify/extensions/squad-bridge/
-
-# Check configuration created
-ls -la bridge.config.json
-
-# Test the bridge
-npx squad-speckit-bridge status
+$ npx squad-speckit-bridge status
 ```
 
 Expected output:
+
 ```
-✓ Squad initialized
-✓ Spec Kit initialized
-✓ Bridge plugin loaded
-✓ Bridge extension loaded
-✓ Configuration valid
+Squad-SpecKit Bridge v0.1.0
+
+Frameworks:
+  Squad:    ✓ detected at .squad/
+  Spec Kit: ✓ detected at .specify/
+
+Bridge Components:
+  Squad skill:      ✓ installed (.squad/skills/speckit-bridge/SKILL.md)
+  Ceremony def:     ✓ installed (.squad/ceremonies/design-review.md)
+  Spec Kit ext:     ✓ installed (.specify/extensions/squad-bridge/extension.yml)
+  Manifest:         ✓ present (.bridge-manifest.json)
+
+Configuration:
+  Context max size: 8192 bytes
+  After-tasks hook: enabled
+  Sources:          skills, decisions, histories
+
+Last context run:   (none yet)
 ```
 
-## Configuration
+All items should show `✓`. If any show `✗`, review the troubleshooting section below.
 
-After initialization, customize `bridge.config.json`:
+## Configuration (Optional)
+
+The bridge creates a default `bridge.config.json`. You can customize it:
 
 ```json
 {
-  "version": "0.1.0",
-  "memory": {
-    "contextBudget": 8000,
-    "prioritizeRecent": true,
-    "maxAgentHistories": 3
+  "contextMaxBytes": 8192,
+  "sources": {
+    "skills": true,
+    "decisions": true,
+    "histories": true
   },
-  "review": {
-    "autoCreateIssues": false,
-    "defaultLabel": "squad",
-    "assignmentStrategy": "round-robin"
+  "summarization": {
+    "recencyBiasWeight": 0.7,
+    "maxDecisionAgeDays": 90
   },
-  "extensions": {
-    "squad": {
-      "enabled": true,
-      "skillPath": ".squad/skills/speckit-bridge/"
-    },
-    "speckit": {
-      "enabled": true,
-      "extensionPath": ".specify/extensions/squad-bridge/"
-    }
+  "hooks": {
+    "afterTasks": true
+  },
+  "paths": {
+    "squadDir": ".squad",
+    "specifyDir": ".specify"
   }
 }
 ```
 
-### Configuration Options
+### Common Configuration Tweaks
 
-- **memory.contextBudget** — Maximum tokens to include in memory context (default: 8000)
-- **memory.prioritizeRecent** — Prioritize recent learnings over older ones (default: true)
-- **memory.maxAgentHistories** — Maximum number of agent histories to include (default: 3)
-- **review.autoCreateIssues** — Automatically create issues from tasks without review (default: false)
-- **review.defaultLabel** — GitHub label to apply to auto-created issues (default: "squad")
-- **review.assignmentStrategy** — How to assign issues: `none`, `round-robin`, or `random` (default: "round-robin")
+**Reduce context to 4KB (minimal memory footprint):**
+```json
+{
+  "contextMaxBytes": 4096
+}
+```
+
+**Include only skills (no decisions or histories):**
+```json
+{
+  "sources": {
+    "skills": true,
+    "decisions": false,
+    "histories": false
+  }
+}
+```
+
+**Use custom Squad directory:**
+```json
+{
+  "paths": {
+    "squadDir": "path/to/.squad"
+  }
+}
+```
+
+## Partial Installation (One Framework Only)
+
+If you have Squad **without** Spec Kit:
+
+```bash
+$ npx squad-speckit-bridge install
+```
+
+Output:
+```
+Squad-SpecKit Bridge v0.1.0
+
+Detecting frameworks...
+  ✓ Squad detected at .squad/
+  ⚠ Spec Kit not detected (.specify/ missing)
+
+Installing Squad-only components...
+  ✓ Squad skill: .squad/skills/speckit-bridge/SKILL.md
+  ✓ Manifest: .bridge-manifest.json
+  ✓ Configuration: bridge.config.json
+
+Partial installation complete. 3 files created.
+To complete: Initialize Spec Kit, then run `npx squad-speckit-bridge install` again.
+```
+
+Same applies if you have Spec Kit without Squad — both-sided functionality becomes available once both frameworks are present.
 
 ## Troubleshooting
 
-### "Squad not initialized" error
+### Installation Fails: "Squad not found"
 
+**Symptom:**
+```
+Error: Squad directory not found at .squad/
+```
+
+**Solution:**
 ```bash
 # Initialize Squad first
 npx squad init
+
+# Then run bridge install
+npx squad-speckit-bridge install
 ```
 
-### "Spec Kit not initialized" error
+### Installation Fails: "Spec Kit not found"
 
+**Symptom:**
+```
+Error: Spec Kit directory not found at .specify/
+```
+
+**Solution:**
 ```bash
 # Initialize Spec Kit first
 npx speckit init
+
+# Then run bridge install
+npx squad-speckit-bridge install
 ```
 
-### Bridge status shows warnings
+### Bridge Status Shows Warnings
 
-Run the verification steps above and check that all directories exist and contain expected files.
+**Symptom:**
+```
+⚠ Squad skill installed but path mismatch (.squad/skills/bridge/ vs expected)
+```
 
-### Configuration validation fails
+**Solution:**
+```bash
+# Reinstall with force flag
+npx squad-speckit-bridge install --force
 
-Ensure `bridge.config.json` is valid JSON and all required fields are present. Use the default configuration as a template.
+# Or verify directory structure manually
+ls -la .squad/skills/speckit-bridge/
+ls -la .specify/extensions/squad-bridge/
+```
+
+### "Permission denied" during installation
+
+**Symptom:**
+```
+Error: EACCES: permission denied, mkdir '.squad/skills'
+```
+
+**Solution:**
+```bash
+# Ensure you have write access to .squad/ and .specify/
+chmod -R u+w .squad/ .specify/
+
+# Then retry installation
+npx squad-speckit-bridge install
+```
+
+### Configuration validation errors
+
+**Symptom:**
+```
+Error: bridge.config.json is invalid
+```
+
+**Solution:**
+1. Validate JSON syntax (use `jq . bridge.config.json`)
+2. Delete `bridge.config.json` and reinstall to get defaults:
+   ```bash
+   rm bridge.config.json
+   npx squad-speckit-bridge install
+   ```
+
+### Bridge commands not found after installation
+
+**Symptom:**
+```
+command not found: squad-speckit-bridge
+```
+
+**Solution:**
+```bash
+# Install globally
+npm install -g squad-speckit-bridge
+
+# Or use npx (preferred)
+npx squad-speckit-bridge --help
+```
+
+## Uninstalling
+
+To remove the bridge from your project:
+
+```bash
+# Remove bridge files
+rm -rf .squad/skills/speckit-bridge/
+rm -rf .squad/ceremonies/design-review.md
+rm -rf .specify/extensions/squad-bridge/
+rm bridge.config.json
+rm .bridge-manifest.json
+```
+
+Both Squad and Spec Kit remain unaffected — the bridge is purely additive.
 
 ## Next Steps
 
-Once installed and verified, proceed to:
+After successful installation:
 
-1. **[Usage Guide](usage.md)** — Learn how to use the bridge in your workflow
-2. **[Architecture Overview](architecture.md)** — Understand the design and extension points
-3. Run `npx squad-speckit-bridge context` to inject Squad memory before your first Spec Kit planning cycle
+1. **[Usage Guide](usage.md)** — Learn the memory bridge and design review workflows
+2. **[Architecture Overview](architecture.md)** — Understand design principles and extension points
+3. **First Command:**
+   ```bash
+   npx squad-speckit-bridge context specs/001-my-feature/
+   ```
+   This injects Squad memory into your next Spec Kit planning cycle.
 
 ---
 
-**Note:** 🚧 The installation experience described here documents the planned integration. The `squad-speckit-bridge` CLI and plugin/extension system are not yet implemented. This guide will be updated as development progresses.
+**Stuck?** Review the [Architecture](architecture.md) document for design details, or check the contracts in [specs/001-squad-speckit-bridge/contracts/](../specs/001-squad-speckit-bridge/contracts/).
