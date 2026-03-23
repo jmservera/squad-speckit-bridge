@@ -68,6 +68,13 @@ src/
 │   └── ceremony.ts       # Design Review ceremony definition generator
 └── types.ts              # Shared type definitions
 
+docs/                       # GitHub Pages documentation site (Jekyll)
+├── _config.yml             # Jekyll configuration (theme, title, baseurl)
+├── index.md                # Landing page / project overview
+├── installation.md         # Step-by-step installation guide
+├── usage.md                # CLI command usage with runnable examples
+└── architecture.md         # Clean Architecture layers and knowledge flow loop
+
 tests/
 ├── unit/
 │   ├── context.test.ts   # Memory bridge unit tests
@@ -250,3 +257,13 @@ src/
 ## Complexity Tracking
 
 > No constitution violations. All design choices align with established principles.
+
+## Phase Planning — Documentation Site (US7)
+
+User Story 7 adds a GitHub Pages documentation site deployed from the `docs/` directory on the main branch. The site uses Jekyll (GitHub Pages default) with minimal configuration.
+
+**Scope**: Installation guide, usage guide with runnable CLI examples, architecture overview covering Clean Architecture layers and the knowledge flow loop.
+
+**Approach**: Static markdown pages in `docs/` with a `_config.yml` for Jekyll. Auto-deployed by GitHub Pages from the `docs/` folder on `main`. No custom build step — GitHub Pages handles Jekyll natively.
+
+**Phase placement**: After all P1 stories and alongside other P2 stories (US4, US5). Documentation can be written once the CLI commands are stable (post-US1/US2/US3).
