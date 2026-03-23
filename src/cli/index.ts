@@ -9,6 +9,8 @@
 
 import { Command } from 'commander';
 import { createInstaller, createStatusChecker, createContextBuilder, createReviewer } from '../main.js';
+import { ErrorCodes, createStructuredError } from '../types.js';
+import type { ErrorCode } from '../types.js';
 
 const program = new Command();
 
@@ -22,6 +24,51 @@ program
   .option('--json', 'Output in JSON format', false)
   .option('--quiet', 'Suppress informational output', false)
   .option('--verbose', 'Enable verbose output', false);
+
+/** Classify an error message into a structured error code. */
+function classifyError(message: string, context: string): ErrorCode {
+  const lower = message.toLowerCase();
+  if (lower.includes('permission') || lower.includes('eacces') || lower.includes('eperm')) {
+    return ErrorCodes.PERMISSION_DENIED;
+  }
+  if (lower.includes('invalid') || lower.includes('validation')) {
+    return ErrorCodes.CONFIG_INVALID;
+  }
+  if (lower.includes('parse') || lower.includes('syntax') || lower.includes('malformed')) {
+    return ErrorCodes.PARSE_ERROR;
+  }
+  if (context === 'review' && (lower.includes('not found') || lower.includes('enoent'))) {
+    return ErrorCodes.TASKS_NOT_FOUND;
+  }
+  if (context === 'context' && (lower.includes('spec') && lower.includes('not found'))) {
+    return ErrorCodes.SPEC_DIR_NOT_FOUND;
+  }
+  if (lower.includes('squad') && (lower.includes('not found') || lower.includes('enoent'))) {
+    return ErrorCodes.SQUAD_NOT_FOUND;
+  }
+  if (lower.includes('spec') && (lower.includes('not found') || lower.includes('enoent'))) {
+    return ErrorCodes.SPECKIT_NOT_FOUND;
+  }
+  // Fallback per context
+  const contextDefaults: Record<string, ErrorCode> = {
+    install: ErrorCodes.PERMISSION_DENIED,
+    status: ErrorCodes.SQUAD_NOT_FOUND,
+    context: ErrorCodes.SQUAD_NOT_FOUND,
+    review: ErrorCodes.TASKS_NOT_FOUND,
+  };
+  return contextDefaults[context] ?? ErrorCodes.PARSE_ERROR;
+}
+
+function emitError(message: string, context: string, jsonOutput: boolean): void {
+  const code = classifyError(message, context);
+  if (jsonOutput) {
+    console.error(JSON.stringify(createStructuredError(code, message), null, 2));
+  } else {
+    const structured = createStructuredError(code, message);
+    console.error(`Error [${structured.code}]: ${structured.message}`);
+    console.error(`  Suggestion: ${structured.suggestion}`);
+  }
+}
 
 // Install subcommand
 program
@@ -53,17 +100,7 @@ program
       process.exitCode = 0;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      if (jsonOutput) {
-        console.error(
-          JSON.stringify({
-            error: true,
-            code: 'INSTALL_FAILED',
-            message,
-          }),
-        );
-      } else {
-        console.error(`Error: ${message}`);
-      }
+      emitError(message, 'install', jsonOutput);
       process.exitCode = 1;
     }
   });
@@ -112,17 +149,7 @@ program
       process.exitCode = 0;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      if (jsonOutput) {
-        console.error(
-          JSON.stringify({
-            error: true,
-            code: 'CONTEXT_FAILED',
-            message,
-          }),
-        );
-      } else {
-        console.error(`Error: ${message}`);
-      }
+      emitError(message, 'context', jsonOutput);
       process.exitCode = 1;
     }
   });
@@ -152,17 +179,7 @@ program
       process.exitCode = 0;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      if (jsonOutput) {
-        console.error(
-          JSON.stringify({
-            error: true,
-            code: 'STATUS_FAILED',
-            message,
-          }),
-        );
-      } else {
-        console.error(`Error: ${message}`);
-      }
+      emitError(message, 'status', jsonOutput);
       process.exitCode = 1;
     }
   });
@@ -219,17 +236,7 @@ program
       process.exitCode = 0;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      if (jsonOutput) {
-        console.error(
-          JSON.stringify({
-            error: true,
-            code: 'REVIEW_FAILED',
-            message,
-          }),
-        );
-      } else {
-        console.error(`Error: ${message}`);
-      }
+      emitError(message, 'review', jsonOutput);
       process.exitCode = 1;
     }
   });

@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: squad-bridge
+description: Bridge between Squad team memory and Spec Kit planning pipeline
+
+hooks:
+  after_tasks:
+    script: hooks/after-tasks.sh
+    description: Notify Squad team of new task breakdown for Design Review
+
+commands:
+  bridge-context:
+    script: commands/bridge-context.sh
+    description: Generate Squad context summary for planning
