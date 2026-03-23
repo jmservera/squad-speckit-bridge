@@ -4,11 +4,11 @@
 
 ```mermaid
 graph LR
-    A["🧠 Squad Memory"] -->|"context command"| B["🔗 Memory Bridge"]
-    B -->|"squad-context.md"| C["📋 Spec Kit Planning"]
-    C -->|"specify → plan"| D["✅ Tasks"]
-    D -->|"Design Review"| E["⚡ Execution"]
-    E -->|"history.md + decisions.md"| A
+    A(("🧠<br/>Squad Memory")) -->|"&nbsp;context command&nbsp;"| B["🔗<br/>Memory Bridge"]
+    B -->|"&nbsp;squad-context.md&nbsp;"| C["📋<br/>Spec Kit Planning"]
+    C -->|"&nbsp;specify → plan&nbsp;"| D["✅<br/>Tasks"]
+    D -->|"&nbsp;Design Review&nbsp;"| E["⚡<br/>Execution"]
+    E -->|"&nbsp;history.md&nbsp;<br/>+<br/>&nbsp;decisions.md&nbsp;"| A
 
     style A fill:#6366f1,stroke:#4f46e5,color:#fff
     style B fill:#8b5cf6,stroke:#7c3aed,color:#fff
