@@ -15,13 +15,6 @@ hooks:
       Notifies the Squad team that new tasks are available for Design Review.
       Generates squad-context.md if not already present.
 
-commands:
-  context:
-    script: ./bridge-context.sh
-    description: >
-      Generate a squad-context.md file from Squad memory artifacts.
-      Usage: speckit run squad-bridge context <spec-dir>
-
 config:
   context_max_bytes: 8192
   sources:
