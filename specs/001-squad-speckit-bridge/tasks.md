@@ -166,11 +166,31 @@
 - [ ] T039 [US6] Expand Squad skill content in src/install/templates/skill.md — comprehensive SKILL.md covering all Spec Kit artifact types: spec.md (user stories, requirements, acceptance criteria), plan.md (tech stack, architecture, project structure), tasks.md (phased task breakdown, checklist format, dependency ordering), constitution.md (governance rules, quality gates), research.md (resolved clarifications), data-model.md (entities), contracts/ (interface definitions). Include purpose, structure conventions, and relationship to Squad workflow for each.
 - [ ] T040 [US6] Add bridge workflow knowledge to skill in src/install/templates/skill.md — document the complete bridge workflow (context → specify → plan → tasks → review → execute → learn), the knowledge flywheel concept, how agents should contribute during Design Reviews, patterns for reading/interpreting Spec Kit artifacts, and anti-patterns (common misinterpretations of Spec Kit output).
 
-**Checkpoint**: All user stories are implemented. Squad agents are "bilingual" — they understand both frameworks' artifacts and can participate meaningfully in cross-framework workflows.
+**Checkpoint**: All user stories through US6 are implemented. Squad agents are "bilingual" — they understand both frameworks' artifacts and can participate meaningfully in cross-framework workflows.
 
 ---
 
-## Phase 9: Polish & Cross-Cutting Concerns
+## Phase 9: User Story 7 — GitHub Pages Documentation Site (Priority: P2)
+
+**Goal**: A developer discovers the bridge project and can install, configure, and run it by following the GitHub Pages documentation site alone — no external help needed. The site covers installation, CLI usage with runnable examples, and Clean Architecture overview. Covers FR-022 through FR-024.
+
+**Independent Test**: A new developer can follow the documentation site to install, configure, and run the bridge on a fresh project within 15 minutes.
+
+**Dependencies**: Requires US1 (install command), US2 (context command), US3 (review command) to be implemented — documentation references real CLI output.
+
+### Implementation for User Story 7
+
+- [ ] T047 [US7] Create docs/ directory and Jekyll configuration in docs/_config.yml — title: "Squad-SpecKit Bridge", description, theme: jekyll-theme-minimal (or cayman), baseurl for GitHub Pages, navigation structure
+- [ ] T048 [US7] Create landing page in docs/index.md — project overview, value proposition (knowledge flywheel), quick-start snippet, links to installation/usage/architecture pages
+- [ ] T049 [US7] Create installation guide in docs/installation.md — prerequisites (Node.js 18+, Squad and/or Spec Kit initialized), step-by-step install via npx, verify installation with status command, partial install scenarios, troubleshooting section
+- [ ] T050 [P] [US7] Create usage guide in docs/usage.md — runnable code examples for each CLI command: install (with options), context (with --max-size, --sources flags), review (with --output), status. Include expected output for each command. Cover --json and --verbose flags.
+- [ ] T051 [P] [US7] Create architecture documentation in docs/architecture.md — Clean Architecture layer diagram, dependency rule explanation, knowledge flow loop (Squad memory → context summary → Spec Kit planning → tasks → review → execution → learnings → Squad memory), port interface overview, module mapping to src/ structure
+
+**Checkpoint**: Documentation site is complete and deployable. A developer unfamiliar with the project can install and run the bridge by following only the docs site.
+
+---
+
+## Phase 10: Polish & Cross-Cutting Concerns
 
 **Purpose**: Improvements that span multiple user stories, error handling hardening, and build/distribution setup
 
@@ -189,14 +209,15 @@
 
 - **Setup (Phase 1)**: No dependencies — can start immediately
 - **Foundational (Phase 2)**: Depends on Setup completion — **BLOCKS all user stories**
-- **User Stories (Phases 3–8)**: All depend on Foundational phase completion
+- **User Stories (Phases 3–9)**: All depend on Foundational phase completion
   - US1 (Phase 3): Can start immediately after Foundational
   - US2 (Phase 4): Can start immediately after Foundational (independent of US1)
   - US3 (Phase 5): Depends on US2 adapter T024 (reuses SquadFileReader)
   - US4 (Phase 6): Depends on US2 completion (extends summarizer + context)
   - US5 (Phase 7): Depends on US1 + US3 (needs extension.yml + review command)
   - US6 (Phase 8): Depends on US1 T014 (expands SKILL.md template)
-- **Polish (Phase 9)**: Can start after US1 + US2; fully completes after all stories
+  - US7 (Phase 9): Depends on US1 + US2 + US3 (documents real CLI commands)
+- **Polish (Phase 10)**: Can start after US1 + US2; fully completes after all stories
 
 ### User Story Dependencies
 
@@ -215,8 +236,9 @@
     │     │
     └──┬──┘
        │
-       ▼
-     US5 (needs US1 extension.yml + US3 review command)
+       ├───▶ US5 (needs US1 extension.yml + US3 review command)
+       │
+       ├───▶ US7 (documents US1 + US2 + US3 CLI commands)
        │
        ▼
      Polish
@@ -300,7 +322,8 @@ Task T024: "Implement SquadFileReader in src/bridge/adapters/squad-file-reader.t
 5. **Add US4** → Feedback loop → Knowledge compounds across planning cycles
 6. **Add US5** → Automation → Reduced friction, no manual review triggers
 7. **Add US6** → Agent literacy → Team coherence across both frameworks
-8. Each story adds value without breaking previous stories
+8. **Add US7** → Documentation site → Adoption-ready with install/usage/architecture guides
+9. Each story adds value without breaking previous stories
 
 ### Parallel Team Strategy
 
