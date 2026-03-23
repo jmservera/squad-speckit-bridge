@@ -6,7 +6,7 @@ layout: default
 
 The Squad-SpecKit Bridge applies Clean Architecture principles to create a maintainable, testable integration between two complementary frameworks.
 
-## Framework Layers
+## Conceptual Framework Layers
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -30,274 +30,255 @@ The Squad-SpecKit Bridge applies Clean Architecture principles to create a maint
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Clean Architecture Layers
+## Clean Architecture: 4-Layer Model
 
-The bridge is structured in 4 layers following Uncle Bob's Clean Architecture:
+The bridge implements Uncle Bob's Clean Architecture with 4 concentric layers.
 
-### Layer 0: Entities (Pure Business Logic)
+### Layer 0: Entities (Core Business Logic)
 
-Core domain logic with zero dependencies on external frameworks.
+Pure domain logic with zero external dependencies.
 
 **Key Entities:**
-- **ContextBudget** — Allocates token limits across memory sources, respects recency bias
-- **RelevanceScorer** — Prioritizes agent learnings and decisions by recency and keyword matching
-- **ReviewFinding** — Represents issues or flags discovered during design review
-- **BridgeConfig** — Validates configuration and provides defaults
+- **ContextBudget** — Allocates token limits across memory sources
+- **RelevanceScorer** — Prioritizes learnings by recency
+- **ReviewFinding** — Represents conflicts and risks
+- **BridgeConfig** — Validates configuration
 
 **Properties:**
-- No imports from `fs`, `path`, `commander`, `gray-matter`, or `@octokit/rest`
-- No knowledge of `.squad/`, `.specify/`, or GitHub API
-- Pure algorithms: allocation, scoring, classification
-- Testable without mocks or fixtures
+- ✅ No imports from `fs`, `path`, `commander`, `gray-matter`
+- ✅ Pure algorithms: allocation, scoring, classification
+- ✅ Fully testable without mocks
 
 ### Layer 1: Use Cases (Application Orchestration)
 
-Orchestration logic that coordinates entities and defines ports (interfaces) for external concerns.
+Orchestration logic that coordinates entities and defines ports (interfaces).
 
 **Key Use Cases:**
-- **GenerateContext** — Reads Squad artifacts, scores learnings, produces ContextSummaryDTO
-- **PrepareReview** — Parses tasks, stores them in review state, generates ReviewRecordDTO
-- **InstallBridge** — Validates frameworks, creates directories, outputs InstallManifestDTO
-- **CheckStatus** — Probes frameworks, returns StatusDTO
+- **GenerateContext** — Reads Squad artifacts, scores learnings, produces context summary
+- **PrepareReview** — Parses tasks, generates review template
+- **InstallBridge** — Detects frameworks, deploys components
+- **CheckStatus** — Probes framework initialization
 
 **Port Interfaces (defined here, implemented in Layer 2):**
 - **SquadStatePort** — Read-only access to agent histories and decisions
-- **SpecKitStatePort** — Read/write access to spec files and context
-- **ConfigPort** — Configuration resolution and validation
-- **FileWriterPort** — Persistence of generated files
-- **FrameworkDetectorPort** — Probes for Squad and Spec Kit initialization
-- **IssueTrackerPort** — GitHub issue creation and metadata
+- **SpecKitStatePort** — Read/write access to spec files
+- **ConfigPort** — Configuration resolution
+- **FileWriterPort** — File persistence
+- **FrameworkDetectorPort** — Framework detection
 
 **Properties:**
-- Depend only on entities and port interfaces (never on adapters)
-- All I/O goes through injected ports
-- Return Data Transfer Objects (DTOs), never format-specific data
-- Testable by mocking port interfaces
+- ✅ Depend only on entities and port interfaces
+- ✅ All I/O through injected ports
+- ✅ Fully testable by mocking ports
 
 ### Layer 2: Adapters (Format Conversion)
 
-Concrete implementations of ports that adapt external frameworks/libraries to use case interfaces.
+Concrete implementations of ports that adapt external libraries.
 
 **Key Adapters:**
-- **SquadFileSystemAdapter** — Implements SquadStatePort by reading `.squad/` markdown files
-- **SpecKitFileSystemAdapter** — Implements SpecKitStatePort by reading/writing `.specify/` files
-- **ConfigFileAdapter** — Implements ConfigPort using JSON files
-- **CLIAdapter** — Parses command-line arguments and calls use cases
+- **SquadFileSystemAdapter** — Implements SquadStatePort
+- **SpecKitFileSystemAdapter** — Implements SpecKitStatePort
+- **ConfigFileAdapter** — Implements ConfigPort
+- **CLIAdapter** — Parses command-line arguments
 - **ManifestAdapter** — Generates installation manifests
-- **GitHubIssueAdapter** — Implements IssueTrackerPort using Octokit REST API
-
-**Dependencies:**
-- External: `fs`, `path`, `gray-matter`, `@octokit/rest`, `glob`, `commander`
-- Own layer: Other adapters (via composition root only)
-- Zero knowledge of business logic
 
 **Properties:**
-- Do only format conversion (markdown → DTO, DTO → JSON)
-- Cannot call each other (only called by composition root)
-- Cannot contain business logic
-- Swappable: can replace SquadFileSystemAdapter with SquadDatabaseAdapter without changing use cases
+- ✅ Do only format conversion (markdown ↔ DTO)
+- ✅ Cannot call each other (composition root wires them)
+- ✅ Cannot contain business logic
 
-### Layer 3: Frameworks/Drivers (External Libraries)
+### Layer 3: Frameworks & Drivers
 
-Third-party libraries and infrastructure.
-
-**Examples:**
-- `commander` — CLI framework
-- `gray-matter` — YAML frontmatter parsing
-- `fs`, `path`, `glob` — File system
-- `@octokit/rest` — GitHub API
-- `zod` — Schema validation (future)
-
-## Data Transfer Objects (DTOs)
-
-DTOs carry data across layer boundaries. They own no business logic.
-
-```typescript
-// DTO crossing adapter → use case boundary
-interface ContextGenerationRequest {
-  squadPath: string;
-  specKitPath: string;
-  contextBudget: number;
-  prioritizeRecent: boolean;
-}
-
-// DTO crossing use case → adapter boundary
-interface ContextSummaryDTO {
-  agentLearnings: AgentLearningEntry[];
-  teamDecisions: DecisionEntry[];
-  totalTokensUsed: number;
-  generatedAt: Date;
-}
-```
-
-**Rule:** No raw markdown, file paths, or format-specific data crosses the adapter ↔ use case boundary.
+Third-party libraries: `commander`, `gray-matter`, `fs`, `@octokit/rest`, `glob`
 
 ## Dependency Flow
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  Layer 3: Frameworks                                        │
-│  commander, fs, gray-matter, @octokit/rest, glob           │
-└────────────────────────────────────────────────────────────┘
-                           ↑ uses only
-┌─────────────────────────────────────────────────────────────┐
-│  Layer 2: Adapters                                          │
-│  SquadFS, SpecKitFS, CLI, GitHub, Config, Manifest         │
-│  (Depend on frameworks and implement use case ports)        │
-└────────────────────────────────────────────────────────────┘
-                           ↑ implements
-┌─────────────────────────────────────────────────────────────┐
-│  Layer 1: Use Cases                                         │
-│  GenerateContext, PrepareReview, InstallBridge, CheckStatus│
-│  (Define ports, orchestrate entities)                       │
-└────────────────────────────────────────────────────────────┘
-                           ↑ uses only
-┌─────────────────────────────────────────────────────────────┐
-│  Layer 0: Entities                                          │
-│  ContextBudget, RelevanceScorer, ReviewFinding, BridgeConfig
-│  (Pure logic, no dependencies)                              │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  External Libraries (Layer 3)                                │
+│  commander, fs, gray-matter, glob, @octokit/rest            │
+└────────────────────────────────────┬─────────────────────────┘
+                                     │ used only by
+┌────────────────────────────────────▼─────────────────────────┐
+│  Adapters (Layer 2)                                          │
+│  SquadFS, SpecKitFS, CLI, Config, Manifest                  │
+└────────────────────────────────────┬─────────────────────────┘
+                                     │ implement
+┌────────────────────────────────────▼─────────────────────────┐
+│  Use Cases (Layer 1)                                         │
+│  GenerateContext, PrepareReview, InstallBridge, CheckStatus │
+└────────────────────────────────────┬─────────────────────────┘
+                                     │ use only
+┌────────────────────────────────────▼─────────────────────────┐
+│  Entities (Layer 0)                                          │
+│  ContextBudget, RelevanceScorer, ReviewFinding, BridgeConfig │
+└──────────────────────────────────────────────────────────────┘
+
+RULE: All arrows point inward.
 ```
 
-**Rule:** All dependencies point inward. Nothing in Layer 1 or 0 depends on anything in Layer 2 or 3.
-
-## Knowledge Flow Loop
+## Module Mapping to src/ Directory
 
 ```
-1. Spec Kit Planning
-   spec.md → plan.md → tasks.md
-        │
-        └─→ (Raw tasks, no project context)
-
-2. Memory Bridge (Injection)
-   .squad/agents/*/history.md  ─┐
-   .squad/decisions.md         ─┼─→ Relevance scoring
-   .squad/skills/*/SKILL.md    ─┘
-        │
-        └─→ (squad-context.md: summarized, budgeted)
-
-3. Design Review
-   Review tasks.md + squad-context.md
-        │
-        └─→ (Team validates/refines tasks)
-
-4. Issue Creation
-   tasks-reviewed.md → GitHub Issues
-        │
-        └─→ (Labeled with 'squad', assigned)
-
-5. Squad Execution
-   Ralph (triage) → Agents (work) → Close issues
-        │
-        └─→ (Execution learnings written to history.md)
-
-6. Learning Sync
-   .squad/agents/*/history.md → Summarization
-        │
-        └─→ [Loop back to #1]
+src/
+├── entities/                 # Layer 0: Pure business logic
+│   ├── context-budget.ts
+│   ├── relevance-scorer.ts
+│   ├── review-finding.ts
+│   └── bridge-config.ts
+├── use-cases/                # Layer 1: Application orchestration
+│   ├── ports/
+│   │   ├── squad-state.port.ts
+│   │   ├── speckit-state.port.ts
+│   │   ├── config.port.ts
+│   │   └── framework-detector.port.ts
+│   ├── generate-context.use-case.ts
+│   ├── prepare-review.use-case.ts
+│   ├── install-bridge.use-case.ts
+│   └── check-status.use-case.ts
+├── adapters/                 # Layer 2: Format conversion
+│   ├── squad-filesystem.adapter.ts
+│   ├── speckit-filesystem.adapter.ts
+│   ├── config-file.adapter.ts
+│   ├── cli.adapter.ts
+│   └── manifest.adapter.ts
+├── dto/                      # Data Transfer Objects
+│   ├── context-generation.dto.ts
+│   ├── review-record.dto.ts
+│   ├── install-manifest.dto.ts
+│   └── status.dto.ts
+└── main.ts                   # Composition root (wires layers)
 ```
 
-**Key Insight:** The bridge closes the feedback loop. Without it, each planning cycle would start from zero context. With it, execution learnings compound.
+## Data Transfer Objects (DTOs)
+
+DTOs carry data across layer boundaries with no business logic.
+
+```typescript
+// Adapter → Use Case
+interface ContextGenerationRequest {
+  squadPath: string;
+  specKitPath: string;
+  contextBudget: number;
+  recencyBiasWeight: number;
+}
+
+// Use Case → Adapter
+interface ContextSummaryDTO {
+  agentLearnings: AgentLearningEntry[];
+  teamDecisions: DecisionEntry[];
+  totalBytesUsed: number;
+  generatedAt: Date;
+}
+```
+
+**Rule:** No raw markdown, file paths, or format-specific data crosses layer boundaries.
+
+## Knowledge Flow Loop (The Flywheel)
+
+```
+Step 1: Spec Kit Planning
+────────────────────────
+  spec.md → plan.md → tasks.md (no project context yet)
+
+Step 2: Memory Bridge (Inject Squad Learning)
+──────────────────────────────────────────
+  Read:  .squad/agents/*/history.md, .squad/decisions.md, skills
+  Score: By recency and relevance (ContextBudget, RelevanceScorer entities)
+  Write: squad-context.md (budgeted, summarized)
+
+Step 3: Design Review Ceremony
+──────────────────────────────
+  Team: Validate tasks against real-world experience
+  Output: tasks-reviewed.md (annotations + approval)
+
+Step 4: Issue Creation
+──────────────────────
+  tasks-reviewed.md → GitHub Issues (labeled, assigned)
+
+Step 5: Squad Execution
+──────────────────────
+  Ralph: Triage → Agents: Work → Issues: Closed
+  Learnings: Written to .squad/agents/*/history.md
+
+Step 6: Learning Sync
+────────────────────
+  .squad/agents/*/history.md → Summarization → Persist
+  
+    ⤴ LOOP BACK TO STEP 2
+```
+
+**Key Insight:** Without the loop, each planning cycle starts from zero. With it, execution learnings compound over time.
 
 ## Extension Points
 
 ### For Squad Developers
-
-The bridge provides:
-- **SKILL.md** — Teaches agents about the bridge ceremony and workflow
-- **Ceremony definition** — Design Review ceremony documented in `.squad/ceremonies.md`
-- **Team decisions** — Bridge learnings available in `.squad/decisions.md`
-
-Extend by:
-- Adding agent charters that reference bridge SKILL
-- Creating custom review ceremonies in ceremonies.md
-- Writing agent skills that consume squad-context.md
+- **SKILL.md** — Teaches agents about bridge workflow
+- **Ceremony Definition** — Design Review ceremony in `.squad/ceremonies.md`
+- Extend by creating agent roles specialized in design review
 
 ### For Spec Kit Users
+- **Extension Hooks** — `after_tasks` automation scripts
+- **Context Injection** — `squad-context.md` available in spec templates
+- Extend by creating custom Spec Kit extensions
 
-The bridge provides:
-- **Extension hooks** — Automation scripts that trigger at planning boundaries
-- **Context injection** — `squad-context.md` automatically available in spec templates
-- **Task enrichment** — Ability to annotate tasks with Squad history before issue creation
-
-Extend by:
-- Creating custom Spec Kit extensions that call bridge tools
-- Building templates that leverage squad-context.md
-- Integrating with other framework extensions
-
-### For Custom Integration
-
-The bridge exposes:
-- **MCP Server** (v1.0+) — Tool-based interface for agent frameworks beyond Squad/Spec Kit
+### For Custom Integration (v1.0+)
+- **MCP Server** — Tool-based interface for other agent frameworks
 - **Programmatic API** — TypeScript types and adapter interfaces
-- **CLI** — Extensible command structure for new ceremonies
+- **CLI** — Extensible command structure
 
-## Respect for Framework Boundaries
+## Framework Boundary Respect
 
 The bridge respects each framework's design:
 
-### Squad Boundaries
-
-- ✅ Never writes to Squad's runtime files (team.md, routing.md, orchestration-log)
-- ✅ Never modifies agent charters or casting
+### Squad Boundaries ✅
+- ✅ Never writes to runtime files (team.md, routing.md)
 - ✅ Only reads from `.squad/skills/` and `.squad/decisions.md`
 - ✅ Read-only access to agent histories
 
-### Spec Kit Boundaries
-
+### Spec Kit Boundaries ✅
 - ✅ Never modifies spec.md or plan.md
-- ✅ Reads only from tasks.md (output)
+- ✅ Reads only from tasks.md output
 - ✅ Writes only to squad-context.md (external input)
 - ✅ Uses only documented extension hooks
 
-### GitHub Boundaries
-
-- ✅ Creates issues with clear provenance (`generated from squad-speckit-bridge`)
-- ✅ Uses documented labels and metadata
-- ✅ Respects existing issue workflow
-
 ## Technology Stack
 
-### Core Dependencies
-- **TypeScript** — Type safety, editor support
+### Core
+- **TypeScript 5.x** — Type safety
 - **zod** — Runtime schema validation
 - **gray-matter** — YAML frontmatter parsing
-- **commander** — CLI argument parsing
-- **@octokit/rest** — GitHub API (for v1.0+)
+- **commander** — CLI framework
 - **glob** — File pattern matching
 
 ### Testing
-- **Jest** — Test runner and assertions
-- **ts-jest** — TypeScript test support
-- **@types/jest** — Type definitions
+- **Vitest** — TypeScript-native test runner
+- **Jest** — Assertions library
 
 ### Optional (v1.0+)
-- **@modelcontextprotocol/sdk** — MCP server implementation
-- **pino** — Structured logging
+- **@modelcontextprotocol/sdk** — MCP server
+- **@octokit/rest** — GitHub API
 
 ## Implementation Roadmap
 
 **Phase 1 (Current):**
-- Entities layer (ContextBudget, RelevanceScorer, ReviewFinding, BridgeConfig)
-- Use cases with port interfaces (GenerateContext, PrepareReview, InstallBridge, CheckStatus)
-- Core adapters (SquadFS, SpecKitFS, Config)
-- CLI interface (commander-based)
-- Squad plugin (SKILL.md)
-- Spec Kit extension hooks
-- Test pyramid: 60 tests (entities, use cases, adapters, CLI, E2E)
+- Entities layer (pure business logic)
+- Use cases with port interfaces
+- Core adapters (SquadFS, SpecKitFS, Config, CLI)
+- Squad plugin (SKILL.md, ceremony definition)
+- Spec Kit extension hooks (after_tasks)
+- 60 test cases
 
 **Phase 2 (v0.2):**
-- GitHubIssueAdapter (full issue creation workflow)
+- GitHubIssueAdapter (full workflow)
 - Learning sync use case
-- GitHub Actions workflow templates
-- Installation package and publish to npm
+- Installation package (npm)
 
 **Phase 3 (v1.0):**
 - MCP server wrapper
-- Advanced feature: automatic memory pruning
-- Integration with other frameworks via MCP
-- Documentation website (this site)
+- Advanced features (memory pruning)
+- Multi-framework integration
 
 ---
 
-**For questions about design decisions**, see [.squad/decisions.md](../.squad/decisions.md) in the project repository.
+**Design Decision Details:** See [.squad/decisions.md](../.squad/decisions.md)

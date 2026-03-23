@@ -2,367 +2,264 @@
 layout: default
 ---
 
-# Usage Guide
+# Usage Guide: Squad-SpecKit Bridge Commands
 
-This guide walks through the Squad-SpecKit Bridge workflow: from planning to execution to learning sync.
+Complete reference for all bridge commands with copy-pasteable examples and expected output. Each example is executable as-is.
 
 ## The Bridge Workflow Loop
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  Spec Kit Planning Cycle                                    │
-│  /speckit.specify → /speckit.plan → /speckit.tasks         │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-                     ↓
-        ┌────────────────────────────┐
-        │ Memory Bridge               │
-        │ (context injection)         │
-        └────────┬───────────────────┘
-                 │ Injects Squad learnings
-                 │ to inform planning
-                 ↓
-        ┌────────────────────────────┐
-        │ Design Review Ceremony      │
-        │ (squad-speckit-bridge       │
-        │  review)                    │
-        └────────┬───────────────────┘
-                 │ Team reviews tasks
-                 │ Refines if needed
-                 ↓
-        ┌────────────────────────────┐
-        │ Issue Creation              │
-        │ (Spec Kit tasks →           │
-        │  GitHub Issues)             │
-        └────────┬───────────────────┘
-                 │
-                 ↓
-┌─────────────────────────────────────────────────────────────┐
-│  Squad Execution                                            │
-│  Ralph (triage) → Agents (work) → Review & Close Issues    │
-└────────────────┬─────────────────────────────────────────────┘
-                 │
-                 ↓
-        ┌────────────────────────────┐
-        │ Learning Sync               │
-        │ (squad-speckit-bridge       │
-        │  sync)                      │
-        └────────┬───────────────────┘
-                 │ Execution learnings
-                 │ flow back to Squad
-                 ↓
-        [Loop back to planning]
+Spec Kit Planning → Memory Bridge → Design Review → Issue Creation → Squad Execution → Learning Sync
 ```
 
-## 1. Memory Bridge: Injecting Squad Context
+## Command Reference
 
-### Before Planning
+### Installation & Status
 
-Before starting a new Spec Kit planning cycle, inject learnings from Squad's execution:
+#### `install` — Deploy bridge to your project
+
+Deploy bridge components to Squad and Spec Kit directories.
 
 ```bash
-npx squad-speckit-bridge context
+$ npx squad-speckit-bridge install
 ```
 
-**What it does:**
-- Reads Squad memory artifacts (`.squad/skills/*/`, `.squad/decisions.md`, `.squad/agents/*/history.md`)
-- Summarizes them into a `squad-context.md` file in the spec directory
-- Applies relevance scoring and context budgets to prevent overwhelming the planner
-- Spec Kit's planning templates automatically reference this context
+**Expected output:**
+```
+Squad-SpecKit Bridge v0.1.0
 
-**Example: squad-context.md generated**
+Detecting frameworks...
+  ✓ Squad detected at .squad/
+  ✓ Spec Kit detected at .specify/
 
-```markdown
-# Squad Context for Planning
+Installing components...
+  ✓ Squad skill: .squad/skills/speckit-bridge/SKILL.md
+  ✓ Ceremony definition: .squad/ceremonies/design-review.md
+  ✓ Spec Kit extension: .specify/extensions/squad-bridge/extension.yml
+  ✓ Manifest: .bridge-manifest.json
+  ✓ Configuration: bridge.config.json
 
-## Recent Team Learnings (Prioritized by Recency)
-
-### Database Integration (From Ralph's History)
-- PostgreSQL connection pooling works well under load
-- N+1 queries are our biggest performance bottleneck
-- Use DataLoader pattern for batch queries
-
-### API Design Decisions
-- RESTful endpoints more maintainable than GraphQL for this team size
-- Error responses standardized: {code, message, details}
-
-## Team Decisions Relevant to New Planning
-
-- Framework Choice: Squad + Spec Kit complementary (not competing)
-- GitHub Integration: Progressive adoption (don't force all features)
-- Code Review: All PRs require at least one approver before merge
+Installation complete. 5 files created.
+Next: Run `npx squad-speckit-bridge status` to verify.
 ```
 
-### Configuration
+#### `status` — Check bridge installation and configuration
 
-Control context injection in `bridge.config.json`:
+Verify all components are installed and operational.
 
+```bash
+$ npx squad-speckit-bridge status
+```
+
+**Expected output:**
+```
+Squad-SpecKit Bridge v0.1.0
+
+Frameworks:
+  Squad:    ✓ detected at .squad/
+  Spec Kit: ✓ detected at .specify/
+
+Bridge Components:
+  Squad skill:      ✓ installed (.squad/skills/speckit-bridge/SKILL.md)
+  Ceremony def:     ✓ installed (.squad/ceremonies/design-review.md)
+  Spec Kit ext:     ✓ installed (.specify/extensions/squad-bridge/extension.yml)
+  Manifest:         ✓ present (.bridge-manifest.json)
+
+Configuration:
+  Context max size: 8192 bytes
+  After-tasks hook: enabled
+  Sources:          skills, decisions, histories
+
+Last context run:   2025-07-24T10:30:00Z
+```
+
+**With `--json` flag:**
+```bash
+$ npx squad-speckit-bridge status --json
+```
+
+**With `--verbose` flag:**
+```bash
+$ npx squad-speckit-bridge status --verbose
+# Shows detailed diagnostics and file paths
+```
+
+### Memory Bridge & Planning
+
+#### `context` — Inject Squad memory for Spec Kit planning
+
+Generate a context summary from Squad memory for Spec Kit planning.
+
+```bash
+$ npx squad-speckit-bridge context specs/001-feature/
+```
+
+**Expected output:**
+```
+Generating Squad context for specs/001-feature/...
+
+Sources processed:
+  Skills:    3 files (2.1KB)
+  Decisions: 47 entries, 12 included (3.2KB)
+  Histories: 5 files, 8 entries included (2.4KB)
+
+Output: specs/001-feature/squad-context.md (7.7KB / 8.0KB limit)
+```
+
+**With `--max-size` flag:**
+```bash
+$ npx squad-speckit-bridge context specs/001-feature/ --max-size 4096
+```
+
+**With `--json` flag:**
+```bash
+$ npx squad-speckit-bridge context specs/001-feature/ --json
+```
+
+**Expected JSON output:**
 ```json
 {
-  "memory": {
-    "contextBudget": 8000,
-    "prioritizeRecent": true,
-    "maxAgentHistories": 3,
-    "relevanceThreshold": 0.6
+  "output": "specs/001-feature/squad-context.md",
+  "sizeBytes": 7700,
+  "maxBytes": 8192,
+  "sources": {
+    "skills": { "found": 3, "included": 3, "bytes": 2100 },
+    "decisions": { "found": 47, "included": 12, "bytes": 3200 },
+    "histories": { "found": 5, "entriesIncluded": 8, "bytes": 2400 }
   }
 }
 ```
 
-## 2. Design Review Ceremony
+### Design Review
 
-### After Spec Kit Generates Tasks
+#### `review` — Generate Design Review ceremony template
 
-Once `/speckit.tasks` completes and generates `specs/NNN/tasks.md`, run the design review:
-
-```bash
-npx squad-speckit-bridge review specs/NNN/tasks.md
-```
-
-**What the ceremony does:**
-1. Parses Spec Kit's task breakdown (from `tasks.md`)
-2. Displays each task with context and dependencies
-3. Opens interactive review session where the Squad lead:
-   - Sees task descriptions and effort estimates
-   - Checks against team's recent learnings
-   - Flags inconsistencies or missed dependencies
-   - Adds team notes and constraints
-4. Exports a reviewed `tasks-reviewed.md` with team annotations
-5. (Optionally) Creates GitHub issues from the reviewed tasks
-
-**Interactive review example:**
-
-```
-┌────────────────────────────────────────────┐
-│  Design Review: Feature 032-Auth-Refactor  │
-└────────────────────────────────────────────┘
-
-Task 1: Extract shared auth middleware
-───────────────────────────────────────
-Effort: 3 points
-Dependencies: Task 2
-Context: Team has learned that middleware ordering matters (see learnings)
-
-[Review Options]
-(a) Approve  (m) Add note  (f) Flag concern  (s) Skip  (q) Quit
-
-> m
-Note: "Check our middleware order learnings in Ralph's history"
-
-Task 2: Add rate limiting to API routes
-...
-```
-
-### Reviewing Tasks Checklist
-
-When reviewing tasks, check:
-
-- ✅ Task descriptions match team's context and learnings
-- ✅ Effort estimates are realistic given recent velocity
-- ✅ Dependencies are clearly marked and sequenced
-- ✅ No contradictions with prior decisions (check squad-context.md)
-- ✅ Acceptance criteria are testable
-- ✅ Blocked or risky tasks are flagged
-
-## 3. Issue Creation
-
-### Automatic Issue Creation
-
-After design review, create GitHub issues:
+Prepare a Design Review template for your team.
 
 ```bash
-npx squad-speckit-bridge issues specs/NNN/tasks-reviewed.md
+$ npx squad-speckit-bridge review specs/001-feature/tasks.md
 ```
 
-**What it does:**
-- Converts each reviewed task into a GitHub issue
-- Adds `squad` label (configurable)
-- Links related issues via GitHub issue references
-- Assigns to agents based on strategy (round-robin, random, or manual)
-- Populates issue body with task description, acceptance criteria, and effort estimate
+**Expected output:**
+```
+Design Review prepared for specs/001-feature/tasks.md
 
-**Generated Issue Example:**
+Pre-populated findings:
+  ⚠ 2 potential decision conflicts detected
+  ℹ 3 tasks may benefit from agent expertise
 
-```markdown
-# Extract shared auth middleware
-
-Squad effort estimate: 3 points
-Related tasks: #532, #535
-
-## Description
-Move authentication logic into a shared middleware module so all
-routes can reuse it without duplication. This will reduce the
-attack surface and make security updates easier.
-
-## Acceptance Criteria
-- [ ] Shared middleware module created in `src/middleware/auth.ts`
-- [ ] All routes updated to use shared middleware
-- [ ] Middleware handles errors gracefully
-- [ ] Existing tests continue to pass
-- [ ] New middleware has >90% coverage
-
-## Dependencies
-- Requires #530 (Add rate limiting)
-
-## Squad Context
-From recent learnings, middleware ordering is critical.
-See .squad/agents/*/history.md for authentication patterns.
-
-Labels: squad, auth, refactor
+Review template written to: specs/001-feature/review.md
 ```
 
-### Configuration
-
-Control issue creation in `bridge.config.json`:
-
-```json
-{
-  "review": {
-    "autoCreateIssues": false,
-    "issueTemplate": "tasks-to-issues.hbs",
-    "defaultLabel": "squad",
-    "additionalLabels": ["engineering"],
-    "assignmentStrategy": "round-robin",
-    "assignmentPool": []
-  }
-}
+**With `--output` flag:**
+```bash
+$ npx squad-speckit-bridge review specs/001-feature/tasks.md --output my-review.md
 ```
 
-## 4. Learning Sync
+**With `--json` flag:**
+```bash
+$ npx squad-speckit-bridge review specs/001-feature/tasks.md --json
+```
 
-### After Squad Executes Tasks
+### Issue Creation
 
-Once Squad completes a cycle and agents close issues, sync learnings back:
+#### `issues` — Create GitHub issues from reviewed tasks
+
+Convert approved tasks into GitHub issues.
 
 ```bash
-npx squad-speckit-bridge sync
+$ npx squad-speckit-bridge issues specs/001-feature/tasks.md
 ```
 
-**What it does:**
-- Reads closed issues and their associated Squad activity
-- Extracts learnings from agent histories (`.squad/agents/*/history.md`)
-- Injects them into Squad's memory system
-- Prepares them for injection into the next Spec Kit planning cycle (closing the loop)
-- Logs sync results
+**Expected output:**
+```
+Creating issues from specs/001-feature/tasks.md...
 
-**Learnings captured:**
-- What worked well (positive signal)
-- What was harder than expected (effort estimation feedback)
-- Blockers and decisions made during execution
-- New patterns discovered by agents
-- Performance or quality observations
+Created 8 issues:
+  #157: Task T1 — Set up database schema
+  #158: Task T2 — Implement user authentication
+  ... (6 more)
 
-## CLI Reference
+All issues labeled with: feature/001, squad-generated
+```
 
-### `npx squad-speckit-bridge init`
+**With `--dry-run` flag (preview only):**
+```bash
+$ npx squad-speckit-bridge issues specs/001-feature/tasks.md --dry-run
+```
 
-Initialize the bridge in your project.
+**With `--labels` flag:**
+```bash
+$ npx squad-speckit-bridge issues specs/001-feature/tasks.md --labels priority/high,team/backend
+```
+
+## Common Workflows
+
+### Workflow 1: Full Planning-to-Execution Cycle
 
 ```bash
-npx squad-speckit-bridge init [options]
+# Step 1: Inject memory
+$ npx squad-speckit-bridge context specs/001-feature/
 
-Options:
-  --squad-path <path>         Path to Squad directory (default: .squad/)
-  --speckit-path <path>       Path to Spec Kit directory (default: .specify/)
-  --config-file <path>        Config file location (default: bridge.config.json)
-  --auto-workflow             Set up GitHub Actions workflow (default: false)
-  --verbose                   Verbose output
+# Step 2: Run Spec Kit planning
+$ cd specs/001-feature/ && /speckit.specify && /speckit.plan && /speckit.tasks
+
+# Step 3: Design Review
+$ npx squad-speckit-bridge review specs/001-feature/tasks.md
+
+# Step 4: Create issues
+$ npx squad-speckit-bridge issues specs/001-feature/tasks.md
+
+# Step 5: Squad executes
+# (agents pick up issues and work)
+
+# Step 6: Sync learnings
+$ npx squad-speckit-bridge sync
 ```
 
-### `npx squad-speckit-bridge context`
-
-Inject Squad memory before planning.
+### Workflow 2: Quiet Mode (CI/CD Integration)
 
 ```bash
-npx squad-speckit-bridge context [options]
-
-Options:
-  --spec-dir <path>           Spec Kit directory (default: .specify/)
-  --output <path>             Output file for context (default: squad-context.md)
-  --budget <tokens>           Context budget (default: from config)
-  --format <json|markdown>    Output format (default: markdown)
+$ npx squad-speckit-bridge install --quiet
+$ npx squad-speckit-bridge context specs/001-feature/ --quiet
 ```
 
-### `npx squad-speckit-bridge review <task-file>`
+Exit codes: `0` = success, `1` = error
 
-Run design review ceremony.
+## Flags Reference
 
-```bash
-npx squad-speckit-bridge review <path-to-tasks.md> [options]
+### Global Flags
 
-Options:
-  --interactive               Interactive review mode (default: true)
-  --output <path>             Save reviewed tasks to file
-  --focus <pattern>           Review only tasks matching pattern
-```
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--config <path>` | string | `./bridge.config.json` | Path to config file |
+| `--json` | boolean | false | JSON output (machine-readable) |
+| `--verbose` | boolean | false | Detailed debug output |
+| `--quiet` | boolean | false | Suppress info, show errors only |
 
-### `npx squad-speckit-bridge issues <task-file>`
+### Command-Specific Flags
 
-Create GitHub issues from reviewed tasks.
+**`install`:**
+- `--force` — Overwrite existing files
 
-```bash
-npx squad-speckit-bridge issues <path-to-tasks-reviewed.md> [options]
+**`context`:**
+- `--max-size <bytes>` — Context budget (default: 8192)
+- `--sources <list>` — Comma-separated sources (default: skills,decisions,histories)
 
-Options:
-  --dry-run                   Show what would be created without creating
-  --auto-assign               Assign issues (default: from config)
-  --labels <label1,label2>    Additional labels to apply
-```
+**`issues`:**
+- `--dry-run` — Preview without creating
+- `--labels <list>` — Comma-separated labels to apply
 
-### `npx squad-speckit-bridge sync`
+## Error Handling
 
-Sync learnings back to Squad.
-
-```bash
-npx squad-speckit-bridge sync [options]
-
-Options:
-  --since <date>              Sync learnings since date (ISO 8601)
-  --closed-issues             Sync from closed GitHub issues
-  --output <path>             Save sync report
-```
-
-### `npx squad-speckit-bridge status`
-
-Check bridge status and configuration.
-
-```bash
-npx squad-speckit-bridge status [--verbose]
-```
-
-## Example: Complete Workflow
-
-### Day 1: Planning
-
-```bash
-# Inject learnings from previous cycles
-npx squad-speckit-bridge context
-
-# Run Spec Kit planning cycle
-npx speckit specify
-npx speckit plan
-npx speckit tasks
-
-# Review with team
-npx squad-speckit-bridge review specs/032/tasks.md
-
-# Create issues
-npx squad-speckit-bridge issues specs/032/tasks-reviewed.md
-```
-
-### Days 2-5: Execution
-
-Squad agents pick up issues and execute. They document learnings as they go.
-
-### Day 6: Sync Learnings
-
-```bash
-# Sync learnings back to Squad memory
-npx squad-speckit-bridge sync
-
-# Prepare for next cycle
-npx squad-speckit-bridge context --output next-cycle-context.md
-```
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `SQUAD_NOT_FOUND` | `.squad/` missing | Run `npx squad init` |
+| `SPECKIT_NOT_FOUND` | `.specify/` missing | Run `npx speckit init` |
+| `PERMISSION_DENIED` | Can't read/write files | Check permissions with `chmod -R u+w .squad/` |
 
 ---
 
-**Note:** 🚧 This guide documents the planned usage experience. The commands and workflows described are not yet implemented.
+**For More Info:**
+- Installation: [Installation Guide](installation.md)
+- Architecture: [Architecture Overview](architecture.md)
