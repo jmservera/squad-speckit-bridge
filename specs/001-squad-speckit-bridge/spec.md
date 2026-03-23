@@ -103,6 +103,22 @@ Squad agents who have the bridge skill installed understand Spec Kit's artifacts
 
 ---
 
+### User Story 7 — GitHub Pages Documentation Site (Priority: P2)
+
+A developer discovers the bridge project and wants to understand how to install and use it before committing to adoption.
+
+**Why this priority**: Documentation is essential for adoption. Without clear install/usage docs, the bridge won't get used even if it works perfectly.
+
+**Independent Test**: A new developer can follow the documentation site to install, configure, and run the bridge on a fresh project within 15 minutes.
+
+**Acceptance Scenarios**:
+
+1. **Given** a developer visits the GitHub Pages site, **When** they read the installation guide, **Then** they have all steps needed to install the bridge
+2. **Given** a developer has installed the bridge, **When** they read the usage guide, **Then** they can run each bridge command (context, review, sync) successfully
+3. **Given** a developer wants to understand the architecture, **When** they read the architecture page, **Then** they understand the Clean Architecture layers and knowledge flow loop
+
+---
+
 ### Edge Cases
 
 - What happens when Squad's `decisions.md` contains entries that contradict Spec Kit's `constitution.md`? The bridge should surface the contradiction in the context summary with references to both documents, but not attempt to resolve it automatically — governance conflicts require human judgment.
@@ -158,6 +174,12 @@ Squad agents who have the bridge skill installed understand Spec Kit's artifacts
 - **FR-020**: The bridge MUST detect when one framework is absent and operate in degraded mode: silently skip unavailable operations and emit a warning to stderr indicating which framework is missing and how to complete the setup. No interactive confirmation is required — degraded mode is non-blocking.
 - **FR-021**: The bridge CLI MUST support a `--verbose` flag that emits diagnostic output to stderr: files being processed, files skipped (with reason), byte counts during summarization, and timing information. This flag is orthogonal to `--json` (which controls stdout format).
 
+**Documentation**
+
+- **FR-022**: Project MUST include a GitHub Pages documentation site with installation, usage, and architecture guides
+- **FR-023**: Documentation site MUST be auto-deployed from the `docs/` directory on the main branch
+- **FR-024**: Documentation MUST include runnable code examples for each CLI command
+
 ### Key Entities
 
 - **Context Summary**: A document (placed in the spec directory) containing prioritized knowledge extracted from Squad's memory. Attributes: source files read, timestamp, size, priority-ordered content sections (skills, decisions, learnings).
@@ -177,6 +199,7 @@ Squad agents who have the bridge skill installed understand Spec Kit's artifacts
 - **SC-006**: The full knowledge loop (plan → execute → learn → re-plan) demonstrates measurable improvement: the context summary for cycle N+1 contains learnings from cycle N, and those learnings are referenced in the subsequent specification or plan output.
 - **SC-007**: The bridge adds zero overhead to developers who don't use it — both frameworks function identically with or without the bridge installed, verified by running each framework's standard workflow independently.
 - **SC-008**: Installation succeeds on repositories using any combination of Squad and Spec Kit, including partial setups (only one framework present), and provides clear next-step guidance for completing the integration.
+- **SC-009**: A developer unfamiliar with the project can install and run the bridge by following only the documentation site (no external help needed)
 
 ## Assumptions
 
