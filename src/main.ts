@@ -1,5 +1,5 @@
 /**
- * T020: Composition Root
+ * T020 + T027: Composition Root
  *
  * Wires real adapters into use cases via constructor injection.
  * The ONLY file that knows about all layers. No business logic here.
@@ -18,6 +18,10 @@ import { TasksParser } from './review/adapters/tasks-parser.js';
 import { ReviewWriter } from './review/adapters/review-writer.js';
 import { SquadFileReader } from './bridge/adapters/squad-reader.js';
 import type { StatusReport } from './install/status.js';
+import type { InstallManifest, ContextSummary } from './types.js';
+import { SquadFileReader } from './bridge/adapters/squad-file-reader.js';
+import { SpecKitContextWriter } from './bridge/adapters/speckit-writer.js';
+import { buildSquadContext } from './bridge/context.js';
 import type { InstallManifest, DesignReviewRecord } from './types.js';
 
 // Resolve template directory relative to this module
@@ -311,41 +315,182 @@ function formatStatusHuman(report: StatusReport): string {
   return lines.join('\n');
 }
 
-function formatReviewHuman(
-  record: DesignReviewRecord,
+// --- T027: Context Builder Composition ---
+
+export interface ContextBuilderOptions {
+  configPath?: string;
+  squadDir?: string;
+  specDir: string;
+  maxSize?: number;
+  sources?: {
+    skills: boolean;
+    decisions: boolean;
+    histories: boolean;
+  };
+  baseDir?: string;
+}
+
+export interface ContextOutput {
+  humanOutput: string;
+  jsonOutput: {
+    output: string;
+    sizeBytes: number;
+    maxBytes: number;
+    sources: {
+      skills: { found: number; included: number; bytes: number };
+      decisions: { found: number; included: number; bytes: number };
+      histories: { found: number; entriesIncluded: number; bytes: number };
+    };
+    skipped: { file: string; reason: string }[];
+    warnings: string[];
+  };
+}
+
+export function createContextBuilder(options: ContextBuilderOptions) {
+  const baseDir = options.baseDir ?? process.cwd();
+  const configLoader = new ConfigFileLoader({
+    configPath: options.configPath,
+    baseDir,
+  });
+
+  return {
+    async build(): Promise<ContextOutput> {
+      const config = await configLoader.load();
+
+      // Apply CLI overrides
+      if (options.squadDir) config.paths.squadDir = options.squadDir;
+      if (options.maxSize) config.contextMaxBytes = options.maxSize;
+      if (options.sources) {
+        config.sources = { ...config.sources, ...options.sources };
+      }
+
+      const squadDirPath = resolve(baseDir, config.paths.squadDir);
+      const specDirPath = resolve(baseDir, options.specDir);
+
+      const reader = new SquadFileReader(squadDirPath);
+      const writer = new SpecKitContextWriter(specDirPath);
+
+      const { summary } = await buildSquadContext(reader, writer, { config });
+
+      const outputPath = `${options.specDir}/squad-context.md`;
+      const readerWarnings = reader.getWarnings();
+
+      const humanOutput = formatContextHuman(summary, outputPath, readerWarnings);
+      const jsonOutput = formatContextJson(summary, outputPath, readerWarnings);
+
+      return { humanOutput, jsonOutput };
+    },
+  };
+}
+
+function formatContextHuman(
+  summary: ContextSummary,
   outputPath: string,
+  parseWarnings: { file: string; reason: string }[],
 ): string {
   const lines: string[] = [];
-  lines.push(`Design Review prepared for ${record.reviewedArtifact}`);
-  lines.push('');
-  lines.push('Pre-populated findings:');
+  const m = summary.metadata;
 
+  lines.push(`Generating Squad context...`);
+  lines.push('');
+  lines.push('Sources processed:');
+  lines.push(`  Skills:    ${m.sources.skills} included`);
+  lines.push(`  Decisions: ${m.sources.decisions} included`);
+  lines.push(`  Histories: ${m.sources.histories} included`);
+
+  if (m.sources.skipped.length > 0) {
+    lines.push(`  Skipped:   ${m.sources.skipped.length} entries`);
+  }
+
+  if (parseWarnings.length > 0) {
+    lines.push('');
+    lines.push('Warnings:');
+    for (const w of parseWarnings) {
+      lines.push(`  ⚠ ${w.file}: ${w.reason}`);
+    }
+  }
+
+  lines.push('');
+  lines.push(
+    `Output: ${outputPath} (${(m.sizeBytes / 1024).toFixed(1)}KB / ${(m.maxBytes / 1024).toFixed(1)}KB limit)`,
+  );
+function formatReviewHuman(
+  record: DesignReviewRecord,
+  lines.push(`Design Review prepared for ${record.reviewedArtifact}`);
+  lines.push('Pre-populated findings:');
   const high = record.findings.filter((f) => f.severity === 'high').length;
   const medium = record.findings.filter((f) => f.severity === 'medium').length;
   const low = record.findings.filter((f) => f.severity === 'low').length;
-
   if (high > 0) lines.push(`  🔴 ${high} high severity issue(s)`);
   if (medium > 0)
     lines.push(`  ⚠ ${medium} potential decision conflict(s) detected`);
   if (low > 0) lines.push(`  ℹ ${low} task(s) may benefit from agent expertise`);
-
   if (record.findings.length === 0) {
     lines.push('  ✓ No issues detected');
-  }
-
-  lines.push('');
   lines.push(`Review template written to: ${outputPath}`);
   lines.push('Next: Run the Design Review ceremony with your Squad team.');
 
   return lines.join('\n');
 }
 
+function formatContextJson(
+  summary: ContextSummary,
+  outputPath: string,
+  parseWarnings: { file: string; reason: string }[],
+) {
+  const m = summary.metadata;
+
+  const encoder = new TextEncoder();
+  const skillBytes = summary.content.skills.reduce(
+    (acc, s) => acc + encoder.encode(s.context).length,
+    0,
+  );
+  const decisionBytes = summary.content.decisions.reduce(
+    (acc, d) => acc + encoder.encode(d.summary + d.fullContent).length,
+    0,
+  );
+  const learningBytes = summary.content.learnings.reduce(
+    (acc, l) =>
+      acc +
+      l.entries.reduce(
+        (a, e) => a + encoder.encode(e.summary).length,
+        0,
+      ),
+    0,
+  );
+
+  const totalEntries = summary.content.learnings.reduce(
+    (acc, l) => acc + l.entries.length,
+    0,
+  );
+
+  return {
+    output: outputPath,
+    sizeBytes: m.sizeBytes,
+    maxBytes: m.maxBytes,
+    sources: {
+      skills: {
+        found: m.sources.skills,
+        included: m.sources.skills,
+        bytes: skillBytes,
+      },
+      decisions: {
+        found: m.sources.decisions,
+        included: m.sources.decisions,
+        bytes: decisionBytes,
+      },
+      histories: {
+        found: m.sources.histories,
+        entriesIncluded: totalEntries,
+        bytes: learningBytes,
+      },
+    },
+    skipped: parseWarnings.map((w) => ({ file: w.file, reason: w.reason })),
+    warnings: summary.content.warnings,
 function formatReviewJson(record: DesignReviewRecord, outputPath: string) {
   const high = record.findings.filter((f) => f.severity === 'high').length;
   const medium = record.findings.filter((f) => f.severity === 'medium').length;
   const low = record.findings.filter((f) => f.severity === 'low').length;
-
-  return {
     reviewedArtifact: record.reviewedArtifact,
     timestamp: record.timestamp,
     approvalStatus: record.approvalStatus,
