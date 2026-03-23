@@ -11,9 +11,17 @@ The bridge is **automation-first**. After installation, most work happens automa
 **Most teams never run manual commands.** This is what normally happens:
 
 ```bash
-# Step 1: One-time installation
+# Step 1: One-time installation (choose one method)
+# Method A: Use directly with npx (recommended)
 $ npx @jmservera/squad-speckit-bridge install
-# Result: Bridge components deployed. That's it.
+
+# Method B: Install globally
+# $ npm install -g @jmservera/squad-speckit-bridge
+# $ squad-speckit-bridge install
+
+# Method C: Add to your project
+# $ npm install --save-dev @jmservera/squad-speckit-bridge
+# $ npx squad-speckit-bridge install
 
 # Step 2: Use Spec Kit normally
 $ cd specs/001-feature/
@@ -76,6 +84,8 @@ The bridge respects a configurable context size limit (default: 8KB). Recent and
 ## Manual Commands (When You Need Direct Control)
 
 **Most teams don't use these.** They're available when you want to override automation or integrate with CI/CD.
+
+**Note:** All command examples use `npx @jmservera/squad-speckit-bridge`. If you installed globally, use `squad-speckit-bridge` instead. If you added to your project, use `npx squad-speckit-bridge`.
 
 ### `context` — Manually Regenerate Memory Context
 
@@ -276,8 +286,17 @@ After editing `bridge.config.json`, changes take effect immediately on the next 
 ### Workflow 1: Automatic (Recommended for Most Teams)
 
 ```bash
-# Step 1: Install once
+# Step 1: Install once (choose one method)
+# Method A: npx (recommended, no install needed)
 $ npx @jmservera/squad-speckit-bridge install
+
+# Method B: globally
+# $ npm install -g @jmservera/squad-speckit-bridge
+# $ squad-speckit-bridge install
+
+# Method C: as dev dependency
+# $ npm install --save-dev @jmservera/squad-speckit-bridge
+# $ npx squad-speckit-bridge install
 
 # Step 2: Plan normally — everything happens automatically
 $ cd specs/001-feature/
@@ -288,7 +307,7 @@ $ /speckit.specify && /speckit.plan && /speckit.tasks
 # Open: specs/001-feature/review.md
 # Discuss and approve
 
-# Step 4: Create issues
+# Step 4: Create issues (use same method as install above)
 $ npx @jmservera/squad-speckit-bridge issues specs/001-feature/tasks.md
 
 # Step 5: Squad executes, agents close issues, learnings sync back
@@ -304,11 +323,15 @@ If you've disabled the `afterTasks` hook:
 # Disable hook in bridge.config.json first:
 # "hooks": { "afterTasks": false }
 
-# Then run commands explicitly:
+# Then run commands explicitly (adjust command format based on install method):
 $ npx @jmservera/squad-speckit-bridge context specs/001-feature/
 $ cd specs/001-feature/ && /speckit.specify && /speckit.plan && /speckit.tasks
 $ npx @jmservera/squad-speckit-bridge review specs/001-feature/tasks.md
 $ npx @jmservera/squad-speckit-bridge issues specs/001-feature/tasks.md
+
+# If installed globally:
+$ squad-speckit-bridge context specs/001-feature/
+# (etc.)
 ```
 
 **Result:** You control each step; useful for CI/CD or testing different parameters.
@@ -318,8 +341,11 @@ $ npx @jmservera/squad-speckit-bridge issues specs/001-feature/tasks.md
 For automation pipelines, use `--quiet` to suppress info-level output:
 
 ```bash
+# Adjust command format based on install method (examples use npx):
 $ npx @jmservera/squad-speckit-bridge install --quiet
 $ npx @jmservera/squad-speckit-bridge context specs/001-feature/ --quiet
+
+# If installed globally, use: squad-speckit-bridge install --quiet
 ```
 
 Exit codes: `0` = success, `1` = error
@@ -327,6 +353,8 @@ Exit codes: `0` = success, `1` = error
 ### Workflow 4: Testing Different Context Budgets
 
 ```bash
+# Adjust command format based on install method (examples use npx):
+
 # Test with small context
 $ npx @jmservera/squad-speckit-bridge context specs/001-feature/ --max-size 4096
 $ cd specs/001-feature/ && /speckit.plan  # See how planning differs
@@ -334,6 +362,8 @@ $ cd specs/001-feature/ && /speckit.plan  # See how planning differs
 # Test with full context
 $ npx @jmservera/squad-speckit-bridge context specs/001-feature/ --max-size 16384
 $ cd specs/001-feature/ && /speckit.plan  # See how planning differs
+
+# If installed globally, use: squad-speckit-bridge context specs/001-feature/ --max-size 4096
 ```
 
 Useful for understanding what knowledge is most important for planning.

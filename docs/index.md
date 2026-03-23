@@ -45,9 +45,20 @@ Next Planning Cycle (improved by prior execution)
 Once installed, **the bridge disappears into the background.** You use Spec Kit normally; it handles the integration automatically.
 
 ### Step 1: Install (One Time)
+
+Choose your preferred method. **npx (recommended)** requires no installation:
+
 ```bash
+# Option A: Use directly with npx (no install needed)
 $ npx @jmservera/squad-speckit-bridge install
-# That's it — done. Deployment complete.
+
+# Option B: Install globally
+# $ npm install -g @jmservera/squad-speckit-bridge
+# $ squad-speckit-bridge install
+
+# Option C: Add to your project
+# $ npm install --save-dev @jmservera/squad-speckit-bridge
+# $ npx squad-speckit-bridge install
 ```
 
 ### Step 2: Use Spec Kit Normally
@@ -142,7 +153,14 @@ These files are part of your feature's planning record — future cycles and tea
 ## Quick Reference
 
 ```bash
-# Full workflow in one go (after bridge is installed)
+# Installation (choose one method — npx is easiest)
+npx @jmservera/squad-speckit-bridge install
+
+# Or if you installed globally or in your project:
+# squad-speckit-bridge install (global)
+# npx squad-speckit-bridge install (project devDependency)
+
+# Common commands (adjust based on your installation method)
 npx @jmservera/squad-speckit-bridge context specs/001-feature/
 npx @jmservera/squad-speckit-bridge review specs/001-feature/tasks.md
 npx @jmservera/squad-speckit-bridge install --check  # Verify all components are in place

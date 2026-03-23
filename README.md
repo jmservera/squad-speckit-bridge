@@ -101,14 +101,26 @@ All core logic separated by dependency inversion. Easy to test, extend, and main
 
 ## Quick Start
 
-> **Status:** 🚧 In Development — spec and plan complete, implementation pending
+The bridge is available on npm. Choose your preferred installation method:
 
+**Option 1: Use directly with npx (no install needed)**
 ```bash
-# Coming soon (placeholder)
-npx @jmservera/squad-speckit-bridge init
+npx @jmservera/squad-speckit-bridge install
 ```
 
-For now, see [Installation & Usage](./docs/INSTALLATION.md) for manual setup.
+**Option 2: Install globally**
+```bash
+npm install -g @jmservera/squad-speckit-bridge
+squad-speckit-bridge install
+```
+
+**Option 3: Add to your project**
+```bash
+npm install --save-dev @jmservera/squad-speckit-bridge
+npx squad-speckit-bridge install
+```
+
+For detailed setup, see [Installation Guide](./docs/installation.md).
 
 ---
 
