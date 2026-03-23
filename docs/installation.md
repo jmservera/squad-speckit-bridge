@@ -53,21 +53,74 @@ npx speckit init
 
 ## Installation Steps
 
-### Step 1: Install via npm
+The Squad-SpecKit Bridge is available on npm: **[@jmservera/squad-speckit-bridge](https://www.npmjs.com/package/@jmservera/squad-speckit-bridge)**
 
-In your repository root, run:
+Choose the installation method that fits your workflow:
+
+### Option 1: Use Directly with npx (Recommended for Quick Start)
+
+No installation needed. Run directly:
+
+```bash
+$ npx @jmservera/squad-speckit-bridge install
+```
+
+This is the fastest way to get started. The command runs the latest version without storing anything on your machine.
+
+### Option 2: Install Globally
+
+Install once, use anywhere in your projects:
+
+```bash
+$ npm install -g @jmservera/squad-speckit-bridge
+```
+
+After installation, commands are available without the `@jmservera/` scope:
+
+```bash
+$ squad-speckit-bridge install
+$ squad-speckit-bridge status
+$ squad-speckit-bridge context specs/001-feature/
+```
+
+### Option 3: Add to Your Project (Recommended for Team Projects)
+
+Add to your project's `devDependencies`:
+
+```bash
+$ npm install --save-dev @jmservera/squad-speckit-bridge
+```
+
+Then use via `npx` from your project root:
 
 ```bash
 $ npx squad-speckit-bridge install
+$ npx squad-speckit-bridge status
 ```
 
-This command:
+**Why this option?** Team members automatically get the same version. No global installations needed on different machines.
+
+---
+
+## What to Expect
+
+Regardless of which installation method you choose, all three run the same command:
 - Detects Squad and Spec Kit in your repository
 - Deploys bridge components to both frameworks
 - Creates a `bridge.config.json` configuration file
 - Validates the installation
 
-### Step 2: Review Installation Output
+### Step 2: Run the Install Command
+
+In your repository root, run one of the installation commands from above (pick your preferred method).
+
+**Example using npx (most common):**
+
+```bash
+$ npx @jmservera/squad-speckit-bridge install
+```
+
+This command:
 
 Expected successful output:
 
@@ -86,11 +139,24 @@ Installing components...
   ✓ Configuration: bridge.config.json
 
 Installation complete. 5 files created.
-Next: Run `npx squad-speckit-bridge status` to verify.
+Next: Run `npx @jmservera/squad-speckit-bridge status` to verify.
 ```
 
 ### Step 3: Verify Installation
 
+Use the same method you installed with:
+
+**If you used npx:**
+```bash
+$ npx @jmservera/squad-speckit-bridge status
+```
+
+**If you installed globally:**
+```bash
+$ squad-speckit-bridge status
+```
+
+**If you added to your project:**
 ```bash
 $ npx squad-speckit-bridge status
 ```
@@ -246,7 +312,7 @@ The bridge creates a default `bridge.config.json`. You can customize it:
 If you have Squad **without** Spec Kit:
 
 ```bash
-$ npx squad-speckit-bridge install
+$ npx @jmservera/squad-speckit-bridge install
 ```
 
 Output:
@@ -263,7 +329,7 @@ Installing Squad-only components...
   ✓ Configuration: bridge.config.json
 
 Partial installation complete. 3 files created.
-To complete: Initialize Spec Kit, then run `npx squad-speckit-bridge install` again.
+To complete: Initialize Spec Kit, then run `npx @jmservera/squad-speckit-bridge install` again.
 ```
 
 Same applies if you have Spec Kit without Squad — both-sided functionality becomes available once both frameworks are present.
@@ -285,7 +351,7 @@ Error: Squad directory not found at .squad/
 npx squad init
 
 # Then run bridge install
-npx squad-speckit-bridge install
+npx @jmservera/squad-speckit-bridge install
 ```
 
 ### Installation Fails: "Spec Kit not found"
@@ -301,7 +367,7 @@ Error: Spec Kit directory not found at .specify/
 npx speckit init
 
 # Then run bridge install
-npx squad-speckit-bridge install
+npx @jmservera/squad-speckit-bridge install
 ```
 
 ### Bridge Status Shows Warnings
@@ -314,7 +380,7 @@ npx squad-speckit-bridge install
 **Solution:**
 ```bash
 # Reinstall with force flag
-npx squad-speckit-bridge install --force
+npx @jmservera/squad-speckit-bridge install --force
 
 # Or verify directory structure manually
 ls -la .squad/skills/speckit-bridge/
@@ -334,7 +400,7 @@ Error: EACCES: permission denied, mkdir '.squad/skills'
 chmod -R u+w .squad/ .specify/
 
 # Then retry installation
-npx squad-speckit-bridge install
+npx @jmservera/squad-speckit-bridge install
 ```
 
 ### Configuration validation errors
@@ -349,7 +415,7 @@ Error: bridge.config.json is invalid
 2. Delete `bridge.config.json` and reinstall to get defaults:
    ```bash
    rm bridge.config.json
-   npx squad-speckit-bridge install
+   npx @jmservera/squad-speckit-bridge install
    ```
 
 ### Bridge commands not found after installation
@@ -359,13 +425,33 @@ Error: bridge.config.json is invalid
 command not found: squad-speckit-bridge
 ```
 
-**Solution:**
+**Solution (choose one based on your installation method):**
+
+If you want to use the command globally:
 ```bash
 # Install globally
-npm install -g squad-speckit-bridge
+npm install -g @jmservera/squad-speckit-bridge
 
-# Or use npx (preferred)
-npx squad-speckit-bridge --help
+# Then use without npx:
+squad-speckit-bridge --help
+```
+
+If you prefer using npx (recommended):
+```bash
+# Use with npx (works if installed globally or in devDependencies)
+npx @jmservera/squad-speckit-bridge --help
+```
+
+If you installed as a dev dependency:
+```bash
+# Add to package.json scripts for easier access
+"scripts": {
+  "bridge:install": "squad-speckit-bridge install",
+  "bridge:status": "squad-speckit-bridge status"
+}
+
+# Then run via npm
+npm run bridge:install
 ```
 
 ---
