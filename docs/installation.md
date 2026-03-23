@@ -120,6 +120,48 @@ Last context run:   (none yet)
 
 All items should show `✓`. If any show `✗`, review the troubleshooting section below.
 
+## What Gets Automated
+
+After installation, the bridge operates **silently in the background** during Spec Kit's planning phases. Here's what happens without any additional commands:
+
+### During `/speckit.plan`
+
+| What | How | You See |
+|------|-----|---------|
+| **Memory Injection** | Bridge reads `.squad/` (skills, decisions, histories) and creates `squad-context.md` | Planning context includes your team's prior learnings |
+| **Context Budgeting** | Recent and relevant decisions prioritized; older items pruned to fit context budget | Focused, efficient context (default: 8192 bytes) |
+| **Availability** | File automatically created in your spec directory | `squad-context.md` available for manual reference during planning |
+
+### After `/speckit.tasks` Completes
+
+| What | How | You See |
+|------|-----|---------|
+| **Review Generation** | Bridge analyzes `tasks.md` for potential conflicts and risks | `specs/YOUR-SPEC/review.md` auto-generated with pre-populated findings |
+| **Decision Conflicts** | Checks against `.squad/decisions.md` for alignment | Flags highlighted in review template: "⚠ Task T3 conflicts with decision D-042" |
+| **Team Notification** | Logs a message indicating review is ready | "[squad-bridge] Design Review ready at specs/001-feature/review.md" |
+| **Configuration Check** | Respects `bridge.config.json` settings | Can be disabled via `"hooks": { "afterTasks": false }` |
+
+### These Hooks Are Active
+
+1. **`after-tasks.sh`** (in `.specify/extensions/squad-bridge/`)
+   - Trigger: Automatically runs after `/speckit.tasks`
+   - Defined in: `extension.yml` with `enabled: true`
+   - Configurable: `bridge.config.json` → `hooks.afterTasks`
+
+### To Disable Automation
+
+If you prefer **manual mode** (run all commands explicitly):
+
+```json
+{
+  "hooks": {
+    "afterTasks": false
+  }
+}
+```
+
+Then use commands manually as described in the [Usage Guide](usage.md#manual-commands).
+
 ## Configuration (Optional)
 
 The bridge creates a default `bridge.config.json`. You can customize it:

@@ -42,43 +42,58 @@ Next Planning Cycle (improved by prior execution)
 
 ## How It Works (2-Minute Tour)
 
-### 1. Install Once
+Once installed, your Spec Kit workflow is **automatically enhanced**. Most of the heavy lifting happens in the background.
+
+### One-Time Setup
 ```bash
 npx squad-speckit-bridge install
-```
-Deploys components to both `.squad/` and `.specify/` — zero disruption to existing workflows.
-
-### 2. Inject Squad Memory Into Planning
-```bash
-npx squad-speckit-bridge context specs/001-my-feature/
-# Reads: decisions.md, agent histories, skills
-# Outputs: squad-context.md (fed into Spec Kit planning)
+# That's it — deploy once, then forget about it
 ```
 
-### 3. Plan With Spec Kit (As Usual)
+### Then Just Use Spec Kit Normally
+
 ```bash
 cd specs/001-my-feature/
+
+# Spec Kit planning proceeds as usual:
 /speckit.specify
 /speckit.plan
 /speckit.tasks
 ```
-Tasks now reference team knowledge from Step 2.
 
-### 4. Squad Team Reviews Tasks
+**What happens automatically during planning:**
+- 🧠 **Memory Injection** — Your team's prior decisions and learnings are automatically injected as context before planning starts
+- 📋 **Better Plans** — Task generation is informed by execution history (not planning from scratch)
+
+**What happens automatically after `/speckit.tasks`:**
+- 🔍 **Design Review Generated** — The bridge auto-generates a review template pre-populated with potential decision conflicts and risk flags
+- 📢 **Team Notification** — You're notified that review is ready
+- 📁 **Context Saved** — `squad-context.md` is created in your spec directory for reference during review
+
+### Then the Human Part (Design Review)
+
 ```bash
-npx squad-speckit-bridge review specs/001-my-feature/tasks.md
-# Generates review template
-# Team identifies risks, missing tasks, conflicts with prior decisions
+# Your team reviews tasks against real-world experience:
+# Open: specs/001-my-feature/review.md
+# Discuss: Do these tasks match what we've learned?
+# Approve: When satisfied, mark review as complete
 ```
 
-### 5. Create Issues & Execute
-Issues created from approved tasks. Squad executes with full context of planning history.
+The Design Review is a **ceremony**, not a command. It's where your team's knowledge corrects planning blind spots.
 
-### 6. Learning Sync (After Execution)
+### Create Issues (When Ready)
+
 ```bash
-npx squad-speckit-bridge sync
+npx squad-speckit-bridge issues specs/001-my-feature/tasks.md
+# Convert approved tasks into GitHub issues
+# Issues are labeled and ready for Squad execution
 ```
-Execution learnings stored in Squad memory, ready for next planning cycle.
+
+### Squad Executes (Ralph Picks Up Issues)
+Your agents work as usual. The bridge stays out of the way.
+
+### Learnings Auto-Sync Back
+After execution, learnings are synced to `.squad/` memory — ready to inform the next planning cycle. The flywheel continues.
 
 ## Key Benefits
 
