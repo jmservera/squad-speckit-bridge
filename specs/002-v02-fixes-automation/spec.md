@@ -160,10 +160,14 @@ A developer runs the bridge in a repository where Spec Kit's constitution has ne
 - **FR-009**: The `issues` command MUST resolve task dependencies into GitHub issue cross-references (`#N` notation) in the issue body.
 - **FR-010**: The `issues` command MUST skip malformed task entries with a warning and continue processing valid tasks.
 - **FR-011**: The `issues` command MUST support `--json` output mode, emitting a JSON array of created issue objects.
+- **FR-011a**: The `issues` command MUST only create issues for unchecked tasks (`- [ ]`). Completed tasks (`- [x]`) are silently skipped.
+- **FR-011b**: Auto-generated phase labels MUST use kebab-case format: `phase-N-name` (e.g., `phase-3-hook-deploy`, `phase-5-issues-command`).
 
 **Sync Command (US4)**
 
 - **FR-012**: The bridge MUST provide a `sync` subcommand that captures execution learnings from Squad memory artifacts changed since the last sync.
+- **FR-012a**: The `sync` command MUST track changes to all three Squad memory artifact types: `.squad/skills/*/SKILL.md`, `.squad/decisions.md`, and `.squad/agents/*/history.md`.
+- **FR-012b**: The sync state file (`.bridge-sync-state.json`) MUST be added to `.gitignore` by the installer, as sync state is per-developer.
 - **FR-013**: The `sync` command MUST track sync points (timestamps) to identify what changed since the last sync.
 - **FR-014**: The `sync` command MUST support a `--dry-run` flag showing what would be synced without modifying files.
 - **FR-015**: The `sync` command MUST produce a structured sync record (new decisions count, new learnings count, timestamp) consumable by the `context` command in subsequent planning cycles.
@@ -178,7 +182,7 @@ A developer runs the bridge in a repository where Spec Kit's constitution has ne
 **CLI Contract Alignment (US6)**
 
 - **FR-020**: The bridge CLI MUST accept `--verbose` as a global flag on all commands, emitting diagnostic output to stderr (files processed, files skipped with reason, byte counts, timing).
-- **FR-021**: The bridge CLI MUST accept `--notify` on the `review` command, emitting a notification on review completion.
+- **FR-021**: The bridge CLI MUST accept `--notify` on the `review` command, emitting a notification on review completion. The v0.2.0 notification adapter emits structured messages to stderr (human-readable by default, JSON when `--json` is active). The adapter interface is pluggable for future extensibility.
 - **FR-022**: The `ApprovalStatus` type MUST include three states: `pending`, `approved`, `changes_requested`. `pending` is the initial state. `blocked` is NOT a valid status.
 - **FR-023**: Hook scripts that invoke external tools (e.g., `npx`) MUST check tool availability before invocation and fail gracefully with a diagnostic message and non-zero exit code when the tool is missing.
 
@@ -226,3 +230,15 @@ A developer runs the bridge in a repository where Spec Kit's constitution has ne
 - Q: Is `blocked` a valid ApprovalStatus? → A: **No.** The v0.1.0 code introduced `blocked` but it was never in the spec. ApprovalStatus has exactly three values: `pending`, `approved`, `changes_requested` (FR-022). Blocking is a workflow/scheduling concern handled outside the review system.
 
 - Q: Should automation hooks block the Spec Kit lifecycle if they fail? → A: **No.** Hooks are advisory, not gates. If a hook fails, it reports to stderr and exits non-zero, but the Spec Kit lifecycle event continues. Developers can inspect hook output and re-run manually if needed.
+
+### Session 2025-07-25
+
+- Q: What notification format does `--notify` (FR-021) use? → A: **Console stderr.** The notification adapter emits a structured message to stderr (human-readable by default, JSON when `--json` is active). The adapter interface is pluggable for future extensibility (webhook, OS notification), but v0.2.0 ships with stderr-only.
+
+- Q: Should `.bridge-sync-state.json` be gitignored or committed? → A: **Gitignored.** Sync state is per-developer (each developer's last sync point differs). The installer should add `.bridge-sync-state.json` to `.gitignore` if not already present. Teams that want shared sync state can remove the gitignore entry manually.
+
+- Q: Should the `issues` command create issues for completed (`- [x]`) tasks or only unchecked (`- [ ]`) tasks? → A: **Only unchecked tasks.** Completed tasks already have their work done and don't need tracking issues. The command skips `- [x]` entries silently (no warning needed — this is expected filtering).
+
+- Q: What format should auto-generated phase labels use on created issues? → A: **Kebab-case: `phase-N-name`** (e.g., `phase-3-hook-deploy`, `phase-5-issues-command`). This is consistent with GitHub label conventions and machine-parseable.
+
+- Q: Does the `sync` command track changes to skills/ files in addition to decisions.md and history.md? → A: **Yes.** Sync tracks all three Squad memory artifact types: `.squad/skills/*/SKILL.md`, `.squad/decisions.md`, and `.squad/agents/*/history.md`. This matches the same source set used by the `context` command, ensuring the knowledge flywheel captures all artifact types.
