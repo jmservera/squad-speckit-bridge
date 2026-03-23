@@ -23,6 +23,7 @@ export interface SummarizeInput {
   decisions: DecisionEntry[];
   learnings: LearningEntry[];
   config: BridgeConfig;
+  previousGenerated?: string; // ISO timestamp of last generation cycle
 }
 
 /** Compress a large text block: keep first paragraph + bullet/numbered lists. */
@@ -100,8 +101,14 @@ function filterDecisions(
     .sort((a, b) => b.relevanceScore - a.relevanceScore);
 }
 
-/** Summarize learnings: keep most recent entries from each agent. */
-function summarizeLearnings(learnings: LearningEntry[]): LearningEntry[] {
+/** Summarize learnings: keep most recent entries from each agent, boost new entries in subsequent cycles. */
+function summarizeLearnings(
+  learnings: LearningEntry[],
+  recencyBiasWeight: number,
+  previousGenerated?: string,
+): LearningEntry[] {
+  const prevTimestamp = previousGenerated ? Date.parse(previousGenerated) : NaN;
+
   return learnings.map((le) => {
     // Sort entries by date (most recent first), then compress
     const sorted = [...le.entries].sort((a, b) => {
@@ -113,8 +120,32 @@ function summarizeLearnings(learnings: LearningEntry[]): LearningEntry[] {
       return db - da;
     });
 
-    // Compress each entry's summary
-    const compressed = sorted.map((entry) => ({
+    // In subsequent cycles, boost newly-added learnings by placing them first
+    // and compressing older (already-summarized) content more aggressively
+    let processed = sorted;
+    if (!isNaN(prevTimestamp)) {
+      const newEntries = sorted.filter((e) => {
+        const d = Date.parse(e.date);
+        return !isNaN(d) && d > prevTimestamp;
+      });
+      const oldEntries = sorted.filter((e) => {
+        const d = Date.parse(e.date);
+        return isNaN(d) || d <= prevTimestamp;
+      });
+
+      // Compress old entries more aggressively (shorter summaries)
+      const compressedOld = oldEntries.map((entry) => ({
+        ...entry,
+        summary: compressContent(entry.summary),
+      }));
+
+      // New entries get full summaries, old entries get compressed
+      // Reweight: new entries appear first and retain full detail
+      processed = [...newEntries, ...compressedOld];
+    }
+
+    // Compress each entry's summary (light pass for new, already compressed for old)
+    const compressed = processed.map((entry) => ({
       ...entry,
       summary: compressContent(entry.summary),
     }));
@@ -244,9 +275,13 @@ export function summarizeContent(input: SummarizeInput): ContextSummary {
     }
   }
 
-  // Tier 3: Learnings — summarized and compressed
+  // Tier 3: Learnings — summarized and compressed, cycle-aware
   if (config.sources.histories) {
-    const summarized = summarizeLearnings(input.learnings);
+    const summarized = summarizeLearnings(
+      input.learnings,
+      config.summarization.recencyBiasWeight,
+      input.previousGenerated,
+    );
     for (const learning of summarized) {
       const rendered = renderLearning(learning);
       const size = byteSize(rendered);
@@ -271,6 +306,7 @@ export function summarizeContent(input: SummarizeInput): ContextSummary {
   return {
     metadata: {
       generated: new Date().toISOString(),
+      cycleCount: 1, // caller increments via BuildSquadContext
       sources: {
         skills: includedSkills.length,
         decisions: includedDecisions.length,

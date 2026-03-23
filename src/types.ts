@@ -30,6 +30,7 @@ export interface BridgeConfig {
 export interface ContextSummary {
   metadata: {
     generated: string;
+    cycleCount: number;
     sources: {
       skills: number;
       decisions: number;

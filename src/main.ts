@@ -1,5 +1,5 @@
 /**
- * T020 + T027: Composition Root
+ * T020 + T027 + T032: Composition Root
  *
  * Wires real adapters into use cases via constructor injection.
  * The ONLY file that knows about all layers. No business logic here.
@@ -16,13 +16,11 @@ import { checkStatus } from './install/status.js';
 import { prepareReview } from './review/ceremony.js';
 import { TasksParser } from './review/adapters/tasks-parser.js';
 import { ReviewWriter } from './review/adapters/review-writer.js';
-import { SquadFileReader } from './bridge/adapters/squad-reader.js';
-import type { StatusReport } from './install/status.js';
-import type { InstallManifest, ContextSummary } from './types.js';
 import { SquadFileReader } from './bridge/adapters/squad-file-reader.js';
 import { SpecKitContextWriter } from './bridge/adapters/speckit-writer.js';
 import { buildSquadContext } from './bridge/context.js';
-import type { InstallManifest, DesignReviewRecord } from './types.js';
+import type { StatusReport } from './install/status.js';
+import type { InstallManifest, ContextSummary, DesignReviewRecord } from './types.js';
 
 // Resolve template directory relative to this module
 const __filename = fileURLToPath(import.meta.url);
@@ -414,9 +412,17 @@ function formatContextHuman(
   lines.push(
     `Output: ${outputPath} (${(m.sizeBytes / 1024).toFixed(1)}KB / ${(m.maxBytes / 1024).toFixed(1)}KB limit)`,
   );
+
+  return lines.join('\n');
+}
+
 function formatReviewHuman(
   record: DesignReviewRecord,
+  outputPath: string,
+): string {
+  const lines: string[] = [];
   lines.push(`Design Review prepared for ${record.reviewedArtifact}`);
+  lines.push('');
   lines.push('Pre-populated findings:');
   const high = record.findings.filter((f) => f.severity === 'high').length;
   const medium = record.findings.filter((f) => f.severity === 'medium').length;
@@ -427,6 +433,8 @@ function formatReviewHuman(
   if (low > 0) lines.push(`  ℹ ${low} task(s) may benefit from agent expertise`);
   if (record.findings.length === 0) {
     lines.push('  ✓ No issues detected');
+  }
+  lines.push('');
   lines.push(`Review template written to: ${outputPath}`);
   lines.push('Next: Run the Design Review ceremony with your Squad team.');
 
@@ -487,10 +495,14 @@ function formatContextJson(
     },
     skipped: parseWarnings.map((w) => ({ file: w.file, reason: w.reason })),
     warnings: summary.content.warnings,
+  };
+}
+
 function formatReviewJson(record: DesignReviewRecord, outputPath: string) {
   const high = record.findings.filter((f) => f.severity === 'high').length;
   const medium = record.findings.filter((f) => f.severity === 'medium').length;
   const low = record.findings.filter((f) => f.severity === 'low').length;
+  return {
     reviewedArtifact: record.reviewedArtifact,
     timestamp: record.timestamp,
     approvalStatus: record.approvalStatus,

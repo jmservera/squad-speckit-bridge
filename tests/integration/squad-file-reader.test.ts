@@ -97,4 +97,29 @@ describe('SquadFileReader', () => {
     // No malformed files in fixtures, so no warnings expected
     expect(Array.isArray(warnings)).toBe(true);
   });
+
+  it('filters learnings by date when since parameter is provided (T035)', async () => {
+    const reader = new SquadFileReader(FIXTURES_DIR);
+
+    // All learnings without filter
+    const allLearnings = await reader.readLearnings();
+    const totalEntries = allLearnings.reduce((acc, l) => acc + l.entries.length, 0);
+
+    // Filter to only very recent (future) date — should get none
+    const futureDate = new Date('2099-01-01');
+    const filteredLearnings = await (new SquadFileReader(FIXTURES_DIR)).readLearnings(futureDate);
+    const filteredEntries = filteredLearnings.reduce((acc, l) => acc + l.entries.length, 0);
+
+    expect(totalEntries).toBeGreaterThan(0);
+    expect(filteredEntries).toBe(0);
+  });
+
+  it('returns all learnings when since parameter is undefined (T035)', async () => {
+    const reader = new SquadFileReader(FIXTURES_DIR);
+
+    const allLearnings = await reader.readLearnings();
+    const undefinedFilter = await reader.readLearnings(undefined);
+
+    expect(allLearnings.length).toBe(undefinedFilter.length);
+  });
 });

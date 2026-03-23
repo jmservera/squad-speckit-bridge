@@ -207,6 +207,42 @@ describe('SummarizeContent', () => {
 
     expect(result.metadata.sources.skipped.length).toBeGreaterThan(0);
   });
+
+  it('includes cycleCount in output metadata', () => {
+    const result = summarizeContent({
+      skills: [],
+      decisions: [],
+      learnings: [],
+      config: makeConfig(),
+    });
+
+    expect(result.metadata.cycleCount).toBe(1);
+  });
+
+  it('boosts new learnings when previousGenerated is set (T033)', () => {
+    const oldDate = '2025-06-01';
+    const newDate = '2025-07-25';
+
+    const learning = makeLearning({
+      entries: [
+        { date: newDate, title: 'New Learning', summary: 'New pattern discovered.' },
+        { date: oldDate, title: 'Old Learning', summary: 'Old finding.\n\nMore details.\n\nEven more.' },
+      ],
+    });
+
+    const result = summarizeContent({
+      skills: [],
+      decisions: [],
+      learnings: [learning],
+      config: makeConfig(),
+      previousGenerated: '2025-07-01T00:00:00.000Z',
+    });
+
+    // New learnings should appear before old ones
+    expect(result.content.learnings).toHaveLength(1);
+    const entries = result.content.learnings[0].entries;
+    expect(entries[0].title).toBe('New Learning');
+  });
 });
 
 describe('compressContent', () => {

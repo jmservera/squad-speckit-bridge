@@ -9,7 +9,8 @@ description: >
 
 hooks:
   after_tasks:
-    script: ./after-tasks.sh
+    script: ./hooks/after-tasks.sh
+    enabled: true
     description: >
       Notifies the Squad team that new tasks are available for Design Review.
       Generates squad-context.md if not already present.

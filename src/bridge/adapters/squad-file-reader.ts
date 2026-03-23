@@ -85,7 +85,7 @@ export class SquadFileReader implements SquadStateReader {
     }
   }
 
-  async readLearnings(): Promise<LearningEntry[]> {
+  async readLearnings(since?: Date): Promise<LearningEntry[]> {
     const pattern = join(this.squadDir, 'agents', '*', 'history.md');
     let files: string[];
 
@@ -103,7 +103,18 @@ export class SquadFileReader implements SquadStateReader {
         const agentName = basename(dirname(file));
         const entry = parseHistoryFile(content, agentName, file, this.warnings);
         if (entry) {
-          learnings.push(entry);
+          // T035: Apply date filtering if since parameter provided
+          if (since) {
+            const filtered = entry.entries.filter((e) => {
+              const d = Date.parse(e.date);
+              return !isNaN(d) && new Date(d) >= since;
+            });
+            if (filtered.length > 0) {
+              learnings.push({ ...entry, entries: filtered });
+            }
+          } else {
+            learnings.push(entry);
+          }
         }
       } catch (err) {
         if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {

@@ -1,15 +1,14 @@
 #!/usr/bin/env node
 
 /**
- * T019: CLI Entry Point
+ * T019 + T026 + T031 + T038: CLI Entry Point
  *
- * Commander-based CLI with install and status subcommands.
+ * Commander-based CLI with install, status, context, and review subcommands.
  * Outermost Clean Architecture layer — delegates to composition root.
  */
 
 import { Command } from 'commander';
-import { createInstaller, createStatusChecker, createContextBuilder } from '../main.js';
-import { createInstaller, createStatusChecker, createReviewer } from '../main.js';
+import { createInstaller, createStatusChecker, createContextBuilder, createReviewer } from '../main.js';
 
 const program = new Command();
 
@@ -177,10 +176,28 @@ program
   .argument('<tasks-file>', 'Path to Spec Kit tasks.md to review')
   .option('--output <path>', 'Where to write the review template')
   .option('--squad-dir <path>', 'Override Squad directory path')
+  .option('--notify', 'Output a brief notification instead of full review', false)
   .action(async (tasksFile: string, cmdOpts: Record<string, unknown>) => {
     const globalOpts = program.opts();
     const jsonOutput = globalOpts.json as boolean;
     const quiet = globalOpts.quiet as boolean;
+    const notify = cmdOpts.notify as boolean;
+
+    // T038: --notify mode — lightweight notification without full review
+    if (notify) {
+      const message = `📋 Design Review available for: ${tasksFile}\n   Run \`squad-speckit-bridge review ${tasksFile}\` to generate the full review.`;
+      if (jsonOutput) {
+        console.log(JSON.stringify({
+          notification: true,
+          tasksFile,
+          message: `Design Review available for: ${tasksFile}`,
+        }, null, 2));
+      } else if (!quiet) {
+        console.log(message);
+      }
+      process.exitCode = 0;
+      return;
+    }
 
     try {
       const reviewer = createReviewer({
