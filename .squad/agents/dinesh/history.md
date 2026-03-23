@@ -10,6 +10,27 @@
 
 <!-- Append learnings below -->
 
+### 2025-07-24: Clean Architecture Boundary Analysis for Squad-SpecKit Bridge
+
+**Boundary Mapping Applied:**
+- Identified 4 precise layers: Entities (ContextBudget, RelevanceScorer, ReviewFinding, BridgeConfig validation), Use Cases (GenerateContext, PrepareReview, InstallBridge, CheckStatus), Adapters (SquadFS, SpecKitFS, ConfigFile, CLI, Manifest, GitHub), Frameworks (commander, gray-matter, glob, node:fs, Octokit).
+- Current plan.md organizes by domain concern (bridge/, install/, review/) — this violates Clean Architecture because it mixes I/O with business logic. Reorganized into layer-based structure (entities/, use-cases/, adapters/, dto/).
+
+**Critical Port Interfaces Defined:**
+- Output ports owned by use cases: `SquadStatePort` (team knowledge), `SpecKitStatePort` (tasks + context writing), `ConfigPort` (config resolution), `FrameworkDetectorPort`, `FileWriterPort`, `IssueTrackerPort`.
+- Input ports: one per use case (GenerateContextPort, PrepareReviewPort, InstallBridgePort, CheckStatusPort).
+- Ports injected via constructor — composition root (main.ts) is the ONLY file that knows all concrete types.
+
+**Key Insight — DTOs vs Entities:**
+- data-model.md conflates data structures (SkillEntry, DecisionEntry, LearningEntry) with entities. In Clean Architecture, these are DTOs — they carry data across boundaries but own no business rules. Real entities are ContextBudget (allocation algorithm), RelevanceScorer (prioritization logic), ReviewFinding (classification rules).
+- No raw markdown should cross the adapter → use case boundary. Adapters parse markdown into typed DTOs. If a use case sees `### Heading`, we've violated the dependency rule.
+
+**Anti-Patterns Catalogued:**
+- 8 specific violations documented: importing gray-matter/fs/commander/process.env in wrong layers, adapters calling adapters, business logic in adapters, format-specific returns from use cases, hardcoded .squad/.specify/ paths in inner layers.
+
+**Task Structuring Impact:**
+- Entity tasks are independent (parallel, test-first, no mocks needed). Use case tasks depend on entity + port interfaces only. Adapter tasks are parallelizable (Squad, SpecKit, CLI adapters are independent). Composition root is last. This ordering maximizes parallel work.
+
 ### 2025-07-24: MCP Server Architecture & Integration Mechanism Feasibility
 
 **MCP Server Technical Findings:**

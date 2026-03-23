@@ -62,4 +62,5 @@ When triaging, the Lead should ask:
 | Interoperability, compatibility testing | Dinesh | — |
 | Benchmarking, comparison metrics | Jared | — |
 | Documentation, synthesis reports | Monica | — |
+| Clarification questions, scope decisions, human review | 👤 Juanma | Richard |
 
