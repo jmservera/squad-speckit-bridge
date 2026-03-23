@@ -22,6 +22,7 @@ function makeDeployer(
 ): FileDeployer {
   return {
     deploy: vi.fn().mockResolvedValue([]),
+    deployExecutable: vi.fn().mockResolvedValue([]),
     listDeployed: vi.fn().mockResolvedValue([]),
     ...overrides,
   };
@@ -118,7 +119,7 @@ describe('checkStatus', () => {
       makeConfigLoader(),
     );
 
-    expect(report.version).toBe('0.1.0');
+    expect(report.version).toBe('0.2.0');
   });
 
   it('uses paths from config for detection', async () => {

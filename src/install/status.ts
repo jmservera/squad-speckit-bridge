@@ -6,11 +6,13 @@
  * Clean Architecture: imports ONLY from ../types.ts and ../bridge/ports.ts.
  */
 
-import type { InstallManifest, BridgeConfig } from '../types.js';
+import type { InstallManifest, BridgeConfig, ConstitutionStatus } from '../types.js';
+import { detectConstitution } from '../types.js';
 import type {
   FrameworkDetector,
   FileDeployer,
   ConfigLoader,
+  SquadStateReader,
 } from '../bridge/ports.js';
 
 export interface FrameworkStatus {
@@ -37,12 +39,15 @@ export interface StatusReport {
   };
   config: BridgeConfig;
   installed: boolean;
+  warnings: string[];
+  constitution?: ConstitutionStatus;
 }
 
 export async function checkStatus(
   detector: FrameworkDetector,
   deployer: FileDeployer,
   configLoader: ConfigLoader,
+  squadReader?: SquadStateReader,
 ): Promise<StatusReport> {
   const config = await configLoader.load();
 
@@ -55,8 +60,30 @@ export async function checkStatus(
   const ceremonyPath = `${config.paths.squadDir}/skills/speckit-bridge/ceremony.md`;
   const extensionPath = `${config.paths.specifyDir}/extensions/squad-bridge/extension.yml`;
 
+  const warnings: string[] = [];
+
+  // US7: Constitution detection
+  let constitution: ConstitutionStatus | undefined;
+  if (squadReader?.readConstitution) {
+    try {
+      const content = await squadReader.readConstitution();
+      constitution = detectConstitution(content);
+      warnings.push(...constitution.warnings);
+    } catch {
+      // Skip if constitution reading fails
+    }
+  }
+
+  // US7: Plan.md overwrite warning
+  if (hasSpecKit) {
+    warnings.push(
+      'WARNING: Running setup-plan.sh will overwrite existing plan.md. ' +
+      'Always commit plan.md before re-running Spec Kit pipeline phases.',
+    );
+  }
+
   return {
-    version: '0.1.0',
+    version: '0.2.0',
     frameworks: {
       squad: { detected: hasSquad, path: config.paths.squadDir },
       specKit: { detected: hasSpecKit, path: config.paths.specifyDir },
@@ -87,5 +114,7 @@ export async function checkStatus(
     },
     config,
     installed: deployedFiles.length > 0,
+    warnings,
+    constitution,
   };
 }

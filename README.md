@@ -67,7 +67,7 @@ The bridge creates files that are part of your feature's planning record. Commit
 | `.bridge-manifest.json` | repo root | Tracks bridge version and installed components |
 | `.squad/skills/speckit-bridge/SKILL.md` | .squad/ | Teaches agents about Spec Kit artifacts and Design Review workflow |
 | `.squad/ceremonies/design-review.md` | .squad/ | Ceremony definition for Design Review process |
-| `.specify/extensions/squad-bridge/extension.yml` | .specify/ | Hook definitions for automation |
+| `.specify/extensions/squad-speckit-bridge/extension.yml` | .specify/ | Hook definitions for automation (includes before_specify, after_tasks, after_implement) |
 | `bridge.config.json` | repo root | Configuration file (customizable) |
 
 ### Created during workflow (also commit these):
@@ -91,8 +91,21 @@ After `/speckit.tasks`, a review template is auto-generated with pre-populated f
 ### 📝 Squad Plugin (SKILL.md)
 Teaches Squad agents about Spec Kit artifacts, methodology, and Design Review participation. Makes the team "bilingual" across both frameworks.
 
-### 🪝 Spec Kit Extension (after_tasks Hook)
-Auto-triggers Design Review generation when Spec Kit finishes task breakdown. No manual steps needed.
+### 🪝 Automation Hooks
+- `after_tasks` — Auto-generates Design Reviews when tasks complete (v0.1+)
+- `before_specify` — Auto-injects Squad context before planning (v0.2+)
+- `after_implement` — Auto-syncs execution learnings back to Squad (v0.2+)
+
+All hooks are optional and can be disabled via configuration.
+
+### 🎯 Issues & Sync Commands (v0.2+)
+- `issues` — Convert approved tasks into GitHub issues with one command (`--dry-run`, `--labels`, `--json` flags)
+- `sync` — Capture execution learnings from Squad history back into memory bridge for next planning cycle
+
+### 📊 Enhanced Diagnostics (v0.2+)
+- `--verbose` — Detailed output including file paths and processing details
+- `--notify` — Send bridge status notifications to Squad agents
+- Constitution detection — Warns if Squad constitution template is uncustomized
 
 ### 🏗️ Clean Architecture
 All core logic separated by dependency inversion. Easy to test, extend, and maintain independently of both frameworks.
@@ -101,14 +114,23 @@ All core logic separated by dependency inversion. Easy to test, extend, and main
 
 ## Quick Start
 
-> **Status:** 🚧 In Development — spec and plan complete, implementation pending
-
 ```bash
-# Coming soon (placeholder)
-npx squad-speckit-bridge init
+# One-time installation (deploys hooks and configuration)
+npx @jmservera/squad-speckit-bridge install
+
+# Use Spec Kit normally — bridge handles memory injection & reviews automatically
+cd specs/001-feature/
+/speckit.specify && /speckit.plan && /speckit.tasks
+
+# Team reviews the generated review.md
+# Once approved, create GitHub issues
+npx @jmservera/squad-speckit-bridge issues specs/001-feature/tasks.md
+
+# After Squad executes and learns, sync knowledge back (optional, v0.2+)
+npx @jmservera/squad-speckit-bridge sync
 ```
 
-For now, see [Installation & Usage](./docs/INSTALLATION.md) for manual setup.
+See [Usage Guide](./docs/usage.md) for complete workflows, advanced options, and manual command reference.
 
 ---
 
@@ -163,15 +185,17 @@ For now, see [Installation & Usage](./docs/INSTALLATION.md) for manual setup.
 
 ## Project Status
 
-**🚧 In Development**
+**v0.2.0 — In Development**
 
-- ✅ Research and validation complete
-- ✅ Feature specification written
-- ✅ Team decisions documented
-- ✅ Architecture designed (Clean Architecture layers)
-- ⏳ Implementation pending
+- ✅ v0.1.0 shipped (context, review, status commands; after_tasks hook)
+- ✅ v0.2.0 spec and plan complete
+- ✅ Bug fixes: hook deployment, extension model alignment
+- ✅ New commands: issues, sync
+- ✅ New hooks: before_specify, after_implement
+- ⏳ v0.2.0 implementation in progress
 
-See [Feature Spec](./specs/001-squad-speckit-bridge/spec.md) for detailed requirements.
+See [Feature Spec](./specs/001-squad-speckit-bridge/spec.md) for v0.1.0 details.  
+See [v0.2.0 Roadmap](./specs/002-v02-fixes-automation/spec.md) for upcoming features.
 
 ---
 

@@ -20,6 +20,16 @@ export interface BridgeConfig {
   };
   hooks: {
     afterTasks: boolean;
+    beforeSpecify: boolean;
+    afterImplement: boolean;
+  };
+  sync: {
+    autoSync: boolean;
+    targetDir: string;
+  };
+  issues: {
+    defaultLabels: string[];
+    repository: string;
   };
   paths: {
     squadDir: string;
@@ -215,6 +225,10 @@ export const ErrorCodes = {
   PERMISSION_DENIED: 'PERMISSION_DENIED',
   CONFIG_INVALID: 'CONFIG_INVALID',
   PARSE_ERROR: 'PARSE_ERROR',
+  GITHUB_AUTH_FAILED: 'GITHUB_AUTH_FAILED',
+  ISSUE_CREATE_FAILED: 'ISSUE_CREATE_FAILED',
+  SYNC_FAILED: 'SYNC_FAILED',
+  HOOK_DEPLOY_FAILED: 'HOOK_DEPLOY_FAILED',
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
@@ -234,6 +248,10 @@ export const ErrorSuggestions: Record<ErrorCode, string> = {
   PERMISSION_DENIED: 'Check file permissions with chmod -R u+w on the target directory.',
   CONFIG_INVALID: 'Validate your bridge.config.json against the config schema.',
   PARSE_ERROR: 'Check the file for valid markdown/YAML syntax.',
+  GITHUB_AUTH_FAILED: 'Set GITHUB_TOKEN environment variable or run `gh auth login`.',
+  ISSUE_CREATE_FAILED: 'Check repository permissions and GitHub API access.',
+  SYNC_FAILED: 'Check file write permissions in the Squad directory.',
+  HOOK_DEPLOY_FAILED: 'Check file permissions in the Spec Kit extensions directory.',
 };
 
 export function createStructuredError(
@@ -247,6 +265,109 @@ export function createStructuredError(
     message,
     suggestion: suggestion ?? ErrorSuggestions[code],
   };
+}
+
+// T003: IssueRecord entity
+export interface IssueRecord {
+  issueNumber: number;
+  title: string;
+  body: string;
+  labels: string[];
+  taskId: string;
+  url: string;
+  createdAt: string;
+}
+
+// T005: SyncRecord entity
+export interface SyncRecord {
+  syncTimestamp: string;
+  learningsUpdated: number;
+  filesWritten: string[];
+  summary: string;
+}
+
+// T006: SyncState entity
+export interface SyncState {
+  lastSyncTimestamp: string;
+  syncHistory: SyncRecord[];
+  totalSyncs: number;
+}
+
+// T007: HookScript entity
+export type HookPoint = 'before_specify' | 'after_tasks' | 'after_implement';
+
+export interface HookScript {
+  hookPoint: HookPoint;
+  scriptPath: string;
+  enabled: boolean;
+  description: string;
+}
+
+// T017: SpecKit extension schema interface
+export interface ExtensionHookDef {
+  command: string;
+  enabled: boolean;
+  description: string;
+}
+
+export interface ExtensionSchema {
+  schema_version: string;
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  hooks: Record<string, ExtensionHookDef>;
+  config: Record<string, unknown>;
+}
+
+// T040: DetectConstitution pure function
+export interface ConstitutionStatus {
+  exists: boolean;
+  isTemplate: boolean;
+  warnings: string[];
+}
+
+const TEMPLATE_MARKERS = [
+  '[PLACEHOLDER]',
+  '[PROJECT_NAME]',
+  '[YOUR_',
+  'TODO:',
+  'REPLACE THIS',
+];
+
+export function detectConstitution(content: string | null): ConstitutionStatus {
+  if (content === null) {
+    return {
+      exists: false,
+      isTemplate: false,
+      warnings: ['No constitution.md found — project principles are undefined.'],
+    };
+  }
+
+  const trimmed = content.trim();
+  if (trimmed.length === 0) {
+    return {
+      exists: true,
+      isTemplate: true,
+      warnings: ['Constitution file is empty — customize it with project principles.'],
+    };
+  }
+
+  const upperContent = content.toUpperCase();
+  const foundMarkers = TEMPLATE_MARKERS.filter(m => upperContent.includes(m.toUpperCase()));
+
+  if (foundMarkers.length > 0) {
+    return {
+      exists: true,
+      isTemplate: true,
+      warnings: [
+        `Constitution appears to be an uncustomized template (found: ${foundMarkers.join(', ')}). ` +
+        'Customize it with actual project principles for better planning context.',
+      ],
+    };
+  }
+
+  return { exists: true, isTemplate: false, warnings: [] };
 }
 
 // T010: Default BridgeConfig Factory
@@ -265,6 +386,16 @@ export function createDefaultConfig(): BridgeConfig {
     },
     hooks: {
       afterTasks: true,
+      beforeSpecify: true,
+      afterImplement: true,
+    },
+    sync: {
+      autoSync: false,
+      targetDir: '.squad',
+    },
+    issues: {
+      defaultLabels: ['squad', 'speckit'],
+      repository: '',
     },
     paths: {
       squadDir: '.squad',

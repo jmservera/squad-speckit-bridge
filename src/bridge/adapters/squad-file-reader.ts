@@ -129,4 +129,26 @@ export class SquadFileReader implements SquadStateReader {
 
     return learnings;
   }
+
+  async readConstitution(): Promise<string | null> {
+    // Look in .specify/memory/constitution.md (Spec Kit location)
+    const specifyConstitutionPath = join(
+      this.squadDir, '..', '.specify', 'memory', 'constitution.md',
+    );
+    // Also check the squad dir parent for .specify
+    const paths = [
+      specifyConstitutionPath,
+      join(dirname(this.squadDir), '.specify', 'memory', 'constitution.md'),
+    ];
+
+    for (const p of paths) {
+      try {
+        return await readFile(p, 'utf-8');
+      } catch {
+        // Try next path
+      }
+    }
+
+    return null;
+  }
 }

@@ -54,7 +54,7 @@ describe('FileSystemDeployer', () => {
       'utf-8',
     );
     const manifest = JSON.parse(raw);
-    expect(manifest.version).toBe('0.1.0');
+    expect(manifest.version).toBe('0.2.0');
     expect(manifest.files).toContain('test/SKILL.md');
     expect(manifest.components.squadSkill).toBe(true);
   });

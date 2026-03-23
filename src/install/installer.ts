@@ -28,6 +28,11 @@ export async function installBridge(
     skillTemplate: string;
     ceremonyTemplate: string;
     extensionTemplate: string;
+    hookTemplates?: {
+      afterTasks: string;
+      beforeSpecify: string;
+      afterImplement: string;
+    };
   },
   options: InstallOptions,
 ): Promise<InstallResult> {
@@ -49,6 +54,7 @@ export async function installBridge(
 
   // Determine which components to deploy
   const files: DeploymentFile[] = [];
+  const hookFiles: DeploymentFile[] = [];
   const components = {
     squadSkill: false,
     specKitExtension: false,
@@ -79,6 +85,30 @@ export async function installBridge(
       content: templates.extensionTemplate,
     });
     components.specKitExtension = true;
+
+    // Deploy hook scripts as executable
+    if (templates.hookTemplates) {
+      const hooksBase = `${specifyDir}/extensions/squad-bridge/hooks`;
+
+      if (config.hooks.afterTasks) {
+        hookFiles.push({
+          targetPath: `${hooksBase}/after-tasks.sh`,
+          content: templates.hookTemplates.afterTasks,
+        });
+      }
+      if (config.hooks.beforeSpecify) {
+        hookFiles.push({
+          targetPath: `${hooksBase}/before-specify.sh`,
+          content: templates.hookTemplates.beforeSpecify,
+        });
+      }
+      if (config.hooks.afterImplement) {
+        hookFiles.push({
+          targetPath: `${hooksBase}/after-implement.sh`,
+          content: templates.hookTemplates.afterImplement,
+        });
+      }
+    }
   } else {
     warnings.push(
       `Spec Kit not detected (${specifyDir}/ missing). Spec Kit components skipped.`,
@@ -93,16 +123,24 @@ export async function installBridge(
     }
   }
 
-  // Deploy files
+  // Deploy regular files
   const deployedPaths = await deployer.deploy(files);
+
+  // Deploy hook scripts with executable permissions
+  let hookPaths: string[] = [];
+  if (hookFiles.length > 0) {
+    hookPaths = await deployer.deployExecutable(hookFiles);
+  }
+
+  const allPaths = [...deployedPaths, ...hookPaths];
 
   const now = new Date().toISOString();
   const manifest: InstallManifest = {
-    version: '0.1.0',
+    version: '0.2.0',
     installedAt: now,
     updatedAt: now,
     components,
-    files: deployedPaths,
+    files: allPaths,
   };
 
   return { manifest, warnings };

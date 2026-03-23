@@ -5,7 +5,7 @@
  * Implements FileDeployer port. Handles idempotent re-installation.
  */
 
-import { mkdir, writeFile, readFile } from 'node:fs/promises';
+import { chmod, mkdir, writeFile, readFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import type { FileDeployer } from '../../bridge/ports.js';
 import type { DeploymentFile, InstallManifest } from '../../types.js';
@@ -29,8 +29,23 @@ export class FileSystemDeployer implements FileDeployer {
       deployedPaths.push(file.targetPath);
     }
 
-    // Write manifest with deployed file list
     await this.writeManifest(deployedPaths);
+
+    return deployedPaths;
+  }
+
+  async deployExecutable(files: DeploymentFile[]): Promise<string[]> {
+    const deployedPaths: string[] = [];
+
+    for (const file of files) {
+      const fullPath = resolve(this.baseDir, file.targetPath);
+      await mkdir(dirname(fullPath), { recursive: true });
+      await writeFile(fullPath, file.content, 'utf-8');
+      await chmod(fullPath, 0o755);
+      deployedPaths.push(file.targetPath);
+    }
+
+    await this.writeManifest(deployedPaths, true);
 
     return deployedPaths;
   }
@@ -41,21 +56,25 @@ export class FileSystemDeployer implements FileDeployer {
     return manifest.files;
   }
 
-  private async writeManifest(files: string[]): Promise<void> {
+  private async writeManifest(files: string[], append: boolean = false): Promise<void> {
     const manifestPath = resolve(this.baseDir, MANIFEST_FILENAME);
     const existing = await this.readManifest();
 
+    const allFiles = append && existing
+      ? [...new Set([...existing.files, ...files])]
+      : files;
+
     const now = new Date().toISOString();
     const manifest: InstallManifest = {
-      version: '0.1.0',
+      version: '0.2.0',
       installedAt: existing?.installedAt ?? now,
       updatedAt: now,
       components: {
-        squadSkill: files.some((f) => f.includes('SKILL.md')),
-        specKitExtension: files.some((f) => f.includes('extension.yml')),
-        ceremonyDef: files.some((f) => f.includes('ceremony.md')),
+        squadSkill: allFiles.some((f) => f.includes('SKILL.md')),
+        specKitExtension: allFiles.some((f) => f.includes('extension.yml')),
+        ceremonyDef: allFiles.some((f) => f.includes('ceremony.md')),
       },
-      files,
+      files: allFiles,
     };
 
     await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n', 'utf-8');

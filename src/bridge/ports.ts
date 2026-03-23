@@ -10,8 +10,10 @@ import type {
   ContextSummary,
   DecisionEntry,
   DeploymentFile,
+  IssueRecord,
   LearningEntry,
   SkillEntry,
+  SyncRecord,
   TaskEntry,
 } from '../types.js';
 
@@ -20,6 +22,7 @@ export interface SquadStateReader {
   readSkills(): Promise<SkillEntry[]>;
   readDecisions(): Promise<DecisionEntry[]>;
   readLearnings(since?: Date): Promise<LearningEntry[]>;
+  readConstitution?(): Promise<string | null>;
 }
 
 // Metadata from a previous context generation cycle
@@ -48,10 +51,28 @@ export interface FrameworkDetector {
 // Output port: deploys bridge components to the file system
 export interface FileDeployer {
   deploy(files: DeploymentFile[]): Promise<string[]>;
+  deployExecutable(files: DeploymentFile[]): Promise<string[]>;
   listDeployed(): Promise<string[]>;
 }
 
 // Input port: loads bridge configuration
 export interface ConfigLoader {
   load(): Promise<BridgeConfig>;
+}
+
+// Output port: creates GitHub issues from task entries
+export interface IssueCreator {
+  create(task: TaskEntry, labels: string[], repo: string): Promise<IssueRecord>;
+  createBatch(tasks: TaskEntry[], labels: string[], repo: string): Promise<IssueRecord[]>;
+}
+
+// Output port: writes learnings back to Squad state
+export interface SquadMemoryWriter {
+  writeLearning(agentName: string, title: string, content: string): Promise<string>;
+  writeDecision(title: string, content: string): Promise<string>;
+}
+
+// Input port: reads tasks markdown for issue creation
+export interface TasksMarkdownReader {
+  readAndParse(path: string): Promise<TaskEntry[]>;
 }
