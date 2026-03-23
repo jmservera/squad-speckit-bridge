@@ -10,6 +10,28 @@
 
 <!-- Append learnings below -->
 
+### 2025-07-25: Phase 3 — US1 Installation Implementation (T011-T020)
+
+**Use Case Implementation Patterns:**
+- Use cases (`installBridge`, `checkStatus`) take port interfaces as function parameters — not class constructors. This keeps them as pure async functions, easier to test than class-based orchestrators.
+- The `installBridge` use case returns a result object (`{ manifest, warnings }`) rather than throwing on partial success. Degraded mode (one framework missing) produces warnings but still succeeds — aligns with CLI exit code 0 for partial installs.
+- Use cases define their own request/result types (`InstallOptions`, `InstallResult`, `StatusReport`) co-located in the same file. These are boundary DTOs — not entities, not adapter concerns.
+
+**Adapter Design Patterns:**
+- `FileSystemFrameworkDetector`: Simplest adapter pattern — wraps a single `fs.stat()` call behind a port interface. The `directoryExists` private method handles the try/catch once; both port methods delegate to it.
+- `FileSystemDeployer`: Manages both file deployment AND manifest tracking. The manifest is the adapter's concern (persistence format), not the use case's. Re-deploy preserves `installedAt` timestamp while updating `updatedAt` — tested explicitly.
+- `ConfigFileLoader`: Resolution chain (explicit path → bridge.config.json → package.json → defaults) implemented as sequential fallthrough. `mergeAndValidate` does shallow merge per config section, then validates the merged result — catches invalid overrides early.
+
+**CLI Wiring Patterns:**
+- Composition root (`main.ts`) exports factory functions (`createInstaller`, `createStatusChecker`) — not raw instances. CLI calls factories, which wire adapters internally. This keeps the CLI file (~100 LOC) focused on commander setup only.
+- Output formatting (human-readable vs JSON) lives in the composition root as private functions, not in use cases. Use cases return structured data; formatters convert to strings. This respects the Clean Architecture boundary — format is an adapter concern.
+- Template loading uses `import.meta.url` for ESM-compatible path resolution — `__dirname` doesn't exist in ESM modules. Templates are loaded at runtime from the `dist/install/templates/` directory after compilation.
+
+**Testing Insights:**
+- Use case tests use `vi.fn().mockResolvedValue()` for port mocks — all ports are async by design. Factory helpers (`makeDetector`, `makeDeployer`, `makeConfigLoader`) with spread overrides keep tests concise.
+- Adapter integration tests create temp directories via `os.tmpdir()` with random suffixes, clean up in `afterEach`. Tests against real filesystem catch issues that mocks would hide (directory creation, file encoding, JSON serialization).
+- 36 new tests (8 installer, 7 status, 6 detector, 7 deployer, 8 config-loader) bring total to 77. Zero flaky tests — temp dir isolation prevents race conditions.
+
 ### 2025-07-24: Clean Architecture Boundary Analysis for Squad-SpecKit Bridge
 
 **Boundary Mapping Applied:**
