@@ -8,7 +8,7 @@
  */
 
 import { Command } from 'commander';
-import { createInstaller, createStatusChecker } from '../main.js';
+import { createInstaller, createStatusChecker, createContextBuilder } from '../main.js';
 
 const program = new Command();
 
@@ -58,6 +58,65 @@ program
           JSON.stringify({
             error: true,
             code: 'INSTALL_FAILED',
+            message,
+          }),
+        );
+      } else {
+        console.error(`Error: ${message}`);
+      }
+      process.exitCode = 1;
+    }
+  });
+
+// Context subcommand (T026)
+program
+  .command('context')
+  .description(
+    'Generate a context summary from Squad memory for Spec Kit planning',
+  )
+  .argument('<spec-dir>', 'Target spec directory (e.g., specs/001-feature/)')
+  .option('--max-size <bytes>', 'Maximum output size in bytes', '8192')
+  .option(
+    '--sources <list>',
+    'Comma-separated list of sources to include',
+    'skills,decisions,histories',
+  )
+  .option('--squad-dir <path>', 'Override Squad directory path')
+  .action(async (specDir: string, cmdOpts) => {
+    const globalOpts = program.opts();
+    const jsonOutput = globalOpts.json as boolean;
+    const quiet = globalOpts.quiet as boolean;
+
+    try {
+      const sourcesList = (cmdOpts.sources as string).split(',').map((s: string) => s.trim());
+      const builder = createContextBuilder({
+        configPath: globalOpts.config as string | undefined,
+        squadDir: cmdOpts.squadDir as string | undefined,
+        specDir,
+        maxSize: parseInt(cmdOpts.maxSize as string, 10),
+        sources: {
+          skills: sourcesList.includes('skills'),
+          decisions: sourcesList.includes('decisions'),
+          histories: sourcesList.includes('histories'),
+        },
+      });
+
+      const result = await builder.build();
+
+      if (jsonOutput) {
+        console.log(JSON.stringify(result.jsonOutput, null, 2));
+      } else if (!quiet) {
+        console.log(result.humanOutput);
+      }
+
+      process.exitCode = 0;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (jsonOutput) {
+        console.error(
+          JSON.stringify({
+            error: true,
+            code: 'CONTEXT_FAILED',
             message,
           }),
         );
