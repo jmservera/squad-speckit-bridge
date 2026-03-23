@@ -19,12 +19,19 @@ import type {
 export interface SquadStateReader {
   readSkills(): Promise<SkillEntry[]>;
   readDecisions(): Promise<DecisionEntry[]>;
-  readLearnings(): Promise<LearningEntry[]>;
+  readLearnings(since?: Date): Promise<LearningEntry[]>;
+}
+
+// Metadata from a previous context generation cycle
+export interface PreviousContextMetadata {
+  generated: string;
+  cycleCount: number;
 }
 
 // Output port: writes generated context summary
 export interface ContextWriter {
   write(summary: ContextSummary): Promise<void>;
+  readPreviousMetadata(): Promise<PreviousContextMetadata | null>;
 }
 
 // Input port: reads Spec Kit tasks for review

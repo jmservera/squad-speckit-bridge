@@ -16,6 +16,7 @@ function makeSummary(overrides?: Partial<ContextSummary>): ContextSummary {
   return {
     metadata: {
       generated: '2025-07-25T10:00:00.000Z',
+      cycleCount: 1,
       sources: {
         skills: 1,
         decisions: 1,
@@ -165,5 +166,41 @@ describe('SpecKitContextWriter', () => {
 
     const content = await readFile(join(tempDir, 'squad-context.md'), 'utf-8');
     expect(content).toContain('Skipped large skill');
+  });
+
+  it('includes cycle_count in frontmatter', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'speckit-writer-'));
+    const writer = new SpecKitContextWriter(tempDir);
+
+    const summary = makeSummary();
+    summary.metadata.cycleCount = 3;
+    await writer.write(summary);
+
+    const content = await readFile(join(tempDir, 'squad-context.md'), 'utf-8');
+    expect(content).toContain('cycle_count: 3');
+  });
+
+  it('readPreviousMetadata returns null when no previous context', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'speckit-writer-'));
+    const writer = new SpecKitContextWriter(tempDir);
+
+    const meta = await writer.readPreviousMetadata();
+    expect(meta).toBeNull();
+  });
+
+  it('readPreviousMetadata extracts generated timestamp and cycle count', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'speckit-writer-'));
+    const writer = new SpecKitContextWriter(tempDir);
+
+    // Write a context first
+    const summary = makeSummary();
+    summary.metadata.cycleCount = 2;
+    await writer.write(summary);
+
+    // Now read previous metadata
+    const meta = await writer.readPreviousMetadata();
+    expect(meta).not.toBeNull();
+    expect(meta!.generated).toBe('2025-07-25T10:00:00.000Z');
+    expect(meta!.cycleCount).toBe(2);
   });
 });

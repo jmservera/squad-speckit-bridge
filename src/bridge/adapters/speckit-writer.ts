@@ -1,16 +1,19 @@
 /**
- * T025: SpecKitContextWriter Adapter
+ * T025 + T034: SpecKitContextWriter Adapter
  *
  * Implements ContextWriter port. Converts ContextSummary entity to
  * markdown document with YAML frontmatter per research.md RC-3 format.
  * Writes to <spec-dir>/squad-context.md.
  *
- * Adapter layer — uses fs/promises (framework), implements port.
+ * T034: Also reads previous context metadata for cycle detection.
+ *
+ * Adapter layer — uses fs/promises and gray-matter (frameworks), implements port.
  */
 
-import { writeFile, mkdir } from 'node:fs/promises';
+import { writeFile, readFile, mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
-import type { ContextWriter } from '../ports.js';
+import matter from 'gray-matter';
+import type { ContextWriter, PreviousContextMetadata } from '../ports.js';
 import type { ContextSummary } from '../../types.js';
 
 export class SpecKitContextWriter implements ContextWriter {
@@ -29,12 +32,37 @@ export class SpecKitContextWriter implements ContextWriter {
     await writeFile(outputPath, content, 'utf-8');
   }
 
+  /** T034: Read previous squad-context.md metadata for cycle detection. */
+  async readPreviousMetadata(): Promise<PreviousContextMetadata | null> {
+    const contextPath = join(this.specDir, 'squad-context.md');
+
+    try {
+      const raw = await readFile(contextPath, 'utf-8');
+      const { data } = matter(raw);
+
+      if (data.generated) {
+        const generated = data.generated instanceof Date
+          ? data.generated.toISOString()
+          : String(data.generated);
+        return {
+          generated,
+          cycleCount: typeof data.cycle_count === 'number' ? data.cycle_count : 1,
+        };
+      }
+      return null;
+    } catch {
+      // File doesn't exist or is unparseable — first cycle
+      return null;
+    }
+  }
+
   private renderMarkdown(summary: ContextSummary): string {
     const lines: string[] = [];
 
     // YAML frontmatter
     lines.push('---');
     lines.push(`generated: ${summary.metadata.generated}`);
+    lines.push(`cycle_count: ${summary.metadata.cycleCount}`);
     lines.push('sources:');
     lines.push(`  skills: ${summary.metadata.sources.skills}`);
     lines.push(`  decisions: ${summary.metadata.sources.decisions}`);

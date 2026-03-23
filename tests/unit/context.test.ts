@@ -26,6 +26,7 @@ function makeWriter(): ContextWriter & { captured: ContextSummary | null } {
     write: vi.fn(async (summary: ContextSummary) => {
       writer.captured = summary;
     }),
+    readPreviousMetadata: vi.fn().mockResolvedValue(null),
   };
   return writer;
 }
@@ -139,5 +140,43 @@ describe('BuildSquadContext', () => {
     expect(result.summary.metadata.sources.skills).toBe(1);
     expect(result.summary.metadata.sources.decisions).toBe(1);
     expect(result.summary.metadata.sources.histories).toBe(1);
+  });
+
+  it('increments cycle count when previous context exists (T034)', async () => {
+    const reader = makeReader();
+    const writer = makeWriter();
+    writer.readPreviousMetadata = vi.fn().mockResolvedValue({
+      generated: '2025-07-20T00:00:00.000Z',
+      cycleCount: 3,
+    });
+    const config = makeConfig();
+
+    const result = await buildSquadContext(reader, writer, { config });
+
+    expect(result.summary.metadata.cycleCount).toBe(4);
+  });
+
+  it('starts at cycle 1 when no previous context (T034)', async () => {
+    const reader = makeReader();
+    const writer = makeWriter();
+    const config = makeConfig();
+
+    const result = await buildSquadContext(reader, writer, { config });
+
+    expect(result.summary.metadata.cycleCount).toBe(1);
+  });
+
+  it('passes since-filter to readLearnings when previous context exists (T034)', async () => {
+    const reader = makeReader();
+    const writer = makeWriter();
+    writer.readPreviousMetadata = vi.fn().mockResolvedValue({
+      generated: '2025-07-20T00:00:00.000Z',
+      cycleCount: 1,
+    });
+    const config = makeConfig();
+
+    await buildSquadContext(reader, writer, { config });
+
+    expect(reader.readLearnings).toHaveBeenCalledWith(new Date('2025-07-20T00:00:00.000Z'));
   });
 });
