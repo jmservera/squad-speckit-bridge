@@ -10,6 +10,16 @@
 
 <!-- Append learnings below -->
 
+### 2026-03-23: T002 — Demo Entity Types Definition
+
+**Task:** Defined all entity types in `src/demo/entities.ts` for the E2E demo script (Issue #206).
+
+**Entities Created:**
+- **Enums:** `StageStatus` (pending/running/success/failed), `ArtifactType` (spec/plan/tasks/review)
+- **Interfaces:** `DemoFlags`, `DemoConfiguration`, `PipelineStage`, `DemoArtifact`, `ArtifactSummary`, `ExecutionReport`
+
+**Pattern Applied:** Pure domain types with no dependencies — follows Clean Architecture entity layer principles. All fields documented with JSDoc comments matching the spec at `specs/003-e2e-demo-script/data-model.md`.
+
 ### 2026-03-23: T001 — Demo Feature Directory Structure
 
 **Task:** Created directory structure for demo feature on branch `003-e2e-demo-script` (Issue #205).

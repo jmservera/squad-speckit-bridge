@@ -18,7 +18,7 @@ import type {
   ArtifactValidator,
   CleanupHandler,
 } from './ports.js';
-import { generateTimestamp, formatFileSize } from './utils.js';
+import { generateTimestamp, formatFileSize, formatElapsedTime } from './utils.js';
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -134,6 +134,7 @@ export async function runDemo(
 
     const stageEndTime = Date.now();
     stage.endTime = stageEndTime;
+    stage.elapsedMs = stageEndTime - stageStartTime;
 
     // Capture stdout/stderr in stage result
     stage.output = {
@@ -154,7 +155,7 @@ export async function runDemo(
       } else {
         // Transition: running → failed (command ran but artifact validation failed)
         stage.status = StageStatus.Failed;
-        stage.error = `Artifact validation failed: ${artifact.errors.join(', ')}`;
+        stage.error = `Artifact validation failed (${formatElapsedTime(stage.elapsedMs!)}): ${artifact.errors.join(', ')}`;
         stagesFailed++;
         errorSummary = `Artifact validation failed for ${stage.name}: ${artifact.errors.join(', ')}`;
         // Halt pipeline on first failure
@@ -166,7 +167,10 @@ export async function runDemo(
       stagesFailed++;
 
       // Build error message with captured stderr
-      const errorParts: string[] = [`Command: ${stage.command.join(' ')}`];
+      const errorParts: string[] = [
+        `Command: ${stage.command.join(' ')}`,
+        `Duration: ${formatElapsedTime(stage.elapsedMs!)}`,
+      ];
       if (result.timedOut) {
         errorParts.push('Status: Timed out');
       } else {

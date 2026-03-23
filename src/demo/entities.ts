@@ -92,6 +92,8 @@ export interface PipelineStage {
   startTime?: number;
   /** Timestamp (ms) when stage completed */
   endTime?: number;
+  /** Elapsed time in milliseconds for stage execution */
+  elapsedMs?: number;
   /** Error message if status is 'failed' */
   error?: string;
   /** Captured stdout/stderr from command execution */
