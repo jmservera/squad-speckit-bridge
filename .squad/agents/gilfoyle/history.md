@@ -52,3 +52,33 @@
 - Constitutional governance at scale
 - Progressive GitHub integration
 - Team-size-driven framework configuration
+
+### 2026-03-23: Meta-Analysis — Using Spec Kit to Design the Bridge
+
+**Session workflow reconstruction:**
+- Actual flow deviated significantly from ideal Spec Kit pipeline. Constitution was never customized. Clarify phase was initially skipped (added post-tasks after Juanma's directive). Clean Architecture was inserted between plan and tasks as an unscripted design session. Pipeline was re-run incrementally for US7 addition.
+- The pattern **diverge (Squad parallel research) → converge (Spec Kit sequential pipeline)** emerged as the core value proposition. Four agents doing simultaneous research produced dramatically better spec quality than cold-start specification.
+
+**Key friction points identified:**
+1. `setup-plan.sh` overwrites plan.md on re-run — data loss risk mitigated only by git.
+2. Clarify phase timing matters: post-tasks catches spec/task misalignment, pre-plan catches ambiguity. Both have value.
+3. Uncustomized constitution creates fragile quality gates — Richard had to reverse-engineer principles from decisions.md.
+4. Squad agents can't invoke Spec Kit VS Code chat commands — the core impedance mismatch the bridge must solve.
+5. Human-in-the-loop directive changed governance model mid-session but wasn't captured in constitution.
+6. Pre-pipeline research phase has no Spec Kit equivalent.
+
+**Learnings that should shape the bridge:**
+- L-1: `after_tasks` hook should trigger clarify + review (not just review).
+- L-2: Bridge should detect template-only constitution and warn.
+- L-3: Bridge must handle incremental pipeline re-runs safely (pre-phase artifact checks).
+- L-4: Context summary should include workflow history, not just state.
+- L-5: Research artifacts (`research-*.md`) should be discoverable by context command.
+- L-6: Session retrospective (auto-capture workflow learnings) is a viable future feature (US8).
+- L-7: `before_specify` hook gap in Spec Kit is the critical blocker for full automation.
+- L-8: Governance decisions need boosted visibility in context summaries.
+
+**Proposals written:**
+- 3 actionable for v0.1 (clarify after tasks, constitution detection, setup-plan.sh warning)
+- 3 deferred to v0.2 (workflow notes section, governance boosting, research scanning)
+- Full analysis: `research-gilfoyle-meta-analysis.md` at repo root
+- Decision proposals: `.squad/decisions/inbox/gilfoyle-workflow-learnings.md`
