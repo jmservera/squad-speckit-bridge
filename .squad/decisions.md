@@ -322,6 +322,41 @@ tests/
 
 ---
 
+### Specification Workflow Learnings (2026-03-23)
+
+**Decision:** Six workflow enhancements proposed based on meta-analysis of this session's Spec Kit usage.
+
+**Proposals (v0.1 — actionable immediately):**
+
+1. **FR-014 Enhancement:** `after_tasks` hook should trigger both clarify pass and Design Review notification
+   - Evidence: Juanma directed "always run clarify after tasks"
+   - Impact: Catches spec/task misalignment (missing flags, undefined enum values) missed by pre-plan clarification
+   - Modification: T036 (after-tasks.sh) to run clarify before review notification
+
+2. **FR-025 (New Requirement):** Detect uncustomized constitutions and warn developer
+   - Evidence: This session's constitution remained a `[PLACEHOLDER]` template throughout
+   - Workaround: Team reverse-engineered principles from decisions.md (fragile but effective)
+   - Implementation: T012 (CheckStatus use case) adds constitution template detection; context command warns on placeholder markers
+
+3. **SKILL.md Template Warning:** Document `setup-plan.sh` overwrite risk explicitly
+   - Evidence: Richard lost plan.md content on incremental re-run; required `git restore` recovery
+   - Pattern: "Always commit artifacts before re-running Spec Kit pipeline phases"
+   - Modification: T039–T040 (bridge SKILL.md template) adds explicit setup-plan.sh re-run warning
+
+**Proposals (v0.2 — deferred, queue for next cycle):**
+
+4. **Workflow Notes Section in Context Summary** — Enhance context summary to include "Workflow Notes" tier surfacing Spec Kit pipeline patterns, phase ordering lessons, and friction points alongside technical learnings. Deferred implementation: SummarizeContent (T021).
+
+5. **Governance Decision Visibility** — Decisions tagged with governance keywords (escalate, human review, approval required, human-in-the-loop) should appear in dedicated "Governance" section above regular decisions and receive boosted relevance. Deferred implementation: RelevanceScorer (T007), context summary format.
+
+6. **Pre-Pipeline Research Phase Support** — `context` command should optionally discover and summarize research artifacts (`research-*.md` files). Squad's research phase predates Spec Kit's planning; currently untracked by pipeline. Deferred implementation: BuildSquadContext (T022).
+
+**Classification:** All project-specific to Squad-SpecKit bridge; no generic patterns extracted.
+
+**Status:** v0.1 proposals approved for implementation; v0.2 queued for prioritization
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus
