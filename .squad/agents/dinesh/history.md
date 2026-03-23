@@ -116,3 +116,28 @@ Squad and Spec Kit can coexist safely with:
 **PR Workflow (batch commits):**
 - Sequential setup tasks (T001→T004) work well on a single branch with individual commits referencing issues.
 - PR body references all closed issues: `Closes #2, closes #3, closes #4, closes #5` — GitHub auto-closes all four on merge.
+
+### 2025-07-25: Phase 2 Foundational — Entity Design & Port Interface Patterns
+
+**Entity Design Patterns Applied:**
+- All 10 entity types (BridgeConfig, ContextSummary, SkillEntry, DecisionEntry, LearningEntry, DesignReviewRecord, ReviewFinding, InstallManifest, TaskEntry, DeploymentFile) are plain TypeScript interfaces — no classes, no constructors, no inheritance. This keeps the entity layer maximally composable and serializable.
+- Union literal types (`ReviewSeverity`, `ReviewFindingType`, `ApprovalStatus`) enforce domain constraints at the type level — invalid values are compile-time errors, not runtime surprises.
+- Nested sub-objects in BridgeConfig (`sources`, `summarization`, `hooks`, `paths`) match the config-schema.md JSON structure exactly. This means config file ↔ entity mapping is structural, not transformational — adapters can deserialize directly.
+
+**Pure Function Design:**
+- `isValidConfig()` validates BridgeConfig with boundary checks: contextMaxBytes (1–32768), recencyBiasWeight (0.0–1.0), maxDecisionAgeDays (>0). Returns boolean — callers decide error handling.
+- `computeRelevanceScore()` uses exponential decay with 90-day half-life: `e^(-ageDays * ln2 / 90)`. Produces ~0.5 at 90 days, ~0.25 at 180 days. Unparseable dates return 0.5 (neutral) rather than failing — graceful degradation pattern.
+- Severity helpers (`compareSeverity`, `isHighSeverity`, `categorizeFindings`) use a numeric order map instead of switch/if chains — cleaner, extensible, and the comparator works directly with `Array.sort()`.
+
+**Port Interface Design:**
+- 6 port interfaces (SquadStateReader, ContextWriter, TasksReader, FrameworkDetector, FileDeployer, ConfigLoader) import ONLY from `../types.ts`. Zero external dependencies.
+- All port methods return `Promise<T>` — even though entity layer is sync, ports are async because adapters will do I/O. Designing async-first avoids breaking changes when adapters are implemented.
+- Port names describe capability, not implementation: `SquadStateReader` not `SquadFileReader`, `FileDeployer` not `FsFileWriter`. This keeps the contract independent of the adapter technology.
+- `FileDeployer.deploy()` takes `DeploymentFile[]` and returns `string[]` (deployed paths) — the port defines the data shape, not the file system details.
+
+**Testing Insight:**
+- 41 tests across 6 describe blocks, zero mocks. Pure functions are the easiest code to test — factory helpers (`makeConfig`, `makeDecision`, `makeFinding`) with spread overrides make each test self-documenting.
+- `createDefaultConfig()` returning a fresh object each call (verified by mutation test) prevents shared-state bugs in production code.
+
+**Git Worktree Pattern:**
+- When multiple agents work on different branches in the same repo simultaneously, git worktrees prevent branch conflicts. Used `git worktree add /path squad/phase2-foundational` to isolate from concurrent documentation work on `squad/us7-documentation`.
