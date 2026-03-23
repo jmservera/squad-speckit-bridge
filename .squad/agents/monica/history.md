@@ -40,4 +40,12 @@
 
 7. **Installation guides need expected outputs and troubleshooting.** The best installation guide showed: (1) prerequisites with verification commands, (2) each installation step with expected output, (3) verification that all components are in place, (4) common error scenarios with solutions. This prevented "it didn't work" with no context.
 
+### npm Publication & Documentation Updates (2026-03-23)
+
+1. **Three installation modes reduce friction.** When a package reaches npm, offering three clear paths (npx for one-off use, global for power users, dev-dependency for teams) removes decision paralysis. Each has a valid use case. The npx path is especially valuable for onboarding—no setup, just works immediately.
+
+2. **Consistency over repetition.** Rather than showing every command example in all three forms, anchor on "preferred pattern" (npx in docs, then note the equivalents). Document how scoping changes: `npx @jmservera/squad-speckit-bridge` vs `squad-speckit-bridge` (global) vs `npx squad-speckit-bridge` (dev-dep). This consistency helps users switch methods without confusion.
+
+3. **Documentation is a product feature.** Installation docs are often the first impression. Clear choices, expected output, and troubleshooting that maps errors to solutions converts frustrated users into users who get it working. The installation guide is the gate; make it welcoming.
+
 <!-- Append learnings below -->
