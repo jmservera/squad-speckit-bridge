@@ -1,14 +1,34 @@
+# Jekyll Configuration for Squad-SpecKit Bridge Documentation
+
 theme: jekyll-theme-minimal
 title: Squad-SpecKit Bridge
-description: Connecting agentic development frameworks
+description: Connecting agentic development frameworks — knowledge flywheel for hybrid planning and execution
 baseurl: /squad-speckit-bridge
+url: https://jmservera.github.io/squad-speckit-bridge
 
 # Build settings
 markdown: kramdown
+highlighter: rouge
 plugins:
   - jekyll-feed
+  - jekyll-seo-tag
 
 # Site settings
 author: Integration Team
 email: contact@example.com
 show_downloads: true
+
+# Navigation structure
+header_pages:
+  - index.md
+  - installation.md
+  - usage.md
+  - architecture.md
+
+# Exclude from build
+exclude:
+  - README.md
+  - CONTRIBUTING.md
+  - .gitignore
+  - Gemfile
+  - Gemfile.lock
