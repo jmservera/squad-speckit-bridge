@@ -99,6 +99,60 @@ Neither alone covers full workflow. Squad lacks specification discipline. Spec K
 
 ---
 
+### Memory Bridge — Squad State Feeds Into Spec Kit Planning (2026-03-23)
+
+**Decision:** Build a context injection layer that reads Squad's `.squad/` memory artifacts and makes them available to Spec Kit's planning phases. Implemented as either a Spec Kit extension hook (`before_specify`) or a standalone bridge script.
+
+**Mechanism:**
+1. Before `/speckit.specify` or `/speckit.plan` runs, a bridge script reads:
+   - `.squad/skills/*/SKILL.md` (compressed learnings — highest signal)
+   - `.squad/decisions.md` (team decisions — filtered for relevance)
+   - `.squad/agents/*/history.md` (agent learnings — summarized, not raw)
+2. Produces a `squad-context.md` in the spec directory
+3. Spec Kit's planning templates reference this file as additional context
+
+**Constraints:**
+- Read-only from Squad's side. Spec Kit never writes to `.squad/`.
+- The reverse flow (Spec Kit → Squad) already exists via `tasks.md` handoff.
+- Progressive summarization applies — don't dump 200KB of histories into planning context.
+
+**Rationale:** Squad agents accumulate knowledge that Spec Kit's stateless planning cannot access. Without this bridge, every planning cycle starts from zero knowledge. With it, each cycle benefits from all prior execution experience.
+
+**Status:** Proposed
+
+---
+
+### Task Creation Workflow — Lead-Reviewed Ceremony Before Issues (2026-03-23)
+
+**Decision:** Adopt the following workflow for turning Spec Kit output into actionable work:
+
+```
+Spec Kit: spec → plan → tasks.md
+    ↓
+Squad Lead: Reviews tasks.md with team (Design Review ceremony)
+    ↓
+Lead/Coordinator: Creates GitHub issues (informed by team review)
+    ↓
+Ralph: Picks up issues, distributes via labels
+    ↓
+Squad agents: Execute, write learnings to history.md
+    ↓
+Memory bridge: Feeds learnings back into next Spec Kit cycle
+```
+
+**Key rule:** No issues are created until the Squad team has reviewed Spec Kit's task breakdown. The ceremony is where accumulated knowledge corrects planning blind spots.
+
+**Rationale:**
+- Spec Kit plans from specs alone — it has no project history or codebase memory.
+- Squad agents know the tricky integrations, fragile modules, and prior decisions.
+- Creating issues before team review wastes effort on tasks that will be immediately revised.
+- The ceremony creates a natural human review checkpoint.
+- The feedback loop (execution learnings → next planning cycle) is what makes the system compound.
+
+**Status:** Proposed
+
+---
+
 ## Generic Decisions for Extract
 
 The following decisions apply broadly and are candidates for personal squad extraction:
