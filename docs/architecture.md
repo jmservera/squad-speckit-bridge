@@ -177,38 +177,55 @@ interface ContextSummaryDTO {
 ## Knowledge Flow Loop (The Flywheel)
 
 ```
-Step 1: Spec Kit Planning
-────────────────────────
-  spec.md → plan.md → tasks.md (no project context yet)
-
-Step 2: Memory Bridge (Inject Squad Learning)
-──────────────────────────────────────────
-  Read:  .squad/agents/*/history.md, .squad/decisions.md, skills
-  Score: By recency and relevance (ContextBudget, RelevanceScorer entities)
-  Write: squad-context.md (budgeted, summarized)
-
-Step 3: Design Review Ceremony
-──────────────────────────────
-  Team: Validate tasks against real-world experience
-  Output: tasks-reviewed.md (annotations + approval)
-
-Step 4: Issue Creation
-──────────────────────
-  tasks-reviewed.md → GitHub Issues (labeled, assigned)
-
-Step 5: Squad Execution
-──────────────────────
-  Ralph: Triage → Agents: Work → Issues: Closed
-  Learnings: Written to .squad/agents/*/history.md
-
-Step 6: Learning Sync
+Step 0: Install Bridge
 ────────────────────
+  Command: npx squad-speckit-bridge install
+  Creates: Squad skill, Spec Kit extension, config, manifest
+  Hooks: after-tasks.sh activated in extension.yml
+
+Step 1: Spec Kit Planning (User Initiative)
+────────────────────────────────────────────
+  User: /speckit.specify → /speckit.plan → /speckit.tasks
+  Result: spec.md → plan.md → tasks.md (planning logic only, no context yet)
+
+Step 2a: AUTOMATIC Memory Injection (Hook or Manual)
+──────────────────────────────────────────────────
+  Trigger: before_plan phase (manual: `context` command)
+  Action:  Read .squad/agents/*/history.md, .squad/decisions.md, skills
+  Score:   By recency and relevance (ContextBudget, RelevanceScorer)
+  Output:  squad-context.md (budgeted, summarized)
+  
+Step 2b: AUTOMATIC Design Review Generation (Hook Activated)
+──────────────────────────────────────────────────────────
+  Trigger: after-tasks.sh runs after /speckit.tasks
+  Action:  Analyze tasks.md for conflicts and risks
+  Output:  review.md with pre-populated findings
+  Notify:  Team that review.md is ready for discussion
+
+Step 3: Design Review Ceremony (Team Initiative - Human)
+────────────────────────────────────────────────────────
+  Team: Open specs/001-feature/review.md
+  Action: Discuss findings, validate tasks against experience
+  Output: Approved or annotated review.md (commit with code)
+
+Step 4: Issue Creation (Manual Command)
+──────────────────────────────────────────
+  Command: npx squad-speckit-bridge issues specs/001-feature/tasks.md
+  Result: tasks.md → GitHub Issues (labeled, assigned)
+
+Step 5: Squad Execution (Agent Initiative)
+───────────────────────────────────────────
+  Ralph: Triage issues → Agents: Work → Issues: Closed
+  Recording: Learnings written to .squad/agents/*/history.md
+
+Step 6: Learning Sync (AUTOMATIC or Manual)
+──────────────────────────────────────────────
   .squad/agents/*/history.md → Summarization → Persist
   
-    ⤴ LOOP BACK TO STEP 2
+        ⤴ LOOP BACK TO STEP 2A (next planning cycle)
 ```
 
-**Key Insight:** Without the loop, each planning cycle starts from zero. With it, execution learnings compound over time.
+**Key Insight:** Without the loop, each planning cycle starts from zero. With it, execution learnings compound over time. **Hooks automate the flow,** reducing manual overhead while keeping humans in control of critical decisions (the Design Review ceremony).
 
 ## Extension Points
 
@@ -266,13 +283,15 @@ The bridge respects each framework's design:
 - Use cases with port interfaces
 - Core adapters (SquadFS, SpecKitFS, Config, CLI)
 - Squad plugin (SKILL.md, ceremony definition)
-- Spec Kit extension hooks (after_tasks)
+- Spec Kit extension hooks (after_tasks for Design Review generation)
+- Automation-first design with hooks as the primary integration mechanism
 - 60 test cases
 
 **Phase 2 (v0.2):**
 - GitHubIssueAdapter (full workflow)
 - Learning sync use case
 - Installation package (npm)
+- before_specify hook support (if added to Spec Kit upstream)
 
 **Phase 3 (v1.0):**
 - MCP server wrapper

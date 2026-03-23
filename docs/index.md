@@ -42,60 +42,72 @@ Next Planning Cycle (improved by prior execution)
 
 ## How It Works (2-Minute Tour)
 
-Once installed, your Spec Kit workflow is **automatically enhanced**. Most of the heavy lifting happens in the background.
+Once installed, **the bridge disappears into the background.** You use Spec Kit normally; it handles the integration automatically.
 
-### One-Time Setup
+### Step 1: Install (One Time)
 ```bash
-npx squad-speckit-bridge install
-# That's it — deploy once, then forget about it
+$ npx squad-speckit-bridge install
+# That's it — done. Deployment complete.
 ```
 
-### Then Just Use Spec Kit Normally
-
+### Step 2: Use Spec Kit Normally
 ```bash
-cd specs/001-my-feature/
-
-# Spec Kit planning proceeds as usual:
-/speckit.specify
-/speckit.plan
-/speckit.tasks
+$ cd specs/001-my-feature/
+$ /speckit.specify
+$ /speckit.plan
+$ /speckit.tasks
 ```
 
-**What happens automatically during planning:**
-- 🧠 **Memory Injection** — Your team's prior decisions and learnings are automatically injected as context before planning starts
-- 📋 **Better Plans** — Task generation is informed by execution history (not planning from scratch)
+**What happens automatically:**
+- 🧠 **Memory Injection** — Before planning, your team's prior decisions and learnings are silently injected as context
+- 📋 **Better Plans** — Task generation is informed by real-world experience, not starting from scratch
+- 🔍 **Review Auto-Generated** — After tasks.md, a Design Review template is created with pre-populated conflict flags
+- 📁 **Context Saved** — Both `squad-context.md` and `review.md` appear in your spec directory
 
-**What happens automatically after `/speckit.tasks`:**
-- 🔍 **Design Review Generated** — The bridge auto-generates a review template pre-populated with potential decision conflicts and risk flags
-- 📢 **Team Notification** — You're notified that review is ready
-- 📁 **Context Saved** — `squad-context.md` is created in your spec directory for reference during review
+**No manual steps. This all happens automatically.**
 
-### Then the Human Part (Design Review)
-
+### Step 3: Team Validates (Design Review)
 ```bash
-# Your team reviews tasks against real-world experience:
-# Open: specs/001-my-feature/review.md
-# Discuss: Do these tasks match what we've learned?
-# Approve: When satisfied, mark review as complete
+# Your team reviews (a 15-minute discussion, not a command):
+#   Open: specs/001-my-feature/review.md
+#   Discuss: Do these tasks match what we've learned?
+#   Approve: Mark ready in the review file when satisfied
 ```
 
-The Design Review is a **ceremony**, not a command. It's where your team's knowledge corrects planning blind spots.
+The Design Review is a **ceremony**, not a command. It's where human judgment corrects planning blind spots using accumulated team knowledge.
 
-### Create Issues (When Ready)
-
+### Step 4: Create Issues (When Review Approves)
 ```bash
-npx squad-speckit-bridge issues specs/001-my-feature/tasks.md
-# Convert approved tasks into GitHub issues
-# Issues are labeled and ready for Squad execution
+$ npx squad-speckit-bridge issues specs/001-my-feature/tasks.md
+# One command: tasks become GitHub issues (labeled, ready to assign)
 ```
 
-### Squad Executes (Ralph Picks Up Issues)
-Your agents work as usual. The bridge stays out of the way.
+### Step 5: Squad Executes
+Your agents work as usual. The bridge stays completely out of the way.
 
-### Learnings Auto-Sync Back
-After execution, learnings are synced to `.squad/` memory — ready to inform the next planning cycle. The flywheel continues.
+### Step 6: Learnings Auto-Sync Back
+After execution completes, agent learnings are synced back to `.squad/` memory — ready to inform the next planning cycle. The knowledge loop closes. ⤴
 
 ## Key Benefits
+
+### Generated Files (Commit Them)
+
+The bridge creates files that document your planning history. Commit them with your code:
+
+**Created by `install`:**
+- `.bridge-manifest.json` — Tracks bridge version and components
+- `.squad/skills/speckit-bridge/SKILL.md` — Agent knowledge about bridge workflow
+- `.squad/ceremonies/design-review.md` — Design Review ceremony definition
+- `.specify/extensions/squad-bridge/extension.yml` — Automation hooks
+- `bridge.config.json` — Configuration (customizable)
+
+**Created during planning:**
+- `squad-context.md` — Your team's memory injected into planning (for reference)
+- `review.md` — Design Review findings and approval checklist
+
+These files are part of your feature's planning record — future cycles and team members benefit from this history.
+
+---
 
 ### For Product/Design
 - **Better Planning** — Decisions informed by actual execution experience

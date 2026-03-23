@@ -4,7 +4,7 @@ layout: default
 
 # Installation Guide
 
-Get the Squad-SpecKit Bridge up and running in your project. This guide covers prerequisites, installation, verification, and troubleshooting.
+Get the Squad-SpecKit Bridge up and running in your project. Installation is a one-time setup; after that, the bridge works automatically.
 
 ## Prerequisites
 
@@ -120,37 +120,59 @@ Last context run:   (none yet)
 
 All items should show `✓`. If any show `✗`, review the troubleshooting section below.
 
+---
+
 ## What Gets Automated
 
-After installation, the bridge operates **silently in the background** during Spec Kit's planning phases. Here's what happens without any additional commands:
+After installation, the bridge operates **in the background during Spec Kit planning**. Here's what happens without any additional commands:
 
-### During `/speckit.plan`
+### Files Created by Install (Commit These)
+
+| File | Location | Purpose |
+|------|----------|---------|
+| `.bridge-manifest.json` | repo root | Tracks installed components and versions |
+| `.squad/skills/speckit-bridge/SKILL.md` | .squad/ | Teaches Squad agents about Spec Kit artifacts |
+| `.squad/ceremonies/design-review.md` | .squad/ | Design Review ceremony definition |
+| `.specify/extensions/squad-bridge/extension.yml` | .specify/ | Hook definitions for automation |
+| `bridge.config.json` | repo root | Configuration (customizable) |
+
+### Files Created During Workflow (Also Commit These)
+
+| File | Location | Created By | Purpose |
+|------|----------|------------|---------|
+| `squad-context.md` | specs/{feature}/ | Automatic (before planning) | Squad memory summary injected into planning |
+| `review.md` | specs/{feature}/ | Automatic (after `/speckit.tasks`) | Design Review template with findings |
+
+**Why commit generated files?** They're part of your feature's planning history. Future cycles and team members benefit from seeing what knowledge informed decisions.
+
+### During Spec Kit Planning
 
 | What | How | You See |
 |------|-----|---------|
 | **Memory Injection** | Bridge reads `.squad/` (skills, decisions, histories) and creates `squad-context.md` | Planning context includes your team's prior learnings |
-| **Context Budgeting** | Recent and relevant decisions prioritized; older items pruned to fit context budget | Focused, efficient context (default: 8192 bytes) |
-| **Availability** | File automatically created in your spec directory | `squad-context.md` available for manual reference during planning |
+| **Context Budgeting** | Recent and relevant decisions prioritized; older items pruned to fit budget | Focused, efficient context (default: 8KB) |
+| **File Creation** | Context automatically created in your spec directory | `squad-context.md` available for reference |
 
 ### After `/speckit.tasks` Completes
 
 | What | How | You See |
 |------|-----|---------|
-| **Review Generation** | Bridge analyzes `tasks.md` for potential conflicts and risks | `specs/YOUR-SPEC/review.md` auto-generated with pre-populated findings |
-| **Decision Conflicts** | Checks against `.squad/decisions.md` for alignment | Flags highlighted in review template: "⚠ Task T3 conflicts with decision D-042" |
-| **Team Notification** | Logs a message indicating review is ready | "[squad-bridge] Design Review ready at specs/001-feature/review.md" |
-| **Configuration Check** | Respects `bridge.config.json` settings | Can be disabled via `"hooks": { "afterTasks": false }` |
+| **Review Generation** | Bridge analyzes `tasks.md` for conflicts and risks | `specs/YOUR-SPEC/review.md` auto-generated |
+| **Decision Conflicts** | Checks against `.squad/decisions.md` for alignment | Flags highlighted: "⚠ Task T3 conflicts with decision D-042" |
+| **Team Notification** | Logs message indicating review is ready | "[squad-bridge] Design Review ready at specs/001-feature/review.md" |
+| **Configurability** | Respects `bridge.config.json` settings | Can be disabled via `hooks.afterTasks: false` |
 
-### These Hooks Are Active
+### Hooks Active After Install
 
-1. **`after-tasks.sh`** (in `.specify/extensions/squad-bridge/`)
-   - Trigger: Automatically runs after `/speckit.tasks`
-   - Defined in: `extension.yml` with `enabled: true`
-   - Configurable: `bridge.config.json` → `hooks.afterTasks`
+The `after-tasks.sh` hook in `.specify/extensions/squad-bridge/` automatically runs after `/speckit.tasks`:
 
-### To Disable Automation
+```bash
+# Trigger: After /speckit.tasks completes
+# Defined in: extension.yml with enabled: true
+# Configurable: bridge.config.json → hooks.afterTasks
+```
 
-If you prefer **manual mode** (run all commands explicitly):
+To disable automation and use manual commands instead:
 
 ```json
 {
@@ -160,7 +182,9 @@ If you prefer **manual mode** (run all commands explicitly):
 }
 ```
 
-Then use commands manually as described in the [Usage Guide](usage.md#manual-commands).
+Then refer to the [Usage Guide](usage.md#manual-commands) for manual command details.
+
+---
 
 ## Configuration (Optional)
 
@@ -243,6 +267,8 @@ To complete: Initialize Spec Kit, then run `npx squad-speckit-bridge install` ag
 ```
 
 Same applies if you have Spec Kit without Squad — both-sided functionality becomes available once both frameworks are present.
+
+---
 
 ## Troubleshooting
 
@@ -342,6 +368,8 @@ npm install -g squad-speckit-bridge
 npx squad-speckit-bridge --help
 ```
 
+---
+
 ## Uninstalling
 
 To remove the bridge from your project:
@@ -357,18 +385,28 @@ rm .bridge-manifest.json
 
 Both Squad and Spec Kit remain unaffected — the bridge is purely additive.
 
+---
+
 ## Next Steps
 
 After successful installation:
 
-1. **[Usage Guide](usage.md)** — Learn the memory bridge and design review workflows
-2. **[Architecture Overview](architecture.md)** — Understand design principles and extension points
-3. **First Command:**
+1. **Commit the generated files:**
    ```bash
-   npx squad-speckit-bridge context specs/001-my-feature/
+   git add .bridge-manifest.json .squad/skills/speckit-bridge/ .squad/ceremonies/design-review.md .specify/extensions/squad-bridge/ bridge.config.json
+   git commit -m "chore: install squad-speckit-bridge v0.1.0"
    ```
-   This injects Squad memory into your next Spec Kit planning cycle.
+
+2. **Read the Usage Guide:**
+   Now that the bridge is installed, see [Usage Guide](usage.md) to understand how automation works and when to use manual commands.
+
+3. **Run your first planning cycle:**
+   ```bash
+   $ cd specs/001-my-feature/
+   $ /speckit.specify && /speckit.plan && /speckit.tasks
+   # Watch for squad-context.md and review.md to appear automatically
+   ```
 
 ---
 
-**Stuck?** Review the [Architecture](architecture.md) document for design details, or check the contracts in [specs/001-squad-speckit-bridge/contracts/](../specs/001-squad-speckit-bridge/contracts/).
+**Stuck?** Review the [Architecture](architecture.md) document for design details.

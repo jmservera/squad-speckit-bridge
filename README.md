@@ -25,6 +25,14 @@ Squad-SpecKit Bridge is a knowledge bridge that creates a bidirectional loop: Sq
 
 ---
 
+## How It Works (In One Sentence)
+
+**Install once → use Spec Kit normally → bridge automates memory injection & design reviews → squad executes → knowledge compounds.**
+
+The bridge stays in the background. You write specs and plans as usual; it handles the thinking work between frameworks.
+
+---
+
 ## The Problem
 
 Two powerful agentic development frameworks, each incomplete alone:
@@ -40,30 +48,54 @@ Together, they should amplify each other. Separately, they create a knowledge ga
 
 A lightweight, framework-agnostic bridge that:
 
-1. **Reads Squad's memory** (decisions, skills, agent histories) before Spec Kit planning cycles
-2. **Feeds that context** into Spec Kit as a prioritized context summary
-3. **Validates Spec Kit's tasks** through a Design Review ceremony where Squad agents catch planning blind spots
-4. **Captures execution learnings** back into Squad's knowledge base for the next planning cycle
-5. **Closes the loop** so knowledge compounds over time instead of resetting each cycle
+1. **Injects Squad's memory** (decisions, skills, learnings) automatically during Spec Kit planning
+2. **Auto-generates Design Reviews** after tasks.md is created, so your team can validate before execution
+3. **Captures execution learnings** back into Squad's knowledge base for the next planning cycle
+4. **Closes the loop** so knowledge compounds over time instead of resetting each cycle
+
+**Everything is automatic by default.** Manual commands exist if you need direct control.
+
+---
+
+## Generated Files (Commit These)
+
+The bridge creates files that are part of your feature's planning record. Commit them alongside your code:
+
+### Created by `install` command:
+| File | Location | Purpose |
+|------|----------|---------|
+| `.bridge-manifest.json` | repo root | Tracks bridge version and installed components |
+| `.squad/skills/speckit-bridge/SKILL.md` | .squad/ | Teaches agents about Spec Kit artifacts and Design Review workflow |
+| `.squad/ceremonies/design-review.md` | .squad/ | Ceremony definition for Design Review process |
+| `.specify/extensions/squad-bridge/extension.yml` | .specify/ | Hook definitions for automation |
+| `bridge.config.json` | repo root | Configuration file (customizable) |
+
+### Created during workflow (also commit these):
+| File | Location | Created By | Purpose |
+|------|----------|------------|---------|
+| `squad-context.md` | specs/{feature}/ | Automatic or `context` command | Squad memory summary fed into Spec Kit planning |
+| `review.md` | specs/{feature}/ | Automatic after `/speckit.tasks` | Design Review template with pre-populated findings |
+
+**Why commit them?** They're part of your feature's planning history. Future planning cycles and team members benefit from seeing what knowledge informed decisions and what risks the review identified.
 
 ---
 
 ## Key Features
 
-### Memory Bridge
-Read Squad's `.squad/` artifacts and produce a `squad-context.md` that Spec Kit's planning can consume. Progressive summarization keeps context summaries under 8KB despite large decision histories.
+### ⚙️ Automatic Memory Injection
+During Spec Kit planning, the bridge silently reads your team's prior decisions, learnings, and skills, and injects them as context. You see better plans informed by experience.
 
-### Design Review Ceremony  
-Before issues are created from Spec Kit's task breakdown, the Squad team reviews them with full context of prior decisions and learnings. This is where accumulated team knowledge corrects planning blind spots.
+### 🔄 Automatic Design Review Generation  
+After `/speckit.tasks`, a review template is auto-generated with pre-populated findings and decision conflicts. Your team discusses and approves before execution.
 
-### Squad Plugin (SKILL.md)
-Teaches Squad agents about Spec Kit artifacts, methodology, and how to participate in Design Reviews. Makes the team "bilingual" across both frameworks.
+### 📝 Squad Plugin (SKILL.md)
+Teaches Squad agents about Spec Kit artifacts, methodology, and Design Review participation. Makes the team "bilingual" across both frameworks.
 
-### Spec Kit Extension (after_tasks Hook)
-Auto-triggers Design Review notifications when Spec Kit generates tasks, eliminating the manual reminder step.
+### 🪝 Spec Kit Extension (after_tasks Hook)
+Auto-triggers Design Review generation when Spec Kit finishes task breakdown. No manual steps needed.
 
-### Clean Architecture
-All core logic layers separated by dependency inversion. Easy to test, extend, and maintain independently of both frameworks.
+### 🏗️ Clean Architecture
+All core logic separated by dependency inversion. Easy to test, extend, and maintain independently of both frameworks.
 
 ---
 
