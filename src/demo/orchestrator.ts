@@ -209,8 +209,14 @@ export async function runDemo(
     errorSummary,
   };
 
-  // Run cleanup (respects config.flags.keep)
-  report = await deps.cleanupHandler.cleanup(config, report);
+  // Automatic cleanup logic:
+  // - If keep=false AND all stages succeeded: perform cleanup
+  // - If keep=true OR any stage failed: skip cleanup (preserve artifacts for debugging)
+  const allStagesSucceeded = stagesFailed === 0;
+  if (!config.flags.keep && allStagesSucceeded) {
+    report = await deps.cleanupHandler.cleanup(config, report);
+  }
+  // Otherwise, cleanupPerformed remains false (artifacts preserved)
 
   return report;
 }
