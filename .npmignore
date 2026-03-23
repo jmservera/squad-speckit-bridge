@@ -1,0 +1,12 @@
+src/
+tests/
+specs/
+docs/
+research-*
+REPORT-*
+.squad/
+.specify/
+.github/
+tsconfig.json
+vitest.config.ts
+.bridge-manifest.json

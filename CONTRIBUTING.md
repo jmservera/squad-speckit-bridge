@@ -239,6 +239,44 @@ By contributing, you agree that your contributions will be licensed under the pr
 
 ---
 
+## Publishing
+
+The package is published to npm automatically when a GitHub Release is created.
+
+### Setup (one-time)
+
+1. Generate an npm access token at [npmjs.com/settings/tokens](https://www.npmjs.com/settings/tokens) (type: Automation)
+2. Add it as a repository secret:
+
+   ```bash
+   gh secret set NPM_TOKEN --body "your-npm-token"
+   ```
+
+### Creating a Release
+
+```bash
+# Bump version in package.json, then:
+gh release create v0.1.0 --title "v0.1.0" --generate-notes
+```
+
+The `release.yml` workflow auto-publishes to npm with provenance on every GitHub Release.
+
+### Dry Run
+
+To verify what would be published without actually publishing:
+
+```bash
+npm run build
+npm publish --dry-run
+```
+
+### CI Pipeline
+
+- **CI** (`ci.yml`): Runs on every push to `main` and on pull requests. Tests against Node.js 18, 20, and 22.
+- **Release** (`release.yml`): Triggered by GitHub Release creation. Builds, tests, and publishes to npm with `--provenance` for supply chain security.
+
+---
+
 ## Code of Conduct
 
 Be respectful, assume good intent, and help others learn. We're building this together.

@@ -1,11 +1,15 @@
 {
   "name": "squad-speckit-bridge",
   "version": "0.1.0",
-  "description": "A hybrid integration package connecting Squad's persistent team memory with Spec Kit's structured planning pipeline.",
+  "description": "Bridge connecting Squad multi-agent team memory with Spec Kit structured planning — enabling agentic AI workflows with clean architecture.",
   "type": "module",
-  "main": "dist/cli/index.js",
+  "main": "./dist/main.js",
+  "types": "./dist/main.d.ts",
   "bin": {
-    "squad-speckit-bridge": "dist/cli/index.js"
+    "squad-speckit-bridge": "./dist/cli/index.js"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "scripts": {
     "build": "tsc && cp -r src/install/templates dist/install/",
@@ -25,12 +29,16 @@
   },
   "keywords": [
     "squad",
+    "spec-kit",
     "speckit",
+    "agentic",
+    "ai",
+    "clean-architecture",
     "bridge",
-    "integration"
+    "copilot"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "jmservera",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/jmservera/squad-speckit-bridge/issues"
   },
