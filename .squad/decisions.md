@@ -230,6 +230,83 @@ The following decisions apply broadly and are candidates for personal squad extr
 
 ---
 
+### Clean Architecture — Bridge Design (2026-03-23)
+
+**Decision:** Apply Uncle Bob's Clean Architecture to the Squad-SpecKit bridge to maximize testability, maintainability, and framework independence.
+
+**Architecture Structure:**
+- **Layer 0 (Entities):** Pure business logic — ContextBudget, RelevanceScorer, ReviewFinding, BridgeConfig. Zero dependencies, no I/O.
+- **Layer 1 (Use Cases):** Application orchestration — GenerateContext, PrepareReview, InstallBridge, CheckStatus. Define ports, depend only on entities and port interfaces.
+- **Layer 2 (Adapters):** Format conversion — SquadFileSystemAdapter, SpecKitFileSystemAdapter, ConfigFileAdapter, CLIAdapter, ManifestAdapter, GitHubIssueAdapter (v1.0). Implement use case ports.
+- **Layer 3 (Frameworks/Drivers):** External libraries — commander, gray-matter, fs, Octokit, glob. Replaceable, zero business logic.
+
+**Dependency Rule:** All arrows point inward. Entities → Use Cases ← Adapters. Adapters never reference adapters; adapters never reference use cases; use cases never reference adapters.
+
+**Port Interface Strategy:**
+- **Input Ports:** GenerateContextPort, PrepareReviewPort, InstallBridgePort, CheckStatusPort. Called by CLI adapter.
+- **Output Ports:** SquadStatePort, SpecKitStatePort, ConfigPort, FrameworkDetectorPort, FileWriterPort, IssueTrackerPort. Implemented by adapters, injected into use cases via constructor.
+- Port interfaces defined IN the use case layer. Adapters implement them in the outer layer.
+
+**Data Transfer Objects (DTOs):**
+- 7 DTO types crossing boundaries: SkillEntry, DecisionEntry, LearningEntry, TaskEntry, ContextSummaryDTO, ReviewRecordDTO, InstallManifestDTO
+- 3 Request DTOs: GenerateContextRequest, PrepareReviewRequest, InstallBridgeRequest
+- **No raw markdown, file paths, or format-specific data** crosses the adapter → use case boundary
+- Adapters parse markdown (gray-matter) and produce clean typed DTOs; use cases consume DTOs and produce DTOs; adapters convert output DTOs to final formats
+
+**Test Pyramid (60 tests):**
+- **Entity Tests (15):** Pure unit tests, no mocks, test ContextBudget allocation, RelevanceScorer recency bias, ReviewFinding severity, BridgeConfig validation
+- **Use Case Tests (20):** Mock ports, test orchestration logic (GenerateContext, PrepareReview, InstallBridge, CheckStatus)
+- **Adapter Tests (12):** Integration tests against real fixture files (.squad/, specs/ structures)
+- **CLI Tests (8):** Snapshot tests verifying human-readable and JSON output formatting
+- **E2E Tests (5):** Full pipeline tests with temporary directories, real adapters, complete flow verification
+
+**Anti-Patterns to Prevent (8 violations documented):**
+1. gray-matter imports in use cases or entities → ❌ (format parsing is adapter's job)
+2. `.squad/` or `.specify/` path references in use cases → ❌ (paths are framework detail)
+3. `node:fs` imports in use cases → ❌ (all I/O through ports)
+4. `commander` imports outside CLI adapter → ❌ (CLI framework confined to outermost layer)
+5. Adapter-to-adapter calls → ❌ (only composition root wires adapters)
+6. Business logic in adapters → ❌ (adapters do format conversion only)
+7. Format-specific output from use cases → ❌ (use cases return DTOs; adapters format)
+8. `process.env` in use cases → ❌ (ConfigPort handles env resolution)
+
+**Project Structure (Clean Layering):**
+```
+src/
+  entities/                  (4 files, pure logic, zero I/O)
+  use-cases/                 (4 files + ports/, orchestration)
+  adapters/                  (7 files, format conversion)
+  dto/                       (10 files, boundary data)
+  main.ts                    (composition root)
+tests/
+  entities/                  (pure unit)
+  use-cases/                 (mocked ports)
+  adapters/                  (real fixtures)
+  cli/                       (snapshots)
+  e2e/                       (full pipeline)
+  fixtures/                  (squad/, specify/)
+```
+
+**Dependency Flow Diagram:**
+- CLI Adapter / Squad FS Adapter / SpecKit Adapter (Layer 3)
+- ↓ call / implement
+- Use Cases (Layer 1) — define ports, orchestrate entities
+- ↓ depend on
+- Entities (Layer 0) — pure business logic
+
+**Rationale:**
+- Dependency rule prevents framework concerns from polluting business logic
+- Port interfaces abstract external formats and I/O
+- Constructor injection (no service locator) makes dependencies explicit and testable
+- DTO discipline ensures clean boundaries
+- Test pyramid with per-layer strategies enables high confidence with fast execution
+- Task ordering (entities first, then use cases, then adapters, then composition) maximizes parallelism
+
+**Leads:** Richard (architecture), Dinesh (boundary analysis)  
+**Status:** Design approved. Ready for Layer 0 implementation task breakdown.
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus
