@@ -24,4 +24,20 @@
 
 7. **Recommendations need decision matrices.** Telling a team "here's the best option" is weaker than "here are four options, each best for different contexts." The second approach acknowledges that the best choice depends on unknowns (team size, project type, platform lock-in tolerance) that only the decision-maker can evaluate.
 
+### Documentation Patterns & GitHub Pages Content (2026-03-23)
+
+1. **Landing pages are pitches for internal frameworks.** A good landing page for developer tools doesn't describe features—it describes the problem the tool solves and the outcome it enables. The Squad-SpecKit Bridge landing page worked best when structured as: Problem → Value Proposition (knowledge flywheel) → 2-minute tour → Benefits matrix. This pattern applies to any integration or multi-layer system.
+
+2. **Copy-pasteable examples are mandatory for CLI tools.** "Documentation should include examples" is weak. Stronger: "Every command should have copy-pasteable examples with expected output (human and JSON)." This forces the writer to think like a user and ensures examples are correct. For the bridge, showing `$ npx squad-speckit-bridge context specs/001-feature/` followed by the exact output it produces prevented users from guessing what worked.
+
+3. **Clean Architecture diagrams belong in product documentation.** Engineers often separate "pretty docs for users" from "architecture docs for developers." For infrastructure and frameworks, this is a false split. The Squad-SpecKit Bridge's 4-layer diagram and dependency flow weren't just technical—they were the core story: layers point inward, entities pure, adapters replaceable. Showing this in docs built confidence that the system was maintainable.
+
+4. **Port interfaces are documentation anchors.** Instead of prose descriptions of "how components talk," a simple table of Port Interface → Purpose → Responsibility clarifies the system's surface API. This became the single source of truth for what each layer needed from the next layer inward. Combined with DTOs, it described the exact data crossing each boundary.
+
+5. **Knowledge flow loops need visual+prose.** The "flywheel" concept (planning → execution → learning → better planning) was the bridge's core value. A diagram alone was abstract; prose alone was hard to follow. The combination worked: diagram shows structure, prose explains each step, and the ⤴ symbol shows the loop closes. This pattern applies to any system with feedback or recursion.
+
+6. **GitHub Pages Jekyll themes are sufficient for structure.** No need for custom CSS or React. The minimal theme + semantic HTML + clear navigation (header_pages in _config.yml) provided professional appearance. The content and structure mattered far more than visual design. 
+
+7. **Installation guides need expected outputs and troubleshooting.** The best installation guide showed: (1) prerequisites with verification commands, (2) each installation step with expected output, (3) verification that all components are in place, (4) common error scenarios with solutions. This prevented "it didn't work" with no context.
+
 <!-- Append learnings below -->
