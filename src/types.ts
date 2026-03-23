@@ -205,6 +205,50 @@ export function categorizeFindings(
   return result;
 }
 
+// T041: Error Code Constants (per contracts/cli-interface.md)
+
+export const ErrorCodes = {
+  SQUAD_NOT_FOUND: 'SQUAD_NOT_FOUND',
+  SPECKIT_NOT_FOUND: 'SPECKIT_NOT_FOUND',
+  SPEC_DIR_NOT_FOUND: 'SPEC_DIR_NOT_FOUND',
+  TASKS_NOT_FOUND: 'TASKS_NOT_FOUND',
+  PERMISSION_DENIED: 'PERMISSION_DENIED',
+  CONFIG_INVALID: 'CONFIG_INVALID',
+  PARSE_ERROR: 'PARSE_ERROR',
+} as const;
+
+export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
+
+export interface StructuredError {
+  error: true;
+  code: ErrorCode;
+  message: string;
+  suggestion: string;
+}
+
+export const ErrorSuggestions: Record<ErrorCode, string> = {
+  SQUAD_NOT_FOUND: 'Initialize Squad first, or use --squad-dir to specify a custom path.',
+  SPECKIT_NOT_FOUND: 'Initialize Spec Kit first, or use --specify-dir to specify a custom path.',
+  SPEC_DIR_NOT_FOUND: 'Create the spec directory first, e.g. mkdir -p specs/001-feature/',
+  TASKS_NOT_FOUND: 'Check the path to your tasks.md file.',
+  PERMISSION_DENIED: 'Check file permissions with chmod -R u+w on the target directory.',
+  CONFIG_INVALID: 'Validate your bridge.config.json against the config schema.',
+  PARSE_ERROR: 'Check the file for valid markdown/YAML syntax.',
+};
+
+export function createStructuredError(
+  code: ErrorCode,
+  message: string,
+  suggestion?: string,
+): StructuredError {
+  return {
+    error: true,
+    code,
+    message,
+    suggestion: suggestion ?? ErrorSuggestions[code],
+  };
+}
+
 // T010: Default BridgeConfig Factory
 
 export function createDefaultConfig(): BridgeConfig {
