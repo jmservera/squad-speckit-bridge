@@ -164,6 +164,72 @@ The following decisions apply broadly and are candidates for personal squad extr
 
 ---
 
+### Delivery Mechanism for Squad × Spec Kit Integration (2026-03-23)
+
+**Decision:** Adopt a hybrid dual-sided integration package (Squad plugin + Spec Kit extension + shared bridge script).
+
+**Architecture:**
+- **Squad Plugin:** SKILL.md teaching agents about Spec Kit artifacts, Design Review ceremony definition
+- **Spec Kit Extension:** after_tasks hook for automation, bridge-context command for memory injection
+- **Shared Bridge:** ~150 LOC script reading .squad/ → squad-context.md, parsing tasks.md → JSON
+
+**Deployment:** Single install.sh detecting both frameworks, copying components correctly.
+
+**Evolution Path:**
+1. **v0.1 (NOW):** Plugin SKILL.md (~100 LOC) + Extension hooks (~50 LOC) + bridge script (~150 LOC) = 300 LOC total. Manual trigger workaround for memory bridge.
+2. **v0.2:** Package as installable plugin + extension with install script
+3. **v1.0:** Wrap bridge as MCP server (~500 LOC) if loop proves valuable, adding tool calls (speckit_bridge_context, read_speckit_tasks, create_issues_from_tasks)
+
+**Scoring Rationale (vs 4 alternatives):**
+- Hybrid: 27/35 (full loop coverage, native DX on both sides)
+- MCP Server only: 25/35 (over-engineered for v1, passive tools)
+- Squad Plugin only: 22/35 (no Spec Kit lifecycle hooks)
+- Spec Kit Extension only: 21/35 (missing before_specify hook, only 50% coverage)
+- Standalone CLI: 19/35 (no agent discoverability, requires explicit instructions)
+
+**Critical Gap & Workaround:**
+- Spec Kit lacks `before_specify` / `before_plan` hooks needed for automatic memory bridge injection before planning
+- Short-term: developer runs `/speckit.squad-bridge.context` command manually before `/speckit.specify`
+- Medium-term: propose before_specify hook upstream to Spec Kit
+- Long-term: MCP server agent tools make this transparent (agents call on demand)
+
+**Status:** Approved for implementation. No framework modifications required.
+
+---
+
+### Technical Implementation Details — MCP & Extension Options (2026-03-23)
+
+**Assessed by:** Dinesh (Integration Engineer)
+
+**MCP Server Feasibility (if adopted in v1.0):**
+- Transport: stdio subprocess (same as GitHub MCP, Playwright MCP)
+- Tools (5): bridge_squad_context, read_speckit_tasks, create_issues_from_tasks, sync_learnings, check_integration_status
+- Dependencies: @modelcontextprotocol/sdk, zod, @octokit/rest, gray-matter
+- Setup: Add to ~/.copilot/mcp-config.json or .vscode/mcp.json
+- Implementation LOC: ~500 (40 bootstrap + 120 bridge + 80 parse + 100 issues + 60 learnings + 40 status + 60 utils)
+- Limitations: Passive (tools available, not auto-triggered); needs GitHub API token; parser updates on framework changes
+
+**Squad Plugin Capabilities:**
+- SKILL.md: Pure markdown knowledge injection, no executable code
+- Ceremony definition: Can add to ceremonies.md
+- Tool metadata: Can reference MCP tools in frontmatter (informational only, no installation)
+- Gaps: No lifecycle hooks, file watching, or executable code path
+
+**Spec Kit Extension Hooks (Verified):**
+- ✅ after_tasks, after_implement, before_commit, after_commit, before_tasks (5 available)
+- ❌ before_specify, before_plan (2 critical gaps)
+- Shell script execution: Bash/PowerShell, any CLI tools, file I/O, API calls
+- Setup: extension.yml manifest in .specify/extensions/{ext-id}/, hooks as .sh scripts
+
+**Phased Approach Technical Roadmap:**
+- Phase 1: Plugin SKILL.md + Extension after_tasks + shared bridge.js (prove loop)
+- Phase 2: Wrap bridge as MCP server (improve parsing reliability)
+- Phase 3: Propose before_specify hook to Spec Kit (enable full automation)
+
+**Status:** Technical blueprint approved. Ready for Phase 1 implementation.
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus

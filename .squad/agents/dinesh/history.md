@@ -10,6 +10,37 @@
 
 <!-- Append learnings below -->
 
+### 2025-07-24: MCP Server Architecture & Integration Mechanism Feasibility
+
+**MCP Server Technical Findings:**
+- MCP servers communicate via JSON-RPC 2.0 over stdio (subprocess model) or Streamable HTTP. For Copilot integration, stdio is the correct transport — spawned per session, no daemon.
+- TypeScript SDK: `@modelcontextprotocol/sdk` + `zod` for schema validation. Tools registered via `server.registerTool(name, { description, inputSchema }, handler)`.
+- Configuration: `~/.copilot/mcp-config.json` (user-level) or `.vscode/mcp.json` (project-level). JSON with `mcpServers.{name}.{type, command, args, tools}`.
+- GitHub MCP server (Go) uses toolset-based organization with middleware stack. Our bridge would be simpler: 5 tools, ~500 LOC TypeScript.
+- MCP tools are **passive** — available for agents to call, but nothing auto-triggers them at lifecycle boundaries. Still need SKILL.md or hook scripts to teach agents *when* to call.
+- Tool surface designed: `bridge_squad_context`, `read_speckit_tasks`, `create_issues_from_tasks`, `sync_learnings`, `check_integration_status`.
+
+**Squad Plugin System Limits (Verified):**
+- Skills (SKILL.md) are **pure markdown** — no executable code, no scripts, no binaries. Agents read and apply patterns described in natural language.
+- Skills can reference MCP tools in YAML frontmatter `tools:` field (metadata only, doesn't install/enable them).
+- Plugin marketplace bundles: SKILL.md files, agent charter fragments, ceremony definitions, sample prompts. All markdown/JSON.
+- Plugins **cannot**: run scripts, add lifecycle hooks, watch files, trigger on events, modify routing programmatically. Knowledge injection only, not behavior injection.
+- New ceremonies CAN be added by editing `.squad/ceremonies.md` — plugins can include ceremony definitions.
+
+**Spec Kit Extension Hooks (Verified):**
+- Available hooks: `after_tasks` ✅, `after_implement` ✅, `before_commit` ✅, `after_commit` ✅, `before_tasks` ✅.
+- Missing hooks: `before_specify` ❌, `before_plan` ❌ — critical gap for memory bridge auto-trigger.
+- Hooks invoke shell scripts (bash/PowerShell) — can call any external tool, API, or executable.
+- Extension manifest: `extension.yml` with schema_version, hooks, commands, config.
+- Extension loading: `.specify/extensions/{ext-id}/` directory, registered in `.specify/extensions/.registry`.
+
+**Key Technical Insight:**
+MCP + Plugin + Extension are **complementary layers**, not competing approaches:
+- MCP = reliable structured tool access (programmatic parsing > LLM markdown interpretation)
+- Plugin = agent knowledge injection (when/why to use tools)
+- Extension = lifecycle automation (auto-trigger at workflow boundaries)
+The full integration needs all three, phased: Plugin+Extension first (v1), MCP server added later (v2).
+
 ### 2026-03-23: Squad vs Spec Kit Technical Compatibility Analysis
 
 - **Squad directory:** `.squad/` with team.md, routing.md, decisions.md, agents/{name}/charter.md+history.md, casting/ (JSON configs), orchestration-log/, log/, skills/, sessions/. Also `.github/agents/squad.agent.md` (81KB coordinator prompt), `.github/copilot-instructions.md`, and multiple `squad-*.yml` workflows.

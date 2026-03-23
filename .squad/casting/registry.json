@@ -1,0 +1,46 @@
+{
+  "agents": {
+    "richard": {
+      "created_at": "2026-03-23T08:50:38.315Z",
+      "persistent_name": "Richard",
+      "universe": "Silicon Valley",
+      "status": "active"
+    },
+    "gilfoyle": {
+      "created_at": "2026-03-23T08:50:38.315Z",
+      "persistent_name": "Gilfoyle",
+      "universe": "Silicon Valley",
+      "status": "active"
+    },
+    "dinesh": {
+      "created_at": "2026-03-23T08:50:38.315Z",
+      "persistent_name": "Dinesh",
+      "universe": "Silicon Valley",
+      "status": "active"
+    },
+    "jared": {
+      "created_at": "2026-03-23T08:50:38.315Z",
+      "persistent_name": "Jared",
+      "universe": "Silicon Valley",
+      "status": "active"
+    },
+    "monica": {
+      "created_at": "2026-03-23T08:50:38.315Z",
+      "persistent_name": "Monica",
+      "universe": "Silicon Valley",
+      "status": "active"
+    },
+    "scribe": {
+      "created_at": "2026-03-23T08:50:38.315Z",
+      "persistent_name": "Scribe",
+      "universe": "Silicon Valley",
+      "status": "active"
+    },
+    "ralph": {
+      "created_at": "2026-03-23T08:50:38.315Z",
+      "persistent_name": "Ralph",
+      "universe": "Silicon Valley",
+      "status": "active"
+    }
+  }
+}

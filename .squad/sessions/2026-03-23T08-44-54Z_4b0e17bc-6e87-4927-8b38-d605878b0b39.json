@@ -1,0 +1,60 @@
+{
+  "id": "4b0e17bc-6e87-4927-8b38-d605878b0b39",
+  "createdAt": "2026-03-23T08:44:47.386Z",
+  "lastActiveAt": "2026-03-23T08:53:56.935Z",
+  "messages": [
+    {
+      "role": "system",
+      "content": "🏗️ No team yet — casting one based on your project...",
+      "timestamp": "2026-03-23T08:48:59.291Z"
+    },
+    {
+      "role": "agent",
+      "agentName": "coordinator",
+      "content": "Team proposed:\n\n🏗️  Sheldon    — Lead            Research strategy, critical analysis\n👤  Leonard    — Research Analyst Framework evaluation, deep dives\n👤  Howard     — Integration Engineer Interoperability, compatibility testing\n📊  Raj        — Data Analyst    Benchmarking, comparison metrics\n📝  Amy        — Technical Writer Documentation, synthesis reports\n📋  Scribe     — (silent)        Memory, decisions, session logs\n🔄  Ralph      — (monitor)       Work queue, backlog, keep-alive\n\nUniverse: The Big Bang Theory",
+      "timestamp": "2026-03-23T08:49:11.529Z"
+    },
+    {
+      "role": "system",
+      "content": "Look good? Type **y** to confirm or **n** to cancel.",
+      "timestamp": "2026-03-23T08:49:11.544Z"
+    },
+    {
+      "role": "system",
+      "content": "Cast cancelled. Describe what you're building to try again.",
+      "timestamp": "2026-03-23T08:49:45.559Z"
+    },
+    {
+      "role": "system",
+      "content": "🏗️ No team yet — casting one based on your project...",
+      "timestamp": "2026-03-23T08:50:09.129Z"
+    },
+    {
+      "role": "agent",
+      "agentName": "coordinator",
+      "content": "Team proposed:\n\n🏗️  Richard    — Lead            Research strategy, critical analysis\n👤  Gilfoyle   — Research Analyst Framework evaluation, deep dives\n👤  Dinesh     — Integration Engineer Interoperability, compatibility testing\n📊  Jared      — Data Analyst    Benchmarking, comparison metrics\n📝  Monica     — Technical Writer Documentation, synthesis reports\n📋  Scribe     — (silent)        Memory, decisions, session logs\n🔄  Ralph      — (monitor)       Work queue, backlog, keep-alive\n\nUniverse: Silicon Valley",
+      "timestamp": "2026-03-23T08:50:24.302Z"
+    },
+    {
+      "role": "system",
+      "content": "Look good? Type **y** to confirm or **n** to cancel.",
+      "timestamp": "2026-03-23T08:50:24.311Z"
+    },
+    {
+      "role": "system",
+      "content": "✅ Team hired! 7 members created.",
+      "timestamp": "2026-03-23T08:50:38.340Z"
+    },
+    {
+      "role": "system",
+      "content": "📌 Routing your message to the team now...",
+      "timestamp": "2026-03-23T08:50:38.349Z"
+    },
+    {
+      "role": "agent",
+      "agentName": "coordinator",
+      "content": "Your Silicon Valley crew is locked and loaded! Here's the squad:\n\n| Name | Role | Domain |\n|------|------|--------|\n| **Richard** | Lead | Strategy, critical analysis |\n| **Gilfoyle** | Research Analyst | Framework evaluation, deep dives |\n| **Dinesh** | Integration Engineer | Interoperability, compatibility testing |\n| **Jared** | Data Analyst | Benchmarking, comparison metrics |\n| **Monica** | Technical Writer | Documentation, synthesis reports |\n| **Scribe** | Session Logger | Auto-logging (silent) |\n| **Ralph** | Work Monitor | Progress tracking |\n\nAll agents are ✅ Active. What would you like the team to work on?",
+      "timestamp": "2026-03-23T08:51:07.228Z"
+    }
+  ]
+}
