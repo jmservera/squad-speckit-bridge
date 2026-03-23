@@ -65,6 +65,16 @@ export interface DemoConfiguration {
 }
 
 /**
+ * Captured output from stage command execution.
+ */
+export interface StageOutput {
+  /** Standard output from the command */
+  stdout: string;
+  /** Standard error from the command */
+  stderr: string;
+}
+
+/**
  * A single step in the demo workflow with execution metadata.
  */
 export interface PipelineStage {
@@ -84,6 +94,8 @@ export interface PipelineStage {
   endTime?: number;
   /** Error message if status is 'failed' */
   error?: string;
+  /** Captured stdout/stderr from command execution */
+  output?: StageOutput;
 }
 
 /**

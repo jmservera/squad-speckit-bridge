@@ -7,7 +7,7 @@
  */
 
 import { spawn } from 'node:child_process';
-import type { ProcessExecutor } from '../ports.js';
+import type { ProcessExecutor, StageRunResult } from '../ports.js';
 import type { PipelineStage, DemoConfiguration } from '../entities.js';
 import { StageStatus } from '../entities.js';
 
@@ -122,6 +122,32 @@ export class NodeProcessExecutor implements ProcessExecutor {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Run a stage command and return captured output.
+   *
+   * Lower-level method that returns stdout/stderr for capture in stage result.
+   * This is used by the orchestrator to execute stage commands with output capture.
+   *
+   * @param command - Command array [executable, ...args]
+   * @param cwd - Working directory for execution
+   * @param timeoutMs - Maximum execution time in milliseconds
+   * @returns Result with stdout, stderr, exit code, and success status
+   */
+  async run(
+    command: string[],
+    cwd: string,
+    timeoutMs: number
+  ): Promise<StageRunResult> {
+    const result = await this.executeCommand(command, cwd, timeoutMs);
+    return {
+      success: result.success,
+      exitCode: result.exitCode,
+      stdout: result.stdout,
+      stderr: result.stderr,
+      timedOut: result.timedOut,
+    };
   }
 
   /**

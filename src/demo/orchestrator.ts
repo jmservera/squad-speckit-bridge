@@ -115,27 +115,69 @@ export async function runDemo(
   let stagesFailed = 0;
   let errorSummary: string | undefined;
 
-  // Execute stages sequentially
-  for (const stage of stages) {
-    // Execute stage via process executor
-    const executedStage = await deps.processExecutor.execute(stage, config);
+  const timeoutMs = (config.timeout || 30) * 1000;
 
-    if (executedStage.status === StageStatus.Success) {
+  // Execute stages sequentially with explicit status transitions
+  for (const stage of stages) {
+    const stageStartTime = Date.now();
+
+    // Transition: pending → running
+    stage.status = StageStatus.Running;
+    stage.startTime = stageStartTime;
+
+    // Execute stage via processExecutor.run() with output capture
+    const result = await deps.processExecutor.run(
+      stage.command,
+      config.demoDir,
+      timeoutMs
+    );
+
+    const stageEndTime = Date.now();
+    stage.endTime = stageEndTime;
+
+    // Capture stdout/stderr in stage result
+    stage.output = {
+      stdout: result.stdout,
+      stderr: result.stderr,
+    };
+
+    if (result.success) {
+      // Transition: running → success
+      stage.status = StageStatus.Success;
+
       // Validate artifact after successful execution
-      const artifactPath = `${config.demoDir}/${executedStage.artifact}`;
-      const artifact = await deps.artifactValidator.validate(artifactPath, executedStage);
+      const artifactPath = `${config.demoDir}/${stage.artifact}`;
+      const artifact = await deps.artifactValidator.validate(artifactPath, stage);
       completedArtifacts.push(artifact);
 
       if (artifact.valid) {
         stagesCompleted++;
       } else {
         stagesFailed++;
-        errorSummary = `Artifact validation failed for ${executedStage.name}: ${artifact.errors.join(', ')}`;
+        errorSummary = `Artifact validation failed for ${stage.name}: ${artifact.errors.join(', ')}`;
+        // Halt pipeline on first failure
         break;
       }
-    } else if (executedStage.status === StageStatus.Failed) {
+    } else {
+      // Transition: running → failed
+      stage.status = StageStatus.Failed;
       stagesFailed++;
-      errorSummary = `Stage '${executedStage.name}' failed: ${executedStage.error ?? 'Unknown error'}`;
+
+      // Build error message with captured stderr
+      const errorParts: string[] = [`Command: ${stage.command.join(' ')}`];
+      if (result.timedOut) {
+        errorParts.push('Status: Timed out');
+      } else {
+        errorParts.push(`Exit code: ${result.exitCode ?? 'unknown'}`);
+      }
+      if (result.stderr.trim()) {
+        errorParts.push(`Error: ${result.stderr.trim().slice(0, 500)}`);
+      }
+      stage.error = errorParts.join('; ');
+
+      errorSummary = `Stage '${stage.name}' failed: ${stage.error}`;
+
+      // Halt pipeline on first failure (don't continue to next stage)
       break;
     }
   }

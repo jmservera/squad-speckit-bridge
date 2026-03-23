@@ -23,6 +23,22 @@ import type {
  * Adapters implement this to run Spec Kit CLI commands (speckit specify, etc.)
  * and capture output, exit codes, and timing metadata.
  */
+/**
+ * Result of running a stage command with captured output.
+ */
+export interface StageRunResult {
+  /** Whether the command succeeded (exit code 0) */
+  success: boolean;
+  /** Exit code of the command (null if process errored) */
+  exitCode: number | null;
+  /** Captured standard output */
+  stdout: string;
+  /** Captured standard error */
+  stderr: string;
+  /** Whether the command exceeded timeout */
+  timedOut: boolean;
+}
+
 export interface ProcessExecutor {
   /**
    * Execute a pipeline stage command.
@@ -32,6 +48,18 @@ export interface ProcessExecutor {
    * @returns Updated stage with status, timing, and error (if failed)
    */
   execute(stage: PipelineStage, config: DemoConfiguration): Promise<PipelineStage>;
+
+  /**
+   * Run a stage command and return captured output.
+   *
+   * Lower-level method that returns stdout/stderr for capture in stage result.
+   *
+   * @param command - Command array [executable, ...args]
+   * @param cwd - Working directory for execution
+   * @param timeoutMs - Maximum execution time in milliseconds
+   * @returns Result with stdout, stderr, exit code, and success status
+   */
+  run(command: string[], cwd: string, timeoutMs: number): Promise<StageRunResult>;
 
   /**
    * Check if a command is available in the system PATH.
