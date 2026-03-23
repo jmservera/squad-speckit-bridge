@@ -20,6 +20,9 @@ function makeDeployer(
     deploy: vi.fn().mockImplementation(async (files) =>
       files.map((f: { targetPath: string }) => f.targetPath),
     ),
+    deployExecutable: vi.fn().mockImplementation(async (files) =>
+      files.map((f: { targetPath: string }) => f.targetPath),
+    ),
     listDeployed: vi.fn().mockResolvedValue([]),
     ...overrides,
   };
@@ -100,7 +103,7 @@ describe('installBridge', () => {
 
     const result = await installBridge(detector, deployer, templates, { config });
 
-    expect(result.manifest.version).toBe('0.1.0');
+    expect(result.manifest.version).toBe('0.2.0');
     expect(result.manifest.installedAt).toBeTruthy();
     expect(result.manifest.updatedAt).toBeTruthy();
   });

@@ -1,5 +1,5 @@
 /**
- * T020 + T027 + T032: Composition Root
+ * Composition Root — v0.2.0
  *
  * Wires real adapters into use cases via constructor injection.
  * The ONLY file that knows about all layers. No business logic here.
@@ -19,8 +19,13 @@ import { ReviewWriter } from './review/adapters/review-writer.js';
 import { SquadFileReader } from './bridge/adapters/squad-file-reader.js';
 import { SpecKitContextWriter } from './bridge/adapters/speckit-writer.js';
 import { buildSquadContext } from './bridge/context.js';
+import { createIssuesFromTasks } from './issues/create-issues.js';
+import { TasksMarkdownParser } from './issues/task-parser.js';
+import { GitHubIssueAdapter } from './issues/adapters/github-issue-adapter.js';
+import { syncLearnings } from './sync/sync-learnings.js';
+import { SyncStateAdapter } from './sync/adapters/sync-state-adapter.js';
 import type { StatusReport } from './install/status.js';
-import type { InstallManifest, ContextSummary, DesignReviewRecord } from './types.js';
+import type { InstallManifest, ContextSummary, DesignReviewRecord, IssueRecord, SyncRecord } from './types.js';
 
 // Resolve template directory relative to this module
 const __filename = fileURLToPath(import.meta.url);
@@ -92,18 +97,30 @@ export function createInstaller(options: InstallerOptions = {}) {
       if (options.squadDir) config.paths.squadDir = options.squadDir;
       if (options.specifyDir) config.paths.specifyDir = options.specifyDir;
 
-      // Load templates
-      const [skillTemplate, ceremonyTemplate, extensionTemplate] =
+      // Load templates (including hooks)
+      const [skillTemplate, ceremonyTemplate, extensionTemplate, afterTasksHook, beforeSpecifyHook, afterImplementHook] =
         await Promise.all([
           loadTemplate('skill.md'),
           loadTemplate('ceremony.md'),
           loadTemplate('extension.yml'),
+          loadTemplate('hooks/after-tasks.sh'),
+          loadTemplate('hooks/before-specify.sh'),
+          loadTemplate('hooks/after-implement.sh'),
         ]);
 
       const result = await installBridge(
         detector,
         deployer,
-        { skillTemplate, ceremonyTemplate, extensionTemplate },
+        {
+          skillTemplate,
+          ceremonyTemplate,
+          extensionTemplate,
+          hookTemplates: {
+            afterTasks: afterTasksHook,
+            beforeSpecify: beforeSpecifyHook,
+            afterImplement: afterImplementHook,
+          },
+        },
         { config, force: opts.force },
       );
 
@@ -128,7 +145,10 @@ export function createStatusChecker(
 
   return {
     async check(): Promise<StatusOutput> {
-      const report = await checkStatus(detector, deployer, configLoader);
+      const config = await configLoader.load();
+      const squadDirPath = resolve(baseDir, config.paths.squadDir);
+      const squadReader = new SquadFileReader(squadDirPath);
+      const report = await checkStatus(detector, deployer, configLoader, squadReader);
       return {
         humanOutput: formatStatusHuman(report),
         jsonOutput: report,
@@ -169,6 +189,108 @@ export function createReviewer(options: ReviewerOptions = {}) {
       return {
         humanOutput: formatReviewHuman(record, resolvedOutputPath),
         jsonOutput: formatReviewJson(record, resolvedOutputPath),
+      };
+    },
+  };
+}
+
+// --- Issues command composition ---
+
+export interface IssuesOptions {
+  configPath?: string;
+  baseDir?: string;
+}
+
+export interface IssuesOutput {
+  humanOutput: string;
+  jsonOutput: {
+    created: IssueRecord[];
+    skippedCount: number;
+    total: number;
+    dryRun: boolean;
+  };
+}
+
+export function createIssueCreator(options: IssuesOptions = {}) {
+  const baseDir = options.baseDir ?? process.cwd();
+  const configLoader = new ConfigFileLoader({
+    configPath: options.configPath,
+    baseDir,
+  });
+  const tasksParser = new TasksMarkdownParser();
+  const issueAdapter = new GitHubIssueAdapter();
+
+  return {
+    async createFromTasks(
+      tasksFile: string,
+      opts: { dryRun?: boolean; labels?: string[]; repository?: string } = {},
+    ): Promise<IssuesOutput> {
+      const config = await configLoader.load();
+      const labels = opts.labels ?? config.issues.defaultLabels;
+      const repository = opts.repository ?? config.issues.repository;
+
+      if (!repository && !opts.dryRun) {
+        throw new Error('Repository not specified. Use --repo or set issues.repository in config.');
+      }
+
+      const result = await createIssuesFromTasks(tasksParser, issueAdapter, {
+        tasksFilePath: tasksFile,
+        labels,
+        repository: repository || 'unknown/unknown',
+        dryRun: opts.dryRun ?? false,
+      });
+
+      return {
+        humanOutput: formatIssuesHuman(result.created, result.skipped.length, result.total, result.dryRun),
+        jsonOutput: {
+          created: result.created,
+          skippedCount: result.skipped.length,
+          total: result.total,
+          dryRun: result.dryRun,
+        },
+      };
+    },
+  };
+}
+
+// --- Sync command composition ---
+
+export interface SyncOutput {
+  humanOutput: string;
+  jsonOutput: {
+    record: SyncRecord;
+    dryRun: boolean;
+  };
+}
+
+export function createSyncer(options: { configPath?: string; baseDir?: string } = {}) {
+  const baseDir = options.baseDir ?? process.cwd();
+  const configLoader = new ConfigFileLoader({
+    configPath: options.configPath,
+    baseDir,
+  });
+  const syncAdapter = new SyncStateAdapter();
+
+  return {
+    async sync(
+      specDir: string,
+      opts: { dryRun?: boolean } = {},
+    ): Promise<SyncOutput> {
+      const config = await configLoader.load();
+      const squadDir = resolve(baseDir, config.paths.squadDir);
+
+      const result = await syncLearnings(syncAdapter, syncAdapter, {
+        specDir: resolve(baseDir, specDir),
+        squadDir,
+        dryRun: opts.dryRun ?? false,
+      });
+
+      return {
+        humanOutput: formatSyncHuman(result.record, result.dryRun),
+        jsonOutput: {
+          record: result.record,
+          dryRun: result.dryRun,
+        },
       };
     },
   };
@@ -309,6 +431,26 @@ function formatStatusHuman(report: StatusReport): string {
   if (report.config.sources.decisions) sources.push('decisions');
   if (report.config.sources.histories) sources.push('histories');
   lines.push(`  Sources:          ${sources.join(', ')}`);
+
+  if (report.warnings && report.warnings.length > 0) {
+    lines.push('');
+    lines.push('Warnings:');
+    for (const w of report.warnings) {
+      lines.push(`  ⚠ ${w}`);
+    }
+  }
+
+  if (report.constitution) {
+    lines.push('');
+    lines.push('Constitution:');
+    if (!report.constitution.exists) {
+      lines.push('  ✗ Not found');
+    } else if (report.constitution.isTemplate) {
+      lines.push('  ⚠ Template (uncustomized)');
+    } else {
+      lines.push('  ✓ Customized');
+    }
+  }
 
   return lines.join('\n');
 }
@@ -510,4 +652,56 @@ function formatReviewJson(record: DesignReviewRecord, outputPath: string) {
     findings: record.findings,
     outputPath,
   };
+}
+
+function formatIssuesHuman(
+  created: IssueRecord[],
+  skippedCount: number,
+  total: number,
+  dryRun: boolean,
+): string {
+  const lines: string[] = [];
+  const prefix = dryRun ? '[DRY RUN] ' : '';
+
+  lines.push(`${prefix}Issues from tasks.md`);
+  lines.push('');
+  lines.push(`Total tasks: ${total}`);
+  lines.push(`Eligible: ${created.length}`);
+  lines.push(`Skipped (completed): ${skippedCount}`);
+  lines.push('');
+
+  if (created.length > 0) {
+    lines.push(`${prefix}Created issues:`);
+    for (const issue of created) {
+      if (dryRun) {
+        lines.push(`  • ${issue.title} [${issue.labels.join(', ')}]`);
+      } else {
+        lines.push(`  ✓ #${issue.issueNumber}: ${issue.title}`);
+        if (issue.url) lines.push(`    ${issue.url}`);
+      }
+    }
+  } else {
+    lines.push('No eligible tasks to create issues for.');
+  }
+
+  return lines.join('\n');
+}
+
+function formatSyncHuman(record: SyncRecord, dryRun: boolean): string {
+  const lines: string[] = [];
+  const prefix = dryRun ? '[DRY RUN] ' : '';
+
+  lines.push(`${prefix}Sync Results`);
+  lines.push('');
+  lines.push(record.summary);
+
+  if (record.filesWritten.length > 0) {
+    lines.push('');
+    lines.push('Files updated:');
+    for (const file of record.filesWritten) {
+      lines.push(`  ✓ ${file}`);
+    }
+  }
+
+  return lines.join('\n');
 }

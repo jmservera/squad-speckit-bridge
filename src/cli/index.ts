@@ -8,9 +8,10 @@
  */
 
 import { Command } from 'commander';
-import { createInstaller, createStatusChecker, createContextBuilder, createReviewer } from '../main.js';
+import { createInstaller, createStatusChecker, createContextBuilder, createReviewer, createIssueCreator, createSyncer } from '../main.js';
 import { ErrorCodes, createStructuredError } from '../types.js';
 import type { ErrorCode } from '../types.js';
+import { createLogger } from './logger.js';
 
 const program = new Command();
 
@@ -19,7 +20,7 @@ program
   .description(
     'Hybrid integration package connecting Squad team memory with Spec Kit planning pipeline',
   )
-  .version('0.1.0')
+  .version('0.2.0')
   .option('--config <path>', 'Path to bridge configuration file')
   .option('--json', 'Output in JSON format', false)
   .option('--quiet', 'Suppress informational output', false)
@@ -55,6 +56,8 @@ function classifyError(message: string, context: string): ErrorCode {
     status: ErrorCodes.SQUAD_NOT_FOUND,
     context: ErrorCodes.SQUAD_NOT_FOUND,
     review: ErrorCodes.TASKS_NOT_FOUND,
+    issues: ErrorCodes.TASKS_NOT_FOUND,
+    sync: ErrorCodes.SYNC_FAILED,
   };
   return contextDefaults[context] ?? ErrorCodes.PARSE_ERROR;
 }
@@ -237,6 +240,96 @@ program
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       emitError(message, 'review', jsonOutput);
+      process.exitCode = 1;
+    }
+  });
+
+// Issues subcommand
+program
+  .command('issues')
+  .description(
+    'Create GitHub issues from unchecked tasks in a tasks.md file',
+  )
+  .argument('<tasks-file>', 'Path to Spec Kit tasks.md')
+  .option('--dry-run', 'Preview issues without creating them', false)
+  .option('--labels <labels>', 'Comma-separated labels to apply', 'squad,speckit')
+  .option('--repo <owner/repo>', 'GitHub repository (owner/repo format)')
+  .action(async (tasksFile: string, cmdOpts: Record<string, unknown>) => {
+    const globalOpts = program.opts();
+    const jsonOutput = globalOpts.json as boolean;
+    const quiet = globalOpts.quiet as boolean;
+    const verbose = globalOpts.verbose as boolean;
+    const logger = createLogger({ verbose, quiet });
+
+    try {
+      logger.verbose(`Creating issues from ${tasksFile}`);
+
+      const creator = createIssueCreator({
+        configPath: globalOpts.config as string | undefined,
+      });
+
+      const labels = (cmdOpts.labels as string).split(',').map((l: string) => l.trim());
+
+      const result = await creator.createFromTasks(tasksFile, {
+        dryRun: cmdOpts.dryRun as boolean,
+        labels,
+        repository: cmdOpts.repo as string | undefined,
+      });
+
+      logger.verbose(`Created ${result.jsonOutput.created.length} issues`);
+
+      if (jsonOutput) {
+        console.log(JSON.stringify(result.jsonOutput, null, 2));
+      } else if (!quiet) {
+        console.log(result.humanOutput);
+      }
+
+      process.exitCode = 0;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      emitError(message, 'issues', jsonOutput);
+      process.exitCode = 1;
+    }
+  });
+
+// Sync subcommand
+program
+  .command('sync')
+  .description(
+    'Sync implementation learnings back to Squad memory',
+  )
+  .argument('<spec-dir>', 'Spec directory with execution results')
+  .option('--dry-run', 'Preview sync without writing', false)
+  .action(async (specDir: string, cmdOpts: Record<string, unknown>) => {
+    const globalOpts = program.opts();
+    const jsonOutput = globalOpts.json as boolean;
+    const quiet = globalOpts.quiet as boolean;
+    const verbose = globalOpts.verbose as boolean;
+    const logger = createLogger({ verbose, quiet });
+
+    try {
+      logger.verbose(`Syncing learnings from ${specDir}`);
+
+      const syncer = createSyncer({
+        configPath: globalOpts.config as string | undefined,
+      });
+
+      const result = await syncer.sync(specDir, {
+        dryRun: cmdOpts.dryRun as boolean,
+      });
+
+      logger.verbose(`Sync complete: ${result.jsonOutput.record.learningsUpdated} learnings`);
+
+      if (jsonOutput) {
+        console.log(JSON.stringify(result.jsonOutput, null, 2));
+      } else if (!quiet) {
+        console.log(result.humanOutput);
+      }
+
+      process.exitCode = 0;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      emitError(message, 'sync', jsonOutput);
       process.exitCode = 1;
     }
   });

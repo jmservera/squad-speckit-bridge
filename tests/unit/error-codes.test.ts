@@ -17,8 +17,8 @@ describe('T041: Error Code Constants', () => {
     expect(ErrorCodes.PARSE_ERROR).toBe('PARSE_ERROR');
   });
 
-  it('has exactly 7 error codes', () => {
-    expect(Object.keys(ErrorCodes)).toHaveLength(7);
+  it('has exactly 11 error codes', () => {
+    expect(Object.keys(ErrorCodes)).toHaveLength(11);
   });
 
   it('provides a suggestion for every error code', () => {

@@ -5,6 +5,13 @@
 
 set -euo pipefail
 
+# Check npx availability
+if ! command -v npx &> /dev/null; then
+  echo "[squad-bridge] WARNING: npx not found — skipping Design Review notification."
+  echo "[squad-bridge] Install Node.js 18+ to enable the Squad-SpecKit bridge."
+  exit 0
+fi
+
 # Spec Kit sets SPECKIT_SPEC_DIR to the active spec directory
 SPEC_DIR="${SPECKIT_SPEC_DIR:-}"
 TASKS_FILE="${SPEC_DIR:+${SPEC_DIR}/tasks.md}"

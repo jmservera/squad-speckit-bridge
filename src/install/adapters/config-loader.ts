@@ -100,6 +100,14 @@ export class ConfigFileLoader implements ConfigLoader {
         ...defaults.hooks,
         ...(overrides.hooks ?? {}),
       },
+      sync: {
+        ...defaults.sync,
+        ...((overrides as Record<string, unknown>).sync as Record<string, unknown> ?? {}),
+      },
+      issues: {
+        ...defaults.issues,
+        ...((overrides as Record<string, unknown>).issues as Record<string, unknown> ?? {}),
+      },
       paths: {
         ...defaults.paths,
         ...(overrides.paths ?? {}),
