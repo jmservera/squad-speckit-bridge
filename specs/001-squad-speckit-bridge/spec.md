@@ -30,14 +30,14 @@ A developer is about to start a new planning cycle with Spec Kit. Before running
 
 **Why this priority**: This is the core value proposition — the knowledge flywheel starts here. Without this, Spec Kit plans in ignorance of everything the team has learned, and every planning cycle starts from zero. This story delivers immediate, measurable improvement to specification quality.
 
-**Independent Test**: Can be tested by running the bridge command in a repository with Squad memory artifacts (decisions, skills, agent histories) and verifying that a context summary document is produced in the spec directory with relevant, prioritized content from Squad's knowledge base.
+**Independent Test**: Can be tested by running the bridge command in a repository with Squad memory artifacts (decisions, skills, agent histories) and verifying that a context summary is produced in the spec directory with relevant, prioritized content from Squad's knowledge base.
 
 **Acceptance Scenarios**:
 
-1. **Given** a repository with Squad memory containing decisions, skills, and agent histories, **When** the developer runs the memory bridge command before a Spec Kit planning phase, **Then** a context summary document is produced in the active spec directory that includes: relevant skills (highest priority), applicable team decisions, and summarized agent learnings — ordered by signal value.
-2. **Given** a repository where Squad's decisions file is very large (100KB+), **When** the memory bridge runs, **Then** it produces a summarized context document that stays under a configurable size limit (default: 8KB), prioritizing recent and relevant entries over historical ones.
-3. **Given** a repository with no Squad memory artifacts (empty `.squad/`), **When** the developer runs the memory bridge, **Then** it produces a minimal context document noting that no prior team knowledge exists, and completes without errors.
-4. **Given** the memory bridge has run and produced a context document, **When** the developer subsequently runs Spec Kit's specify or plan commands, **Then** the planning phase has access to the Squad context and can reference team knowledge in its output.
+1. **Given** a repository with Squad memory containing decisions, skills, and agent histories, **When** the developer runs the memory bridge command before a Spec Kit planning phase, **Then** a context summary is produced in the active spec directory that includes: relevant skills (highest priority), applicable team decisions, and summarized agent learnings — ordered by signal value.
+2. **Given** a repository where Squad's decisions file is very large (100KB+), **When** the memory bridge runs, **Then** it produces a context summary that stays under a configurable size limit (default: 8KB), prioritizing recent and relevant entries over historical ones.
+3. **Given** a repository with no Squad memory artifacts (empty `.squad/`), **When** the developer runs the memory bridge, **Then** it produces a minimal context summary noting that no prior team knowledge exists, and completes without errors.
+4. **Given** the memory bridge has run and produced a context summary, **When** the developer subsequently runs Spec Kit's specify or plan commands, **Then** the planning phase has access to the Squad context and can reference team knowledge in its output.
 
 ---
 
@@ -69,7 +69,7 @@ After Squad agents execute tasks from a Spec Kit plan and complete their work, t
 **Acceptance Scenarios**:
 
 1. **Given** Squad agents have completed tasks and written new entries to their `history.md` files and to `decisions.md`, **When** the memory bridge runs for the next planning cycle, **Then** the new learnings appear in the context summary produced for Spec Kit, demonstrating that execution knowledge flows back into planning.
-2. **Given** multiple planning-execution cycles have occurred, **When** the memory bridge runs, **Then** it applies progressive summarization — recent learnings are presented with more detail than older ones, preventing context document bloat.
+2. **Given** multiple planning-execution cycles have occurred, **When** the memory bridge runs, **Then** it applies progressive summarization — recent learnings are presented with more detail than older ones, preventing context summary bloat.
 
 ---
 
@@ -108,7 +108,7 @@ Squad agents who have the bridge skill installed understand Spec Kit's artifacts
 - What happens when Squad's `decisions.md` contains entries that contradict Spec Kit's `constitution.md`? The bridge should surface the contradiction in the context summary with references to both documents, but not attempt to resolve it automatically — governance conflicts require human judgment.
 - What happens when the memory bridge runs but the target spec directory doesn't exist yet? The bridge should fail gracefully with a clear error message indicating which directory is expected.
 - What happens when Squad's memory artifacts are in an unexpected format (e.g., corrupted markdown, missing required sections)? The bridge should skip malformed files with a warning, process whatever it can, and include a note about skipped files in the context summary.
-- What happens when the developer runs the bridge in a repository where both frameworks are initialized but have never been used (all files are empty/template)? The bridge should produce a valid but minimal context document, not fail.
+- What happens when the developer runs the bridge in a repository where both frameworks are initialized but have never been used (all files are empty/template)? The bridge should produce a valid but minimal context summary, not fail.
 - What happens when `tasks.md` references file paths or modules that don't exist in the repository? The Design Review ceremony should flag these as potential issues, leveraging Squad agents' knowledge of the actual codebase.
 - What happens when the bridge is installed but one framework is later removed (e.g., `rm -rf .squad/`)? The bridge components on the remaining side should detect the missing framework and operate in degraded mode with appropriate warnings.
 
@@ -121,14 +121,14 @@ Squad agents who have the bridge skill installed understand Spec Kit's artifacts
 - **FR-001**: The bridge MUST install into both framework directories (`.squad/skills/` and `.specify/extensions/`) from a single installation step, without requiring manual file copying.
 - **FR-002**: The bridge MUST detect which frameworks are present in the repository and install only the applicable components, with clear messaging about partial installations.
 - **FR-003**: The bridge MUST NOT modify any pre-existing Squad or Spec Kit files during installation or operation. All bridge artifacts are additive.
-- **FR-004**: The bridge MUST support re-installation (update) without duplicating files or losing configuration.
+- **FR-004**: The bridge MUST support re-installation (update) without duplicating files or losing configuration. Re-installation unconditionally overwrites bridge-owned files with the current version (bridge artifacts are generated, not user-edited). The `InstallManifest` records version and timestamp for change tracking.
 
 **Memory Bridge (Squad → Spec Kit)**
 
 - **FR-005**: The bridge MUST read Squad's `.squad/skills/*/SKILL.md` files and include their content (or summaries) in the context output, treating skills as the highest-signal knowledge source.
 - **FR-006**: The bridge MUST read Squad's `.squad/decisions.md` and include relevant decisions in the context output, filtering for recency and relevance.
 - **FR-007**: The bridge MUST read Squad's `.squad/agents/*/history.md` files and include summarized agent learnings in the context output, applying progressive summarization to keep the output concise.
-- **FR-008**: The bridge MUST produce a context summary document in the active spec directory that is consumable by Spec Kit's planning phases.
+- **FR-008**: The bridge MUST produce a context summary (`squad-context.md`) in the active spec directory that is consumable by Spec Kit's planning phases.
 - **FR-009**: The bridge MUST enforce a configurable maximum size for the context summary (default: 8KB) to prevent context pollution.
 - **FR-010**: The bridge MUST be read-only with respect to Squad's `.squad/` directory — it reads Squad state but never writes to it.
 
@@ -146,7 +146,7 @@ Squad agents who have the bridge skill installed understand Spec Kit's artifacts
 **Knowledge Feedback Loop**
 
 - **FR-016**: The bridge MUST support the full knowledge loop: Squad memory → context summary → Spec Kit planning → tasks → Design Review → issues → execution → agent learnings → Squad memory (available for next cycle).
-- **FR-017**: The bridge MUST apply progressive summarization to prevent the context document from growing unboundedly across cycles.
+- **FR-017**: The bridge MUST apply progressive summarization to prevent the context summary from growing unboundedly across cycles.
 
 **Squad Skill**
 
@@ -155,12 +155,13 @@ Squad agents who have the bridge skill installed understand Spec Kit's artifacts
 **Resilience**
 
 - **FR-019**: The bridge MUST handle missing or malformed input files gracefully — skipping what it cannot parse and reporting warnings without failing the entire operation.
-- **FR-020**: The bridge MUST detect when one framework is absent and operate in degraded mode with appropriate user messaging. [NEEDS CLARIFICATION: Should degraded mode silently skip operations or require explicit confirmation to proceed?]
+- **FR-020**: The bridge MUST detect when one framework is absent and operate in degraded mode: silently skip unavailable operations and emit a warning to stderr indicating which framework is missing and how to complete the setup. No interactive confirmation is required — degraded mode is non-blocking.
+- **FR-021**: The bridge CLI MUST support a `--verbose` flag that emits diagnostic output to stderr: files being processed, files skipped (with reason), byte counts during summarization, and timing information. This flag is orthogonal to `--json` (which controls stdout format).
 
 ### Key Entities
 
 - **Context Summary**: A document (placed in the spec directory) containing prioritized knowledge extracted from Squad's memory. Attributes: source files read, timestamp, size, priority-ordered content sections (skills, decisions, learnings).
-- **Design Review Record**: The structured output of a Design Review ceremony. Attributes: reviewed artifact path, participating agents, findings (risks, gaps, conflicts), approval status, recommended changes.
+- **Design Review Record**: The structured output of a Design Review ceremony. Attributes: reviewed artifact path, participating agents, findings (risks, gaps, conflicts), approval status (one of: `pending`, `approved`, `changes_requested`), recommended changes. Lifecycle: created as `pending` when review is triggered → transitions to `approved` or `changes_requested` when agents complete evaluation.
 - **Bridge Configuration**: Settings controlling bridge behavior. Attributes: context size limit, hook enabled/disabled flags, which Squad memory sources to include, summarization preferences.
 - **Bridge Skill**: A Squad SKILL.md file encoding knowledge about Spec Kit artifacts and methodology. Attributes: context (what Spec Kit is), patterns (how to read its artifacts), anti-patterns (common mistakes when interpreting Spec Kit output).
 
@@ -185,4 +186,18 @@ Squad agents who have the bridge skill installed understand Spec Kit's artifacts
 - Spec Kit's `after_tasks` hook mechanism is available and functional as documented. The bridge does not require hooks that don't yet exist (notably, `before_specify` and `before_plan` are not required — the memory bridge is triggered manually or via a separate command).
 - Squad's ceremony system supports custom ceremony definitions that can be added via skill/plugin installation.
 - The bridge is designed for the current state of both frameworks and may need updates if either framework introduces breaking changes to its file formats or extension systems.
-- Context document size limits are advisory for planning quality, not hard security boundaries.
+- Context summary size limits are advisory for planning quality, not hard security boundaries.
+
+## Clarifications
+
+### Session 2025-07-25
+
+- Q: Should degraded mode (FR-020) silently skip operations, require explicit confirmation, or fail with guidance? → A: **Silent skip with stderr warning.** Degraded mode proceeds non-blocking, emitting a warning to stderr with the missing framework name and setup instructions. Rationale: CLI tools in automated workflows must not prompt. Partial installs are explicitly supported by US1 acceptance scenarios 2–3. Aligns with Unix convention and SC-007 (zero overhead).
+
+- Q: What approval states can a Design Review Record have? → A: **Three-state lifecycle: `pending` → `approved` | `changes_requested`.** Created as `pending` when review is triggered; transitions to `approved` (US3 scenario 3) or `changes_requested` (US3 scenario 4) when agents complete evaluation. A fourth state (`in_progress`) was rejected as unnecessary — the review is a one-shot evaluation, not an iterative process.
+
+- Q: The spec uses "context summary", "context document", and "context summary document" interchangeably — which is canonical? → A: **"context summary"** is the canonical term (matches the `ContextSummary` entity name). All instances of "context document" and "context summary document" normalized to "context summary" throughout the spec.
+
+- Q: What observability should the CLI provide for diagnosing issues during context generation or review? → A: **Single `--verbose` flag** emitting diagnostic output to stderr (files processed, files skipped with reason, byte counts, timing). Added as FR-021. Two debug levels (verbose + debug) rejected as over-engineering for a ~300 LOC tool. The `--verbose` flag is orthogonal to `--json` (which controls stdout format).
+
+- Q: How should the bridge handle version compatibility when re-installing artifacts (FR-004)? → A: **Unconditional overwrite.** Bridge-owned artifacts (SKILL.md, extension.yml, ceremony.md) are generated templates, not user-edited. Re-installation always overwrites with the current version. The `InstallManifest` tracks version and timestamps for diagnostics. SemVer checking rejected as premature for v0.1. FR-004 updated to reflect this.
