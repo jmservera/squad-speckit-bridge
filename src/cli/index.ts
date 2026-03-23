@@ -12,6 +12,9 @@ import { createInstaller, createStatusChecker, createContextBuilder, createRevie
 import { ErrorCodes, createStructuredError } from '../types.js';
 import type { ErrorCode } from '../types.js';
 import { createLogger } from './logger.js';
+import { createDemoRunner, createDemoDirectory } from '../demo/factory.js';
+import { formatHumanOutput, formatJsonOutput, type ExtendedExecutionReport } from '../demo/formatters.js';
+import type { DemoConfiguration } from '../demo/entities.js';
 
 const program = new Command();
 
@@ -58,6 +61,7 @@ function classifyError(message: string, context: string): ErrorCode {
     review: ErrorCodes.TASKS_NOT_FOUND,
     issues: ErrorCodes.TASKS_NOT_FOUND,
     sync: ErrorCodes.SYNC_FAILED,
+    demo: ErrorCodes.PARSE_ERROR,
   };
   return contextDefaults[context] ?? ErrorCodes.PARSE_ERROR;
 }
@@ -330,6 +334,61 @@ program
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       emitError(message, 'sync', jsonOutput);
+      process.exitCode = 1;
+    }
+  });
+
+// Demo subcommand
+program
+  .command('demo')
+  .description('Run E2E demo of the pipeline')
+  .option('--dry-run', 'Simulate GitHub issue creation without API calls', false)
+  .option('--keep', 'Preserve demo artifacts after completion', false)
+  .option('--verbose', 'Enable verbose output', false)
+  .option('--json', 'Output in JSON format', false)
+  .action(async (cmdOpts: Record<string, unknown>) => {
+    const globalOpts = program.opts();
+    const jsonOutput = (cmdOpts.json as boolean) || (globalOpts.json as boolean);
+    const verbose = (cmdOpts.verbose as boolean) || (globalOpts.verbose as boolean);
+    const logger = createLogger({ verbose, quiet: globalOpts.quiet as boolean });
+
+    try {
+      const demoDir = createDemoDirectory();
+      logger.verbose(`Starting E2E demo in ${demoDir}`);
+
+      const config: DemoConfiguration = {
+        exampleFeature: 'User Authentication with OAuth2 and JWT tokens',
+        demoDir,
+        flags: {
+          dryRun: cmdOpts.dryRun as boolean,
+          keep: cmdOpts.keep as boolean,
+          verbose,
+        },
+        timeout: 30,
+        squadDir: '.squad',
+        specifyDir: 'specs',
+      };
+
+      const runner = createDemoRunner();
+      const report = await runner.run(config);
+
+      if (jsonOutput) {
+        // Build extended report for JSON output
+        const extendedReport: ExtendedExecutionReport = {
+          ...report,
+          stages: [], // Stages are internal to orchestrator
+          demoDir: config.demoDir,
+          flags: config.flags,
+        };
+        console.log(formatJsonOutput(extendedReport));
+      } else {
+        console.log(formatHumanOutput(report));
+      }
+
+      process.exitCode = report.stagesFailed > 0 ? 1 : 0;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      emitError(message, 'demo', jsonOutput);
       process.exitCode = 1;
     }
   });

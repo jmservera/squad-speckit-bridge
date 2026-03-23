@@ -10,6 +10,27 @@
 
 <!-- Append learnings below -->
 
+### 2026-03-23: T002 — Demo Entity Types Definition
+
+**Task:** Defined all entity types in `src/demo/entities.ts` for the E2E demo script (Issue #206).
+
+**Entities Created:**
+- **Enums:** `StageStatus` (pending/running/success/failed), `ArtifactType` (spec/plan/tasks/review)
+- **Interfaces:** `DemoFlags`, `DemoConfiguration`, `PipelineStage`, `DemoArtifact`, `ArtifactSummary`, `ExecutionReport`
+
+**Pattern Applied:** Pure domain types with no dependencies — follows Clean Architecture entity layer principles. All fields documented with JSDoc comments matching the spec at `specs/003-e2e-demo-script/data-model.md`.
+
+### 2026-03-23: T001 — Demo Feature Directory Structure
+
+**Task:** Created directory structure for demo feature on branch `003-e2e-demo-script` (Issue #205).
+
+**Directories Created:**
+- `src/demo/` and `src/demo/adapters/` — demo feature source code
+- `tests/demo/` and `tests/demo/adapters/` — demo unit/integration tests
+- `tests/e2e/` — end-to-end test directory
+
+**Pattern Applied:** Used `.gitkeep` files in all empty directories — consistent with Phase 1 scaffolding approach (T001 from Phase 1 Setup learnings).
+
 ### 2025-07-25: Phase 3 — US1 Installation Implementation (T011-T020)
 
 **Use Case Implementation Patterns:**
