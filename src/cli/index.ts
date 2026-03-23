@@ -8,7 +8,7 @@
  */
 
 import { Command } from 'commander';
-import { createInstaller, createStatusChecker } from '../main.js';
+import { createInstaller, createStatusChecker, createReviewer } from '../main.js';
 
 const program = new Command();
 
@@ -98,6 +98,55 @@ program
           JSON.stringify({
             error: true,
             code: 'STATUS_FAILED',
+            message,
+          }),
+        );
+      } else {
+        console.error(`Error: ${message}`);
+      }
+      process.exitCode = 1;
+    }
+  });
+
+// Review subcommand
+program
+  .command('review')
+  .description(
+    'Generate a Design Review for a Spec Kit tasks.md file',
+  )
+  .argument('<tasks-file>', 'Path to Spec Kit tasks.md to review')
+  .option('--output <path>', 'Where to write the review template')
+  .option('--squad-dir <path>', 'Override Squad directory path')
+  .action(async (tasksFile: string, cmdOpts: Record<string, unknown>) => {
+    const globalOpts = program.opts();
+    const jsonOutput = globalOpts.json as boolean;
+    const quiet = globalOpts.quiet as boolean;
+
+    try {
+      const reviewer = createReviewer({
+        configPath: globalOpts.config as string | undefined,
+        squadDir: cmdOpts.squadDir as string | undefined,
+      });
+
+      const result = await reviewer.review(
+        tasksFile,
+        cmdOpts.output as string | undefined,
+      );
+
+      if (jsonOutput) {
+        console.log(JSON.stringify(result.jsonOutput, null, 2));
+      } else if (!quiet) {
+        console.log(result.humanOutput);
+      }
+
+      process.exitCode = 0;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (jsonOutput) {
+        console.error(
+          JSON.stringify({
+            error: true,
+            code: 'REVIEW_FAILED',
             message,
           }),
         );

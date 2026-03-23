@@ -6,15 +6,19 @@
  */
 
 import { readFile } from 'node:fs/promises';
-import { resolve, dirname } from 'node:path';
+import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FileSystemFrameworkDetector } from './install/adapters/framework-detector.js';
 import { FileSystemDeployer } from './install/adapters/file-deployer.js';
 import { ConfigFileLoader } from './install/adapters/config-loader.js';
 import { installBridge } from './install/installer.js';
 import { checkStatus } from './install/status.js';
+import { prepareReview } from './review/ceremony.js';
+import { TasksParser } from './review/adapters/tasks-parser.js';
+import { ReviewWriter } from './review/adapters/review-writer.js';
+import { SquadFileReader } from './bridge/adapters/squad-reader.js';
 import type { StatusReport } from './install/status.js';
-import type { InstallManifest } from './types.js';
+import type { InstallManifest, DesignReviewRecord } from './types.js';
 
 // Resolve template directory relative to this module
 const __filename = fileURLToPath(import.meta.url);
@@ -49,6 +53,24 @@ export interface InstallOutput {
 export interface StatusOutput {
   humanOutput: string;
   jsonOutput: StatusReport;
+}
+
+export interface ReviewerOptions {
+  configPath?: string;
+  squadDir?: string;
+  baseDir?: string;
+}
+
+export interface ReviewOutput {
+  humanOutput: string;
+  jsonOutput: {
+    reviewedArtifact: string;
+    timestamp: string;
+    approvalStatus: string;
+    findingCounts: { high: number; medium: number; low: number };
+    findings: DesignReviewRecord['findings'];
+    outputPath: string;
+  };
 }
 
 export function createInstaller(options: InstallerOptions = {}) {
@@ -108,6 +130,43 @@ export function createStatusChecker(
       return {
         humanOutput: formatStatusHuman(report),
         jsonOutput: report,
+      };
+    },
+  };
+}
+
+export function createReviewer(options: ReviewerOptions = {}) {
+  const baseDir = options.baseDir ?? process.cwd();
+  const configLoader = new ConfigFileLoader({
+    configPath: options.configPath,
+    baseDir,
+  });
+  const tasksParser = new TasksParser();
+  const reviewWriter = new ReviewWriter();
+
+  return {
+    async review(
+      tasksFile: string,
+      outputPath?: string,
+    ): Promise<ReviewOutput> {
+      const config = await configLoader.load();
+
+      // Apply CLI override
+      const squadDir = options.squadDir ?? config.paths.squadDir;
+      const squadReader = new SquadFileReader(resolve(baseDir, squadDir));
+
+      const resolvedOutputPath =
+        outputPath ?? join(dirname(tasksFile), 'review.md');
+
+      const { record } = await prepareReview(tasksParser, squadReader, {
+        tasksFilePath: tasksFile,
+      });
+
+      await reviewWriter.write(record, resolvedOutputPath);
+
+      return {
+        humanOutput: formatReviewHuman(record, resolvedOutputPath),
+        jsonOutput: formatReviewJson(record, resolvedOutputPath),
       };
     },
   };
@@ -250,4 +309,48 @@ function formatStatusHuman(report: StatusReport): string {
   lines.push(`  Sources:          ${sources.join(', ')}`);
 
   return lines.join('\n');
+}
+
+function formatReviewHuman(
+  record: DesignReviewRecord,
+  outputPath: string,
+): string {
+  const lines: string[] = [];
+  lines.push(`Design Review prepared for ${record.reviewedArtifact}`);
+  lines.push('');
+  lines.push('Pre-populated findings:');
+
+  const high = record.findings.filter((f) => f.severity === 'high').length;
+  const medium = record.findings.filter((f) => f.severity === 'medium').length;
+  const low = record.findings.filter((f) => f.severity === 'low').length;
+
+  if (high > 0) lines.push(`  🔴 ${high} high severity issue(s)`);
+  if (medium > 0)
+    lines.push(`  ⚠ ${medium} potential decision conflict(s) detected`);
+  if (low > 0) lines.push(`  ℹ ${low} task(s) may benefit from agent expertise`);
+
+  if (record.findings.length === 0) {
+    lines.push('  ✓ No issues detected');
+  }
+
+  lines.push('');
+  lines.push(`Review template written to: ${outputPath}`);
+  lines.push('Next: Run the Design Review ceremony with your Squad team.');
+
+  return lines.join('\n');
+}
+
+function formatReviewJson(record: DesignReviewRecord, outputPath: string) {
+  const high = record.findings.filter((f) => f.severity === 'high').length;
+  const medium = record.findings.filter((f) => f.severity === 'medium').length;
+  const low = record.findings.filter((f) => f.severity === 'low').length;
+
+  return {
+    reviewedArtifact: record.reviewedArtifact,
+    timestamp: record.timestamp,
+    approvalStatus: record.approvalStatus,
+    findingCounts: { high, medium, low },
+    findings: record.findings,
+    outputPath,
+  };
 }
