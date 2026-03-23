@@ -1,0 +1,14 @@
+theme: jekyll-theme-minimal
+title: Squad-SpecKit Bridge
+description: Connecting agentic development frameworks
+baseurl: /squad-speckit-bridge
+
+# Build settings
+markdown: kramdown
+plugins:
+  - jekyll-feed
+
+# Site settings
+author: Integration Team
+email: contact@example.com
+show_downloads: true
