@@ -10,6 +10,16 @@
 
 <!-- Append learnings below -->
 
+### 2025-07-24 — Spec Kit Plan Phase Execution
+
+- **The plan phase is where spec meets reality.** The spec deliberately avoids implementation details ("WHAT not HOW"), but the plan phase must make concrete technology choices — TypeScript vs shell, commander vs yargs, vitest vs jest. This is the correct boundary: spec defines capability, plan defines approach.
+- **Constitution as template requires judgment.** When the constitution hasn't been customized, you can't mechanically check gates. Instead, derive reasonable principles from the project's established patterns (from decisions.md and prior research). Document what you assumed so future constitution customization can validate or correct.
+- **Research phase resolves ambiguity, not implementation.** The one NEEDS CLARIFICATION in the spec (degraded mode UX) was genuinely a product decision. Research resolved it with "silent skip + warning" — the right default for a developer tool. The temptation to over-research technology choices is real but unnecessary when the team already has strong opinions (we chose TypeScript in our earlier research).
+- **Data model emerges naturally from the spec's Key Entities section.** The spec already defined Context Summary, Design Review Record, Bridge Configuration, and Bridge Skill. The plan's data-model.md adds fields, types, validation rules, and relationships — the implementation-specific detail the spec correctly omitted.
+- **Contracts are the bridge's API surface.** For a CLI tool, the contracts are command definitions with exact flags, output formats, and exit codes. JSON output mode is non-negotiable for machine consumption. Human-readable output is the default for developer experience.
+- **Progressive summarization strategy needed explicit design.** The spec said "enforce a configurable maximum size" but didn't specify HOW to prioritize when content exceeds the limit. The three-tier approach (priority ordering → recency bias → content compression) mirrors how humans naturally triage information.
+- **The `update-agent-context.sh` script auto-extracts tech stack from plan.md.** It parsed the Technical Context section and updated `.github/agents/copilot-instructions.md` with TypeScript/Node.js/gray-matter/commander context. This is the Spec Kit pipeline working as designed — plan artifacts feed agent awareness.
+
 ### 2025-07-24 — Squad × Spec Kit Integration Analysis
 
 - **Non-overlapping state:** Squad uses `.squad/`, Spec Kit uses `.specify/` + agent dirs. Zero filesystem collision. This is the foundation that makes integration viable.
@@ -76,3 +86,12 @@ Adopt pipeline integration model: Spec Kit (upstream planning) → Squad (downst
 - **Rejected "Spec Kit creates issues directly":** This bypasses the team entirely. You lose the knowledge correction step. Issues would be technically correct but strategically naive.
 - **Rejected "hybrid" (Spec Kit creates issues, Lead re-triages):** Creating issues you plan to immediately change is waste. Review *before* creation, not after.
 - **Feedback loop design:** After task completion, Squad agents write learnings to history.md. On the next planning cycle, the memory bridge feeds those learnings back into Spec Kit. This is the knowledge flywheel — each iteration produces better plans because agents remember what worked.
+
+### 2025-07-24 — Writing a Spec Kit Specification (specify workflow)
+
+- **WHAT not HOW is harder than it sounds.** The biggest discipline in Spec Kit's specify phase is resisting implementation details. Every instinct says "~150 LOC shell script" or "JSON output format" — but those are planning/implementation decisions, not specification. The spec describes *capabilities and behaviors*, not technology choices.
+- **User stories as independently testable slices.** Spec Kit wants each story to be a viable MVP on its own. This forced better decomposition — e.g., "installation" is P1 because nothing else works without it, and it's independently valuable even without automation hooks.
+- **Progressive summarization is a spec-level concern.** The context size limit (FR-009) and progressive summarization (FR-017) are functional requirements, not implementation details. They describe *what the system must do*, leaving *how* to the plan phase.
+- **Limit NEEDS CLARIFICATION to genuine ambiguity.** The 3-max rule is good discipline. Most "unclear" things have reasonable defaults. Only the degraded-mode UX question (silent skip vs. explicit confirmation) genuinely needs product owner input — it's a scope/UX decision with no obvious default.
+- **Edge cases are where the spec earns its keep.** The most valuable part of the spec isn't the happy path — it's the edge cases (governance contradictions, framework removal, malformed inputs). These are the scenarios that would bite during implementation without upfront thinking.
+- **Checklist as living validation.** The quality checklist isn't just a checkbox exercise — it's a forcing function that catches spec drift. The "no implementation details" check caught several near-misses during drafting.
