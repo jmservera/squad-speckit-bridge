@@ -142,17 +142,19 @@ export async function runDemo(
     };
 
     if (result.success) {
-      // Transition: running → success
-      stage.status = StageStatus.Success;
-
       // Validate artifact after successful execution
       const artifactPath = `${config.demoDir}/${stage.artifact}`;
       const artifact = await deps.artifactValidator.validate(artifactPath, stage);
       completedArtifacts.push(artifact);
 
       if (artifact.valid) {
+        // Transition: running → success (command ran and artifact is valid)
+        stage.status = StageStatus.Success;
         stagesCompleted++;
       } else {
+        // Transition: running → failed (command ran but artifact validation failed)
+        stage.status = StageStatus.Failed;
+        stage.error = `Artifact validation failed: ${artifact.errors.join(', ')}`;
         stagesFailed++;
         errorSummary = `Artifact validation failed for ${stage.name}: ${artifact.errors.join(', ')}`;
         // Halt pipeline on first failure
