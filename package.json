@@ -1,0 +1,43 @@
+{
+  "name": "squad-speckit-bridge",
+  "version": "0.1.0",
+  "description": "A hybrid integration package connecting Squad's persistent team memory with Spec Kit's structured planning pipeline.",
+  "type": "module",
+  "main": "dist/cli/index.js",
+  "bin": {
+    "squad-speckit-bridge": "dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jmservera/squad-speckit-bridge.git"
+  },
+  "keywords": [
+    "squad",
+    "speckit",
+    "bridge",
+    "integration"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jmservera/squad-speckit-bridge/issues"
+  },
+  "homepage": "https://github.com/jmservera/squad-speckit-bridge#readme",
+  "dependencies": {
+    "commander": "^14.0.3",
+    "glob": "^13.0.6",
+    "gray-matter": "^4.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
+  }
+}

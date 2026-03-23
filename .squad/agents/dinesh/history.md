@@ -94,3 +94,25 @@ Squad and Spec Kit can coexist safely with:
 2. Handle copilot-instructions.md merge via markers
 3. Define branch naming convention
 4. Test with realistic multi-phase workflow
+
+### 2025-07-25: Phase 1 Setup — Project Scaffolding Patterns
+
+**Clean Architecture Directory Structure (T001):**
+- Domain-based top-level dirs: `src/bridge/`, `src/install/`, `src/review/`, `src/cli/` — each domain gets its own `adapters/` subdirectory for Clean Architecture boundary separation.
+- Test dirs mirror Clean Architecture layers: `tests/unit/`, `tests/integration/`, `tests/fixtures/` with `squad/` and `specify/` subdirectories for adapter integration tests.
+- Used `.gitkeep` files to track empty directories in git — necessary since git doesn't track empty dirs.
+
+**npm Project Setup (T002):**
+- `"type": "module"` is essential for ESM — without it, Node16 module resolution won't work correctly with `.ts` → `.js` compilation.
+- `"bin"` entry points to `dist/cli/index.js` (compiled output), not `src/cli/index.ts` (source). The CLI is the outermost Clean Architecture layer.
+- Production deps (commander, gray-matter, glob) are framework/driver layer only — they must never be imported in entities or use cases.
+
+**TypeScript + Vitest Config (T003–T004):**
+- `module: "Node16"` + `moduleResolution: "Node16"` pair is required for ESM in Node.js — using one without the other causes resolution failures.
+- `rootDir: "src"` + `outDir: "dist"` preserves directory structure in compiled output, which is needed for the `bin` entry to resolve correctly.
+- Vitest's `include: ['tests/**/*.test.ts']` keeps tests outside `src/` — clean separation between production code and test code.
+- v8 coverage provider is zero-config with Vitest (no additional install needed), unlike istanbul.
+
+**PR Workflow (batch commits):**
+- Sequential setup tasks (T001→T004) work well on a single branch with individual commits referencing issues.
+- PR body references all closed issues: `Closes #2, closes #3, closes #4, closes #5` — GitHub auto-closes all four on merge.

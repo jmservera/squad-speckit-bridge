@@ -2,6 +2,21 @@
 
 **A hybrid integration package connecting Squad's persistent team memory with Spec Kit's structured planning pipeline.**
 
+```mermaid
+graph LR
+    A["🧠 Squad Memory"] -->|"context command"| B["🔗 Memory Bridge"]
+    B -->|"squad-context.md"| C["📋 Spec Kit Planning"]
+    C -->|"specify → plan"| D["✅ Tasks"]
+    D -->|"Design Review"| E["⚡ Execution"]
+    E -->|"history.md + decisions.md"| A
+
+    style A fill:#6366f1,stroke:#4f46e5,color:#fff
+    style B fill:#8b5cf6,stroke:#7c3aed,color:#fff
+    style C fill:#ec4899,stroke:#db2777,color:#fff
+    style D fill:#f59e0b,stroke:#d97706,color:#fff
+    style E fill:#10b981,stroke:#059669,color:#fff
+```
+
 ---
 
 ## One-Liner

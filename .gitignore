@@ -5,3 +5,9 @@
 .squad/sessions/
 # Squad: SubSquad activation file (local to this machine)
 .squad-workstream
+
+# Node.js
+node_modules/
+
+# Build output
+dist/
