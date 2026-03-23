@@ -114,7 +114,7 @@ A developer discovers the bridge project and wants to understand how to install 
 **Acceptance Scenarios**:
 
 1. **Given** a developer visits the GitHub Pages site, **When** they read the installation guide, **Then** they have all steps needed to install the bridge
-2. **Given** a developer has installed the bridge, **When** they read the usage guide, **Then** they can run each bridge command (context, review, sync) successfully
+2. **Given** a developer has installed the bridge, **When** they read the usage guide, **Then** they can run each bridge command (install, context, review, status) successfully
 3. **Given** a developer wants to understand the architecture, **When** they read the architecture page, **Then** they understand the Clean Architecture layers and knowledge flow loop
 
 ---
@@ -178,7 +178,7 @@ A developer discovers the bridge project and wants to understand how to install 
 
 - **FR-022**: Project MUST include a GitHub Pages documentation site with installation, usage, and architecture guides
 - **FR-023**: Documentation site MUST be auto-deployed from the `docs/` directory on the main branch
-- **FR-024**: Documentation MUST include runnable code examples for each CLI command
+- **FR-024**: Documentation MUST include copy-pasteable shell command examples with expected output for each CLI command (install, context, review, status)
 
 ### Key Entities
 
@@ -224,3 +224,11 @@ A developer discovers the bridge project and wants to understand how to install 
 - Q: What observability should the CLI provide for diagnosing issues during context generation or review? → A: **Single `--verbose` flag** emitting diagnostic output to stderr (files processed, files skipped with reason, byte counts, timing). Added as FR-021. Two debug levels (verbose + debug) rejected as over-engineering for a ~300 LOC tool. The `--verbose` flag is orthogonal to `--json` (which controls stdout format).
 
 - Q: How should the bridge handle version compatibility when re-installing artifacts (FR-004)? → A: **Unconditional overwrite.** Bridge-owned artifacts (SKILL.md, extension.yml, ceremony.md) are generated templates, not user-edited. Re-installation always overwrites with the current version. The `InstallManifest` tracks version and timestamps for diagnostics. SemVer checking rejected as premature for v0.1. FR-004 updated to reflect this.
+
+### Session 2026-03-23
+
+- Q: US7 Scenario 2 references a "sync" command — which CLI commands should the usage guide cover? → A: **install, context, review, status.** These are the four commands defined in the CLI contracts. "sync" was a terminology error; corrected to match the actual command set. US7 scenario 2 updated.
+
+- Q: What does "runnable code examples" mean in FR-024 for a static documentation site? → A: **Copy-pasteable shell command examples with expected output.** Each CLI command in the documentation includes a shell snippet the developer can copy-paste directly into their terminal, followed by the expected stdout/stderr output. No interactive widgets or live execution environments. FR-024 updated.
+
+- Q: Does FR-023's "auto-deployed from docs/ directory" require a custom GitHub Actions workflow or the built-in Pages source setting? → A: **Built-in GitHub Pages source setting.** Configure the repository to serve Pages from the `docs/` folder on the `main` branch. No custom GitHub Actions workflow needed — Jekyll is handled natively by GitHub Pages. This aligns with the simplicity principle.
