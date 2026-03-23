@@ -19,6 +19,7 @@
 | Monica | Technical Writer | `.squad/agents/monica/charter.md` | ✅ Active |
 | Scribe | Session Logger | `.squad/agents/scribe/charter.md` | 📋 Silent |
 | Ralph | Work Monitor | `.squad/agents/ralph/charter.md` | 🔄 Monitor |
+| Juanma | Product Owner & Reviewer | — | 👤 Human |
 
 ## Project Context
 

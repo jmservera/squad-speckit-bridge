@@ -307,8 +307,24 @@ tests/
 
 ---
 
+### Human-in-the-Loop Governance — Product Owner Review (2026-03-23)
+
+**Decision:** Juanma (jmservera) is part of the team as Product Owner and human reviewer for critical decisions.
+
+**Scope:**
+- Important clarification questions → escalate to Juanma for review
+- Team should not auto-accept all clarifications
+- Decisions requiring human judgment → route through Juanma
+
+**Rationale:** Ensures human oversight on critical choices, preserves accountability, leverages product owner perspective.
+
+**Status:** Active; implemented immediately
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus
 - Document architectural decisions here
 - Keep history focused on work, decisions focused on direction
+- Critical decisions requiring human judgment → escalate to Product Owner (Juanma)
