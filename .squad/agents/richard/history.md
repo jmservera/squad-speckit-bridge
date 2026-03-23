@@ -10,6 +10,16 @@
 
 <!-- Append learnings below -->
 
+### 2025-07-24 — Generating Clean Architecture-Aware Spec Kit Tasks
+
+- **Clean Architecture inverts the natural Spec Kit task ordering.** Spec Kit's template suggests "Models → Services → Endpoints → Integration" which maps cleanly to domain-organized projects. But Clean Architecture demands **Entities → Use Cases → Adapters → Drivers** (innermost first). This means the Foundational phase must contain ALL entity types and port interfaces before any user story work begins — they are the shared inner core, not per-story concerns.
+- **Port interfaces belong in Foundational, not in user stories.** The temptation is to define ports as you build each story. But since ports are in the use case layer (innermost after entities), and multiple stories implement the same ports (e.g., SquadStateReader is used by both US2 and US3), they must be defined upfront. This creates a larger Foundational phase but prevents adapter-first development.
+- **The Dependency Rule creates natural parallelism.** Because inner layers have zero dependencies on outer layers, entity and port tasks can run in parallel. Use cases for independent stories (US1 and US2) can run in parallel. The constraint is adapters — they depend on both the ports they implement AND the framework libraries they wrap.
+- **Reuse across stories is a dependency signal.** When US3 (Design Review) reuses the SquadFileReader adapter from US2 (Memory Bridge), that's a real dependency — US3 can't start adapter work until US2's adapter exists. The tasks must surface this explicitly rather than marking stories as fully independent.
+- **Template files are adapters, not entities.** The SKILL.md, extension.yml, and ceremony.md templates are deployment artifacts — they belong in the adapter/framework layer, not in entities. This matters for task ordering: templates can be written in parallel with use cases since they're independent outer-layer concerns.
+- **46 tasks across 9 phases is the right granularity.** Each task maps to exactly one file, one layer responsibility, and one testable unit. Finer granularity (splitting types.ts into per-entity files) would create unnecessary coordination overhead. Coarser granularity (combining use case + adapter in one task) would violate the Clean Architecture ordering principle.
+- **The composition root (main.ts) is always the last task per story.** It's the only file that knows about both use cases AND adapters — it wires them together via constructor injection. Writing it before both layers exist is impossible. This is a natural consequence of the Dependency Rule.
+
 ### 2025-07-24 — Spec Kit Plan Phase Execution
 
 - **The plan phase is where spec meets reality.** The spec deliberately avoids implementation details ("WHAT not HOW"), but the plan phase must make concrete technology choices — TypeScript vs shell, commander vs yargs, vitest vs jest. This is the correct boundary: spec defines capability, plan defines approach.
