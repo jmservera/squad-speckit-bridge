@@ -1,0 +1,29 @@
+schema_version: "1.0"
+
+id: squad-bridge
+name: Squad-SpecKit Bridge
+version: 0.1.0
+description: >
+  Connects Squad's persistent team memory with Spec Kit's structured planning pipeline.
+  Automatically triggers context injection after task generation.
+
+hooks:
+  after_tasks:
+    script: ./after-tasks.sh
+    description: >
+      Notifies the Squad team that new tasks are available for Design Review.
+      Generates squad-context.md if not already present.
+
+commands:
+  context:
+    script: ./bridge-context.sh
+    description: >
+      Generate a squad-context.md file from Squad memory artifacts.
+      Usage: speckit run squad-bridge context <spec-dir>
+
+config:
+  context_max_bytes: 8192
+  sources:
+    - skills
+    - decisions
+    - histories
