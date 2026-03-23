@@ -46,7 +46,7 @@ Once installed, **the bridge disappears into the background.** You use Spec Kit 
 
 ### Step 1: Install (One Time)
 ```bash
-$ npx squad-speckit-bridge install
+$ npx @jmservera/squad-speckit-bridge install
 # That's it — done. Deployment complete.
 ```
 
@@ -78,7 +78,7 @@ The Design Review is a **ceremony**, not a command. It's where human judgment co
 
 ### Step 4: Create Issues (When Review Approves)
 ```bash
-$ npx squad-speckit-bridge issues specs/001-my-feature/tasks.md
+$ npx @jmservera/squad-speckit-bridge issues specs/001-my-feature/tasks.md
 # One command: tasks become GitHub issues (labeled, ready to assign)
 ```
 
@@ -143,9 +143,9 @@ These files are part of your feature's planning record — future cycles and tea
 
 ```bash
 # Full workflow in one go (after bridge is installed)
-npx squad-speckit-bridge context specs/001-feature/
-npx squad-speckit-bridge review specs/001-feature/tasks.md
-npx squad-speckit-bridge install --check  # Verify all components are in place
+npx @jmservera/squad-speckit-bridge context specs/001-feature/
+npx @jmservera/squad-speckit-bridge review specs/001-feature/tasks.md
+npx @jmservera/squad-speckit-bridge install --check  # Verify all components are in place
 ```
 
 For more details, see the [Usage Guide](usage.md).

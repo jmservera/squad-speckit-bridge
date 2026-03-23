@@ -30,7 +30,7 @@ Initialize the bridge in your project.
 ### Usage
 
 ```bash
-npx squad-speckit-bridge init [options]
+npx @jmservera/squad-speckit-bridge init [options]
 ```
 
 ### Options
@@ -73,7 +73,7 @@ Inject Squad memory before Spec Kit planning.
 ### Usage
 
 ```bash
-npx squad-speckit-bridge context [options]
+npx @jmservera/squad-speckit-bridge context [options]
 ```
 
 ### Options
@@ -170,7 +170,7 @@ Run design review ceremony for Spec Kit tasks.
 ### Usage
 
 ```bash
-npx squad-speckit-bridge review <path-to-tasks.md> [options]
+npx @jmservera/squad-speckit-bridge review <path-to-tasks.md> [options]
 ```
 
 ### Arguments
@@ -250,7 +250,7 @@ Create GitHub issues from reviewed tasks.
 ### Usage
 
 ```bash
-npx squad-speckit-bridge issues <path-to-tasks-reviewed.md> [options]
+npx @jmservera/squad-speckit-bridge issues <path-to-tasks-reviewed.md> [options]
 ```
 
 ### Arguments
@@ -331,7 +331,7 @@ Sync execution learnings back to Squad.
 ### Usage
 
 ```bash
-npx squad-speckit-bridge sync [options]
+npx @jmservera/squad-speckit-bridge sync [options]
 ```
 
 ### Options
@@ -427,7 +427,7 @@ Check bridge and framework status.
 ### Usage
 
 ```bash
-npx squad-speckit-bridge status [options]
+npx @jmservera/squad-speckit-bridge status [options]
 ```
 
 ### Options

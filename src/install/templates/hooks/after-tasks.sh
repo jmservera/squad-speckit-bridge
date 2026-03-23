@@ -33,8 +33,8 @@ fi
 CONTEXT_FILE="${SPEC_DIR}/squad-context.md"
 if [ ! -f "$CONTEXT_FILE" ]; then
   echo "[squad-bridge] Generating squad-context.md..."
-  npx squad-speckit-bridge context "$SPEC_DIR" --quiet 2>/dev/null || true
+  npx @jmservera/squad-speckit-bridge context "$SPEC_DIR" --quiet 2>/dev/null || true
 fi
 
 # Notify developer about available Design Review
-npx squad-speckit-bridge review --notify "$TASKS_FILE"
+npx @jmservera/squad-speckit-bridge review --notify "$TASKS_FILE"

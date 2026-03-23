@@ -1,0 +1,15 @@
+{
+  "version": "0.1.0",
+  "installedAt": "2026-03-23T12:13:08.228Z",
+  "updatedAt": "2026-03-23T12:13:37.266Z",
+  "components": {
+    "squadSkill": true,
+    "specKitExtension": true,
+    "ceremonyDef": true
+  },
+  "files": [
+    ".squad/skills/speckit-bridge/SKILL.md",
+    ".squad/skills/speckit-bridge/ceremony.md",
+    ".specify/extensions/squad-bridge/extension.yml"
+  ]
+}

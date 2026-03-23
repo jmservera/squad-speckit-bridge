@@ -105,7 +105,7 @@ All core logic separated by dependency inversion. Easy to test, extend, and main
 
 ```bash
 # Coming soon (placeholder)
-npx squad-speckit-bridge init
+npx @jmservera/squad-speckit-bridge init
 ```
 
 For now, see [Installation & Usage](./docs/INSTALLATION.md) for manual setup.

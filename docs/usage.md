@@ -12,7 +12,7 @@ The bridge is **automation-first**. After installation, most work happens automa
 
 ```bash
 # Step 1: One-time installation
-$ npx squad-speckit-bridge install
+$ npx @jmservera/squad-speckit-bridge install
 # Result: Bridge components deployed. That's it.
 
 # Step 2: Use Spec Kit normally
@@ -25,7 +25,7 @@ $ /speckit.specify && /speckit.plan && /speckit.tasks
 # Approve when ready.
 
 # Step 4: Create issues
-$ npx squad-speckit-bridge issues specs/001-feature/tasks.md
+$ npx @jmservera/squad-speckit-bridge issues specs/001-feature/tasks.md
 # Result: GitHub issues created (labeled, assigned)
 ```
 
@@ -82,7 +82,7 @@ The bridge respects a configurable context size limit (default: 8KB). Recent and
 Override the automatic context injection or run it independently.
 
 ```bash
-$ npx squad-speckit-bridge context specs/001-feature/
+$ npx @jmservera/squad-speckit-bridge context specs/001-feature/
 ```
 
 **Expected output:**
@@ -112,7 +112,7 @@ Output: specs/001-feature/squad-context.md (7.7KB / 8.0KB limit)
 Override automatic review generation or create a standalone review.
 
 ```bash
-$ npx squad-speckit-bridge review specs/001-feature/tasks.md
+$ npx @jmservera/squad-speckit-bridge review specs/001-feature/tasks.md
 ```
 
 **Expected output:**
@@ -139,7 +139,7 @@ Review template written to: specs/001-feature/review.md
 Convert approved tasks into GitHub issues for Squad execution. **This is the only truly manual step** (after team approves review).
 
 ```bash
-$ npx squad-speckit-bridge issues specs/001-feature/tasks.md
+$ npx @jmservera/squad-speckit-bridge issues specs/001-feature/tasks.md
 ```
 
 **Expected output:**
@@ -169,7 +169,7 @@ All issues labeled with: feature/001, squad-generated
 Verify installation and configuration. Useful for debugging.
 
 ```bash
-$ npx squad-speckit-bridge status
+$ npx @jmservera/squad-speckit-bridge status
 ```
 
 **Expected output:**
@@ -277,7 +277,7 @@ After editing `bridge.config.json`, changes take effect immediately on the next 
 
 ```bash
 # Step 1: Install once
-$ npx squad-speckit-bridge install
+$ npx @jmservera/squad-speckit-bridge install
 
 # Step 2: Plan normally — everything happens automatically
 $ cd specs/001-feature/
@@ -289,7 +289,7 @@ $ /speckit.specify && /speckit.plan && /speckit.tasks
 # Discuss and approve
 
 # Step 4: Create issues
-$ npx squad-speckit-bridge issues specs/001-feature/tasks.md
+$ npx @jmservera/squad-speckit-bridge issues specs/001-feature/tasks.md
 
 # Step 5: Squad executes, agents close issues, learnings sync back
 ```
@@ -305,10 +305,10 @@ If you've disabled the `afterTasks` hook:
 # "hooks": { "afterTasks": false }
 
 # Then run commands explicitly:
-$ npx squad-speckit-bridge context specs/001-feature/
+$ npx @jmservera/squad-speckit-bridge context specs/001-feature/
 $ cd specs/001-feature/ && /speckit.specify && /speckit.plan && /speckit.tasks
-$ npx squad-speckit-bridge review specs/001-feature/tasks.md
-$ npx squad-speckit-bridge issues specs/001-feature/tasks.md
+$ npx @jmservera/squad-speckit-bridge review specs/001-feature/tasks.md
+$ npx @jmservera/squad-speckit-bridge issues specs/001-feature/tasks.md
 ```
 
 **Result:** You control each step; useful for CI/CD or testing different parameters.
@@ -318,8 +318,8 @@ $ npx squad-speckit-bridge issues specs/001-feature/tasks.md
 For automation pipelines, use `--quiet` to suppress info-level output:
 
 ```bash
-$ npx squad-speckit-bridge install --quiet
-$ npx squad-speckit-bridge context specs/001-feature/ --quiet
+$ npx @jmservera/squad-speckit-bridge install --quiet
+$ npx @jmservera/squad-speckit-bridge context specs/001-feature/ --quiet
 ```
 
 Exit codes: `0` = success, `1` = error
@@ -328,11 +328,11 @@ Exit codes: `0` = success, `1` = error
 
 ```bash
 # Test with small context
-$ npx squad-speckit-bridge context specs/001-feature/ --max-size 4096
+$ npx @jmservera/squad-speckit-bridge context specs/001-feature/ --max-size 4096
 $ cd specs/001-feature/ && /speckit.plan  # See how planning differs
 
 # Test with full context
-$ npx squad-speckit-bridge context specs/001-feature/ --max-size 16384
+$ npx @jmservera/squad-speckit-bridge context specs/001-feature/ --max-size 16384
 $ cd specs/001-feature/ && /speckit.plan  # See how planning differs
 ```
 

@@ -179,7 +179,7 @@ interface ContextSummaryDTO {
 ```
 Step 0: Install Bridge
 ────────────────────
-  Command: npx squad-speckit-bridge install
+  Command: npx @jmservera/squad-speckit-bridge install
   Creates: Squad skill, Spec Kit extension, config, manifest
   Hooks: after-tasks.sh activated in extension.yml
 
@@ -210,7 +210,7 @@ Step 3: Design Review Ceremony (Team Initiative - Human)
 
 Step 4: Issue Creation (Manual Command)
 ──────────────────────────────────────────
-  Command: npx squad-speckit-bridge issues specs/001-feature/tasks.md
+  Command: npx @jmservera/squad-speckit-bridge issues specs/001-feature/tasks.md
   Result: tasks.md → GitHub Issues (labeled, assigned)
 
 Step 5: Squad Execution (Agent Initiative)

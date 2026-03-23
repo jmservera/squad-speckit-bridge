@@ -202,7 +202,7 @@ program
 
     // T038: --notify mode — lightweight notification without full review
     if (notify) {
-      const message = `📋 Design Review available for: ${tasksFile}\n   Run \`squad-speckit-bridge review ${tasksFile}\` to generate the full review.`;
+      const message = `📋 Design Review available for: ${tasksFile}\n   Run \`npx @jmservera/squad-speckit-bridge review ${tasksFile}\` to generate the full review.`;
       if (jsonOutput) {
         console.log(JSON.stringify({
           notification: true,
