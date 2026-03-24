@@ -296,3 +296,32 @@ From Richard's analysis: only 1 of 7 commands was ever used, creating a substant
 - Q: Should issue deduplication match on task title only or title + content? → A: Title-only matching. Title matching is deterministic and sufficient for deduplication. Content/description matching is unreliable because descriptions may evolve between runs. This aligns with the CLI contract (`gh issue list --label <labels> --json title`) and research findings.
 - Q: Contradiction between 50% detection threshold (FR-021/US-7) and 60% success criterion (SC-006) for agent distribution — which is correct? → A: Both are correct but serve different purposes. 50% is the *detection/warning threshold* — the system warns when any agent exceeds this. 60% is the *success criterion for this feature* — a softer ceiling acknowledging that perfect balance across 4 agents isn't always achievable. FR-021 updated with clarifying note.
 - Q: How does FR-017 detect that a bridge command was "expected but not invoked" in a Copilot agent context? → A: Advisory prompt text, not runtime detection. SpecKit agents run in Copilot's agent framework which has no hook mechanism. The "warning" is implemented as conditional logic in agent prompt text: check if `sqsk` is available, warn if not, but continue normally. FR-017 rewritten to specify this mechanism.
+
+### Session 2026-03-24 — Pipeline Self-Validation Learnings
+
+The following friction points were discovered by running the full SpecKit pipeline (plan → tasks → clarify → create issues → Ralph loop → knowledge loop) on this feature:
+
+#### Friction Point 1: `taskstoissues` Agent Lacks Shell Access
+- **Observed**: The `speckit.taskstoissues` agent parsed all 17 tasks correctly but could not execute `gh issue create` — it only has `view` tool access, not shell/bash.
+- **Impact**: Issues had to be created manually via `gh` CLI outside the agent workflow.
+- **Recommendation**: Either grant the `taskstoissues` agent shell access, or implement a GitHub MCP server tool that the agent can invoke without shell. This is a prerequisite for SC-003 (100% issues via `sqsk issues`).
+
+#### Friction Point 2: Label Format Mismatch & Hard Failure
+- **Observed**: Tasks generated labels using `phase/setup` format but the repo uses `phase:setup`. `gh issue create --label` hard-fails on missing labels instead of warning.
+- **Impact**: First issue creation attempt failed; had to strip custom labels and use only existing ones.
+- **Recommendation**: (a) `sqsk issues` should validate labels against `gh label list` before creation and warn on mismatches (aligns with clarified FR on warn-only). (b) Task generation template should reference existing repo labels or generate labels in the correct format.
+
+#### Friction Point 3: Squad Agent Definition Missing
+- **Observed**: The `Squad` custom agent expects `.github/agents/squad.agent.md` but this file doesn't exist. Only SpecKit agents are defined.
+- **Impact**: The Ralph coordinator loop failed with ENOENT. Had to perform the review manually using `.squad/` knowledge files.
+- **Recommendation**: Create `squad.agent.md` (and per-agent definitions if needed) to enable the Ralph loop as a pipeline step. This is a prerequisite for the full pipeline to work autonomously.
+
+#### Friction Point 4: Clarify Agent Not Autonomous
+- **Observed**: `speckit.clarify` is designed for interactive Q&A — it completed after presenting only 1 of 5 questions, waiting for user input that never came.
+- **Impact**: Had to re-invoke with explicit "resolve autonomously" instructions to get all 5 ambiguities resolved.
+- **Recommendation**: Add an `--auto` or `--non-interactive` mode to the clarify agent that selects recommended options automatically when the user is unavailable.
+
+#### Friction Point 5: No Knowledge Feedback Mechanism
+- **Observed**: There is no automated way to feed pipeline learnings back into `.squad/` knowledge files. This section was written manually.
+- **Impact**: The knowledge loop (step 6 of the pipeline) is entirely manual — no `sqsk sync` or `sqsk context` was invoked because those commands don't yet capture pipeline-level learnings (only agent execution learnings).
+- **Recommendation**: Extend `sqsk sync` to also capture pipeline/process learnings (not just agent history), or create a new `sqsk learn` command for this purpose.
