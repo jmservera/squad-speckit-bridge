@@ -32,26 +32,49 @@ export class SpecKitContextWriter implements ContextWriter {
     await writeFile(outputPath, content, 'utf-8');
   }
 
+  /**
+   * Read previous metadata, increment cycle count, update summary, and write.
+   * Returns the new cycle count. Handles missing/corrupt previous metadata
+   * by starting at cycle 1.
+   */
+  async writeWithCycleIncrement(summary: ContextSummary): Promise<number> {
+    const previous = await this.readPreviousMetadata();
+    const newCycleCount = previous !== null ? previous.cycleCount + 1 : 1;
+    summary.metadata.cycleCount = newCycleCount;
+    await this.write(summary);
+    return newCycleCount;
+  }
+
   /** T034: Read previous squad-context.md metadata for cycle detection. */
   async readPreviousMetadata(): Promise<PreviousContextMetadata | null> {
     const contextPath = join(this.specDir, 'squad-context.md');
 
     try {
       const raw = await readFile(contextPath, 'utf-8');
-      const { data } = matter(raw);
+      if (raw.trim().length === 0) {
+        return null;
+      }
+
+      let data: Record<string, unknown>;
+      try {
+        ({ data } = matter(raw));
+      } catch {
+        // Malformed frontmatter — treat as first cycle
+        return null;
+      }
 
       if (data.generated) {
         const generated = data.generated instanceof Date
           ? data.generated.toISOString()
           : String(data.generated);
-        return {
-          generated,
-          cycleCount: typeof data.cycle_count === 'number' ? data.cycle_count : 1,
-        };
+        const cycleCount = typeof data.cycle_count === 'number' && data.cycle_count > 0
+          ? data.cycle_count
+          : 1;
+        return { generated, cycleCount };
       }
       return null;
     } catch {
-      // File doesn't exist or is unparseable — first cycle
+      // File doesn't exist — first cycle
       return null;
     }
   }
