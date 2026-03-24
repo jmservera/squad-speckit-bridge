@@ -25,6 +25,7 @@ program
   )
   .version('0.2.0')
   .option('--config <path>', 'Path to bridge configuration file')
+  .option('-n, --dry-run', 'Prevent all write operations (preview mode)', false)
   .option('--json', 'Output in JSON format', false)
   .option('--quiet', 'Suppress informational output', false)
   .option('--verbose', 'Enable verbose output', false);
@@ -88,6 +89,7 @@ program
     const globalOpts = program.opts();
     const jsonOutput = globalOpts.json as boolean;
     const quiet = globalOpts.quiet as boolean;
+    const dryRun = globalOpts.dryRun as boolean;
 
     try {
       const installer = createInstaller({
@@ -96,7 +98,7 @@ program
         specifyDir: cmdOpts.specifyDir as string | undefined,
       });
 
-      const result = await installer.install({ force: cmdOpts.force as boolean });
+      const result = await installer.install({ force: cmdOpts.force as boolean, dryRun });
 
       if (jsonOutput) {
         console.log(JSON.stringify(result.jsonOutput, null, 2));
@@ -130,6 +132,7 @@ program
     const globalOpts = program.opts();
     const jsonOutput = globalOpts.json as boolean;
     const quiet = globalOpts.quiet as boolean;
+    const dryRun = globalOpts.dryRun as boolean;
 
     try {
       const sourcesList = (cmdOpts.sources as string).split(',').map((s: string) => s.trim());
@@ -143,6 +146,7 @@ program
           decisions: sourcesList.includes('decisions'),
           histories: sourcesList.includes('histories'),
         },
+        dryRun,
       });
 
       const result = await builder.build();
@@ -169,13 +173,14 @@ program
     const globalOpts = program.opts();
     const jsonOutput = globalOpts.json as boolean;
     const quiet = globalOpts.quiet as boolean;
+    const dryRun = globalOpts.dryRun as boolean;
 
     try {
       const checker = createStatusChecker({
         configPath: globalOpts.config as string | undefined,
       });
 
-      const result = await checker.check();
+      const result = await checker.check({ dryRun });
 
       if (jsonOutput) {
         console.log(JSON.stringify(result.jsonOutput, null, 2));
@@ -206,6 +211,7 @@ program
     const jsonOutput = globalOpts.json as boolean;
     const quiet = globalOpts.quiet as boolean;
     const notify = cmdOpts.notify as boolean;
+    const dryRun = globalOpts.dryRun as boolean;
 
     // T038: --notify mode — lightweight notification without full review
     if (notify) {
@@ -232,6 +238,7 @@ program
       const result = await reviewer.review(
         tasksFile,
         cmdOpts.output as string | undefined,
+        { dryRun },
       );
 
       if (jsonOutput) {
@@ -263,6 +270,7 @@ program
     const jsonOutput = globalOpts.json as boolean;
     const quiet = globalOpts.quiet as boolean;
     const verbose = globalOpts.verbose as boolean;
+    const dryRun = (globalOpts.dryRun as boolean) || (cmdOpts.dryRun as boolean);
     const logger = createLogger({ verbose, quiet });
 
     try {
@@ -275,7 +283,7 @@ program
       const labels = (cmdOpts.labels as string).split(',').map((l: string) => l.trim());
 
       const result = await creator.createFromTasks(tasksFile, {
-        dryRun: cmdOpts.dryRun as boolean,
+        dryRun,
         labels,
         repository: cmdOpts.repo as string | undefined,
       });
@@ -309,6 +317,7 @@ program
     const jsonOutput = globalOpts.json as boolean;
     const quiet = globalOpts.quiet as boolean;
     const verbose = globalOpts.verbose as boolean;
+    const dryRun = (globalOpts.dryRun as boolean) || (cmdOpts.dryRun as boolean);
     const logger = createLogger({ verbose, quiet });
 
     try {
@@ -319,7 +328,7 @@ program
       });
 
       const result = await syncer.sync(specDir, {
-        dryRun: cmdOpts.dryRun as boolean,
+        dryRun,
       });
 
       logger.verbose(`Sync complete: ${result.jsonOutput.record.learningsUpdated} learnings`);
@@ -350,6 +359,7 @@ program
     const globalOpts = program.opts();
     const jsonOutput = (cmdOpts.json as boolean) || (globalOpts.json as boolean);
     const verbose = (cmdOpts.verbose as boolean) || (globalOpts.verbose as boolean);
+    const dryRun = (globalOpts.dryRun as boolean) || (cmdOpts.dryRun as boolean);
     const logger = createLogger({ verbose, quiet: globalOpts.quiet as boolean });
 
     try {
@@ -360,7 +370,7 @@ program
         exampleFeature: 'User Authentication with OAuth2 and JWT tokens',
         demoDir,
         flags: {
-          dryRun: cmdOpts.dryRun as boolean,
+          dryRun,
           keep: cmdOpts.keep as boolean,
           verbose,
         },
