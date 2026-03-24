@@ -150,4 +150,8 @@ export interface ExecutionReport {
   artifactPaths: string[];
   /** High-level error description if demo failed */
   errorSummary?: string;
+  /** Full pipeline stage details (populated when verbose) */
+  stages?: PipelineStage[];
+  /** Warnings collected during execution (shown only in verbose mode) */
+  warnings?: string[];
 }

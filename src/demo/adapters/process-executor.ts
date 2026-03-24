@@ -3,13 +3,15 @@
  *
  * NodeProcessExecutor implements the ProcessExecutor port interface using
  * Node.js child_process.spawn(). Handles command execution, timeout management,
- * and stdout/stderr capture.
+ * and stdout/stderr capture. Supports verbose mode for detailed diagnostics.
  */
 
 import { spawn } from 'node:child_process';
 import type { ProcessExecutor, StageRunResult } from '../ports.js';
 import type { PipelineStage, DemoConfiguration } from '../entities.js';
 import { StageStatus } from '../entities.js';
+import type { Logger } from '../../cli/logger.js';
+import { createNullLogger } from '../../cli/logger.js';
 
 /** Default timeout in milliseconds (30 seconds per spec) */
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -31,8 +33,15 @@ interface ExecuteResult {
  * - stdout/stderr capture
  * - Exit code tracking
  * - Cross-platform command execution
+ * - Verbose mode: logs command, cwd, env, and streams output in real-time
  */
 export class NodeProcessExecutor implements ProcessExecutor {
+  private readonly logger: Logger;
+
+  constructor(logger?: Logger) {
+    this.logger = logger ?? createNullLogger();
+  }
+
   /**
    * Execute a pipeline stage command.
    *
@@ -152,6 +161,7 @@ export class NodeProcessExecutor implements ProcessExecutor {
 
   /**
    * Execute a command and capture results.
+   * In verbose mode, logs command details and streams output in real-time.
    *
    * @param command - Command array [executable, ...args]
    * @param cwd - Working directory for execution
@@ -163,6 +173,13 @@ export class NodeProcessExecutor implements ProcessExecutor {
     cwd: string,
     timeoutMs: number = DEFAULT_TIMEOUT_MS
   ): Promise<ExecuteResult> {
+    const logger = this.logger;
+
+    logger.verbose(`[exec] Command: ${command.join(' ')}`);
+    logger.verbose(`[exec] Working directory: ${cwd}`);
+    logger.verbose(`[exec] Timeout: ${timeoutMs}ms`);
+    logger.verbose(`[exec] Platform: ${process.platform}, shell: ${process.platform === 'win32'}`);
+
     return new Promise((resolve) => {
       const [executable, ...args] = command;
       const stdoutChunks: Buffer[] = [];
@@ -176,32 +193,46 @@ export class NodeProcessExecutor implements ProcessExecutor {
         stdio: ['ignore', 'pipe', 'pipe'],
       });
 
+      logger.verbose(`[exec] Spawned process PID: ${child.pid ?? 'unknown'}`);
+
       // Set up timeout
       const timeoutId = setTimeout(() => {
         timedOut = true;
+        logger.verbose(`[exec] Timeout reached (${timeoutMs}ms), sending SIGTERM`);
         child.kill('SIGTERM');
         // Give process time to terminate gracefully, then force kill
         setTimeout(() => {
           if (!resolved) {
+            logger.verbose('[exec] Process did not terminate, sending SIGKILL');
             child.kill('SIGKILL');
           }
         }, 1000);
       }, timeoutMs);
 
-      // Capture stdout
+      // Capture stdout (stream in verbose mode)
       child.stdout?.on('data', (chunk: Buffer) => {
         stdoutChunks.push(chunk);
+        const text = chunk.toString('utf8').trimEnd();
+        if (text) {
+          logger.verbose(`[exec:stdout] ${text}`);
+        }
       });
 
-      // Capture stderr
+      // Capture stderr (stream in verbose mode)
       child.stderr?.on('data', (chunk: Buffer) => {
         stderrChunks.push(chunk);
+        const text = chunk.toString('utf8').trimEnd();
+        if (text) {
+          logger.verbose(`[exec:stderr] ${text}`);
+        }
       });
 
       // Handle process exit
       child.on('close', (code) => {
         resolved = true;
         clearTimeout(timeoutId);
+
+        logger.verbose(`[exec] Process exited with code: ${code ?? 'null'}, timedOut: ${timedOut}`);
 
         resolve({
           success: code === 0,
@@ -216,6 +247,8 @@ export class NodeProcessExecutor implements ProcessExecutor {
       child.on('error', (err) => {
         resolved = true;
         clearTimeout(timeoutId);
+
+        logger.verbose(`[exec] Spawn error: ${err.message}`);
 
         resolve({
           success: false,
