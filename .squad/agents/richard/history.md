@@ -123,3 +123,48 @@
 - Constitutional governance at scale
 - Progressive GitHub integration
 - Team-size-driven framework configuration
+
+### 2026-03-24 — Skill Extraction from Sync Flywheel Fix Cycle
+
+**Task:** Extract reusable skills from recent v0.3.0 sync implementation work (commits 4ff5cb0, 1fedca5, 9bcd049, 3aedeb7, 4693a86).
+
+**Skills Updated:**
+
+1. **clean-architecture-bridge/SKILL.md** — Added port/adapter wiring patterns from sync implementation
+   - AgentHistoryReader + ConstitutionWriter port examples
+   - Full port definition → adapter implementation → composition root wiring pattern
+   - Optional port pattern (undefined for feature flags)
+   - Conditional adapter wiring in main.ts
+   - Constitution amendment protocol code examples
+
+2. **project-conventions/SKILL.md** — Filled in template with actual project conventions
+   - Task ID convention (TNNN format, regex patterns, commit/file header usage)
+   - Constitution amendment protocol (version bumping, date updating, learnings appending)
+   - Error handling (graceful degradation in adapters, throw only for required resources)
+   - Testing (Vitest, test location patterns, 843 tests passing)
+   - Code style (ESLint, Prettier, naming conventions, import order)
+   - File structure (src/ layers, tests/, .squad/, specs/)
+
+**Skills Created:**
+
+3. **knowledge-flywheel/SKILL.md** — Full knowledge compounding loop
+   - 6-step cycle: specify → plan → tasks → execute → nap → sync → repeat
+   - Step 5 (nap): Creating learnings.md + updating spec.md with Implementation Notes
+   - Step 6 (sync): squask sync command, sync state tracking, idempotent fingerprints
+   - Constitution amendment protocol (version bumps: minor for learnings, major for breaking changes)
+   - Pre-specify context injection (squask context → squad-context.md → /speckit.specify)
+   - Learnings file template with real examples from spec 005
+   - Confidence: medium (proven in recent work, documented in commits + spec 005 learnings)
+
+**Skills Considered but Skipped:**
+
+- **worktree-parallel-dev** — No evidence of wt-sync branches or worktree usage in recent commits. Task description mentioned this but it wasn't actually used in the sync flywheel work.
+
+**Key Learning:** The sync flywheel fix demonstrated excellent Clean Architecture discipline — all new port/adapter patterns (AgentHistoryReader, ConstitutionAdapter) followed the exact pattern established in v0.1. This consistency made skill extraction straightforward: the patterns were already well-defined, just needed documentation.
+
+**Rationale for confidence levels:**
+- `clean-architecture-bridge` updates: high confidence patterns (already present, just extended)
+- `project-conventions` updates: medium confidence (extracted from real code, team uses them)
+- `knowledge-flywheel`: medium confidence (proven in spec 005, but only one full cycle completed so far)
+
+**Next:** Skills are ready for use in future agent prompts. The knowledge-flywheel skill should guide spec 006+ planning to ensure learnings from prior cycles are properly integrated.
