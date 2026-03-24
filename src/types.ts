@@ -385,6 +385,30 @@ export interface ImplementationEvidence {
   line: number;           // line number where the reference was found
   snippet: string;        // the matching line content (trimmed)
   kind: 'comment' | 'annotation' | 'reference';
+}
+
+// T012: FidelityReport — gap analysis between spec requirements and implementation
+
+export type FidelityStatus = 'covered' | 'missing' | 'partial';
+
+export interface FidelityEntry {
+  requirement: FunctionalRequirement;
+  status: FidelityStatus;
+  evidence: ImplementationEvidence[];
+}
+
+export interface FidelityReport {
+  specPath: string;
+  srcDir: string;
+  timestamp: string;
+  covered: FunctionalRequirement[];
+  missing: FunctionalRequirement[];
+  partial: FunctionalRequirement[];
+  entries: FidelityEntry[];
+  coverage: number; // 0–1, ratio of (covered + 0.5*partial) / total
+  summary: string;
+}
+
 // T002: Port DTOs — SquadStateReader extensions
 
 export interface AgentCharter {
@@ -594,6 +618,7 @@ export function matchSkillsToTask(
   return matches.sort((a, b) => b.relevanceScore - a.relevanceScore);
 
 }
+
 
 // T010: Default BridgeConfig Factory
 
