@@ -87,8 +87,8 @@ export class FileSystemCleanupHandler implements CleanupHandler {
   /**
    * Check if a directory exists and is safe to delete.
    *
-   * Validates the path is under specs/ to prevent accidental deletion
-   * of important directories.
+   * T034: Validates the path is within expected boundaries (under specs/ or temp/).
+   * Refuses to delete paths outside safe zones.
    *
    * @param path - Directory path to check
    * @returns True if directory exists and is safe to delete
@@ -98,16 +98,27 @@ export class FileSystemCleanupHandler implements CleanupHandler {
       // Resolve to absolute path
       const absolutePath = resolve(path);
 
-      // Check if path is under specs/ directory
+      // Check if path is under an allowed directory
       const relativePath = relative(process.cwd(), absolutePath);
-
-      // Path must start with 'specs' and not escape via '..'
-      if (!relativePath.startsWith(`specs${sep}`) && relativePath !== 'specs') {
-        return false;
-      }
 
       // Ensure path doesn't contain parent directory traversal
       if (relativePath.includes('..')) {
+        return false;
+      }
+
+      // Reject empty or root-equivalent paths
+      if (!relativePath || relativePath === '.' || relativePath === sep) {
+        return false;
+      }
+
+      // T034: Path must start with an allowed prefix
+      const safePrefixes = [`specs${sep}`, `temp${sep}`];
+      const safeExact = ['specs', 'temp'];
+      const isUnderSafeZone =
+        safePrefixes.some(p => relativePath.startsWith(p)) ||
+        safeExact.includes(relativePath);
+
+      if (!isUnderSafeZone) {
         return false;
       }
 

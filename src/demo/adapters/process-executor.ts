@@ -16,6 +16,24 @@ import { createNullLogger } from '../../cli/logger.js';
 /** Default timeout in milliseconds (30 seconds per spec) */
 const DEFAULT_TIMEOUT_MS = 30_000;
 
+/**
+ * T033: Specific error type for process timeouts.
+ * Allows callers to distinguish timeouts from other execution failures.
+ */
+export class ProcessTimeoutError extends Error {
+  readonly command: string[];
+  readonly timeoutMs: number;
+  readonly elapsedMs: number;
+
+  constructor(command: string[], timeoutMs: number, elapsedMs: number) {
+    super(`Process timed out after ${(elapsedMs / 1000).toFixed(1)}s: ${command.join(' ')}`);
+    this.name = 'ProcessTimeoutError';
+    this.command = command;
+    this.timeoutMs = timeoutMs;
+    this.elapsedMs = elapsedMs;
+  }
+}
+
 /** Result of executing a command */
 interface ExecuteResult {
   success: boolean;
@@ -149,7 +167,22 @@ export class NodeProcessExecutor implements ProcessExecutor {
     cwd: string,
     timeoutMs: number
   ): Promise<StageRunResult> {
+    const startTime = Date.now();
     const result = await this.executeCommand(command, cwd, timeoutMs);
+    const elapsedMs = Date.now() - startTime;
+
+    // T033: Attach specific timeout error info
+    if (result.timedOut) {
+      const timeoutError = new ProcessTimeoutError(command, timeoutMs, elapsedMs);
+      return {
+        success: false,
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+        stderr: result.stderr || timeoutError.message,
+        timedOut: true,
+      };
+    }
+
     return {
       success: result.success,
       exitCode: result.exitCode,

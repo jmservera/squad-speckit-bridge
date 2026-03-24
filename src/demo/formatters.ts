@@ -3,16 +3,17 @@
  *
  * Transforms execution reports into human-friendly console output
  * with emoji indicators and structured stage information.
- * Supports verbose mode with stage durations, command outputs, and warnings.
  */
 
 import type {
   ExecutionReport,
   PipelineStage,
   DemoFlags,
+  ErrorEntry,
+  WarningEntry,
 } from './entities.js';
 import { StageStatus } from './entities.js';
-import { formatElapsedTime, formatFileSize } from './utils.js';
+import { formatElapsedTime } from './utils.js';
 
 // ─────────────────────────────────────────────────────────────
 // Emoji Indicators
@@ -25,8 +26,6 @@ const EMOJI = {
   FAILED: '✗',
   COMPLETE: '✅',
   ERROR: '❌',
-  WARN: '⚠',
-  DEBUG: '🔍',
 } as const;
 
 // ─────────────────────────────────────────────────────────────
@@ -52,18 +51,6 @@ function formatTimestamp(date: Date = new Date()): string {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Verbose Output Options
-// ─────────────────────────────────────────────────────────────
-
-/**
- * Options controlling the level of detail in human output.
- */
-export interface FormatOptions {
-  /** When true, include stage durations, command outputs, artifact sizes, and warnings */
-  verbose?: boolean;
-}
-
-// ─────────────────────────────────────────────────────────────
 // Main Formatter
 // ─────────────────────────────────────────────────────────────
 
@@ -71,13 +58,11 @@ export interface FormatOptions {
  * Formats an ExecutionReport into human-readable console output.
  *
  * @param report - The execution report to format
- * @param options - Optional formatting options (verbose mode)
  * @returns Formatted string with emoji indicators and structured output
  */
-export function formatHumanOutput(report: ExecutionReport, options?: FormatOptions): string {
+export function formatHumanOutput(report: ExecutionReport): string {
   const lines: string[] = [];
   const timestamp = formatTimestamp();
-  const verbose = options?.verbose ?? false;
 
   // Header
   lines.push('');
@@ -101,39 +86,6 @@ export function formatHumanOutput(report: ExecutionReport, options?: FormatOptio
   lines.push(`  ${EMOJI.RUNNING} Total time: ${formatDuration(report.totalTimeMs)}`);
   lines.push('');
 
-  // Verbose: Per-stage breakdown with timing and command output
-  if (verbose && report.stages && report.stages.length > 0) {
-    lines.push('── Stage Details ───────────────────────────────────────────');
-    lines.push('');
-
-    for (const stage of report.stages) {
-      const stageIcon =
-        stage.status === StageStatus.Success
-          ? EMOJI.SUCCESS
-          : stage.status === StageStatus.Failed
-            ? EMOJI.FAILED
-            : EMOJI.RUNNING;
-      const duration = stage.elapsedMs != null ? ` (${formatDuration(stage.elapsedMs)})` : '';
-
-      lines.push(`  ${stageIcon} ${stage.displayName}${duration}`);
-      lines.push(`      Command: ${stage.command.join(' ')}`);
-      lines.push(`      Status: ${stage.status}`);
-
-      if (stage.output?.stdout?.trim()) {
-        const stdoutPreview = stage.output.stdout.trim().slice(0, 200);
-        lines.push(`      Stdout: ${stdoutPreview}${stage.output.stdout.trim().length > 200 ? '...' : ''}`);
-      }
-      if (stage.output?.stderr?.trim()) {
-        const stderrPreview = stage.output.stderr.trim().slice(0, 200);
-        lines.push(`      Stderr: ${stderrPreview}${stage.output.stderr.trim().length > 200 ? '...' : ''}`);
-      }
-      if (stage.error) {
-        lines.push(`      Error: ${stage.error}`);
-      }
-      lines.push('');
-    }
-  }
-
   // Artifacts Section
   if (report.artifacts.length > 0) {
     lines.push('── Artifacts ───────────────────────────────────────────────');
@@ -152,14 +104,6 @@ export function formatHumanOutput(report: ExecutionReport, options?: FormatOptio
   lines.push('');
   if (report.cleanupPerformed) {
     lines.push(`  ${EMOJI.SUCCESS} Demo directory cleaned up`);
-  } else if (report.kept) {
-    lines.push(`  📦 Artifacts preserved (--keep)`);
-    if (report.artifactPaths.length > 0) {
-      lines.push(`     Location: ${report.artifactPaths[0]}`);
-      for (const artifactPath of report.artifactPaths.slice(1)) {
-        lines.push(`       • ${artifactPath}`);
-      }
-    }
   } else {
     lines.push(`  ${EMOJI.RUNNING} Demo artifacts preserved`);
   }
@@ -173,14 +117,31 @@ export function formatHumanOutput(report: ExecutionReport, options?: FormatOptio
     lines.push('');
   }
 
-  // Verbose: Warnings that were suppressed in normal mode
-  if (verbose && report.warnings && report.warnings.length > 0) {
-    lines.push('── Warnings ────────────────────────────────────────────────');
+  // T035: Detailed error/warning summary collecting all entries from all stages
+  const allErrors = report.errors ?? [];
+  const allWarnings = report.warnings ?? [];
+
+  if (allErrors.length > 0 || allWarnings.length > 0) {
+    lines.push('── Error Summary ───────────────────────────────────────────');
     lines.push('');
-    for (const warning of report.warnings) {
-      lines.push(`  ${EMOJI.WARN} ${warning}`);
+
+    if (allErrors.length > 0) {
+      lines.push(`  Errors (${allErrors.length}):`);
+      for (const err of allErrors) {
+        lines.push(`    ${EMOJI.FAILED} [${err.stage}] ${err.message}`);
+        lines.push(`      Code: ${err.code} | Time: ${err.timestamp}`);
+      }
+      lines.push('');
     }
-    lines.push('');
+
+    if (allWarnings.length > 0) {
+      lines.push(`  Warnings (${allWarnings.length}):`);
+      for (const warn of allWarnings) {
+        lines.push(`    ⚠ [${warn.stage}] ${warn.message}`);
+        lines.push(`      Time: ${warn.timestamp}`);
+      }
+      lines.push('');
+    }
   }
 
   // Footer
@@ -240,9 +201,11 @@ interface JsonOutputBase {
   stages: JsonStage[];
   demoDir: string;
   cleanupPerformed: boolean;
-  kept: boolean;
-  artifactPaths: string[];
   flags: DemoFlags;
+  /** T036: Structured error entries */
+  errors: ErrorEntry[];
+  /** T036: Structured warning entries */
+  warnings: WarningEntry[];
 }
 
 interface JsonOutputSuccess extends JsonOutputBase {
@@ -340,6 +303,10 @@ export function formatJsonOutput(report: ExtendedExecutionReport): string {
     return pendingStage;
   });
 
+  // T036: Collect errors and warnings
+  const errors: ErrorEntry[] = report.errors ?? [];
+  const allWarnings: WarningEntry[] = report.warnings ?? [];
+
   // Build output object
   const output: JsonOutput = success
     ? {
@@ -349,9 +316,9 @@ export function formatJsonOutput(report: ExtendedExecutionReport): string {
         stages,
         demoDir: report.demoDir,
         cleanupPerformed: report.cleanupPerformed,
-        kept: report.kept,
-        artifactPaths: report.artifactPaths,
         flags: report.flags,
+        errors,
+        warnings: allWarnings,
       }
     : {
         success: false,
@@ -362,9 +329,9 @@ export function formatJsonOutput(report: ExtendedExecutionReport): string {
         errorSummary: report.errorSummary ?? 'Demo failed',
         demoDir: report.demoDir,
         cleanupPerformed: report.cleanupPerformed,
-        kept: report.kept,
-        artifactPaths: report.artifactPaths,
         flags: report.flags,
+        errors,
+        warnings: allWarnings,
       };
 
   return JSON.stringify(output, null, 2);
