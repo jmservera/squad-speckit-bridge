@@ -72,4 +72,12 @@ Key learnings from writing this skill:
 
 3. **Combination examples unlock power-user workflows.** Most CLI docs show commands in isolation. Adding "Combine Flags" section (e.g., `--verbose --keep --dry-run`) signals to experienced users that flags are orthogonal and composable. This reduces support burden by letting power users self-serve advanced workflows.
 
+### T252: Demo Command API Reference (#252) (2026-03-24)
+
+1. **Schema documentation bridges design and usage.** The demo command's JSON output schema (ExecutionReport with success/failure variants, ErrorEntry/WarningEntry arrays, stage metadata) needed documentation that showed *both* the shape and *what each field means*. Capturing this in the API reference with human output → JSON output → JSON schema flow made the relationship clear: the human format is a rendering of the structured data. This pattern scales to any complex output type.
+
+2. **Failure cases are first-class documentation subjects.** The API reference included a "Failure Output (JSON Format)" section showing what happens when a stage fails (stages transition to pending, errorSummary is populated, cleanupPerformed is false). Without this, users debugging failures would reverse-engineer the schema from their errors. Explicit failure documentation cuts support load.
+
+3. **Artifact cleanup logic deserves explicit documentation.** The cleanup behavior is subtle: default cleanup on success, preserve on failure, override with --keep. A bullet-point "Artifact Cleanup" section with three clear cases prevents users from accidentally deleting results or wondering where demo files went. Edge cases in behavior → explicit documentation items.
+
 <!-- Append learnings below -->
