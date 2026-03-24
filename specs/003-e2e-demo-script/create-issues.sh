@@ -238,7 +238,7 @@ gh issue create --repo "$REPO" --title "T017: Register demo subcommand in CLI" \
 **Phase:** 3 - User Story 1 (MVP)
 **Depends on:** T016
 
-✅ **CHECKPOINT:** At this point, \`sqsk demo --dry-run\` should complete all stages and show success report" \
+✅ **CHECKPOINT:** At this point, \`squask demo --dry-run\` should complete all stages and show success report" \
   --label "$LABEL_ENHANCEMENT"
 
 # Phase 4: User Story 2 - Dry-Run Testing (5 tasks)
@@ -257,7 +257,7 @@ gh issue create --repo "$REPO" --title "T018: Add --dry-run flag option" \
 gh issue create --repo "$REPO" --title "T019: Modify issues stage for dry-run support" \
   --body "Modify issues stage in \`src/demo/orchestrator.ts\`:
 - Detect dryRun flag in config
-- Pass \`--dry-run\` argument to \`sqsk issues\` command when enabled
+- Pass \`--dry-run\` argument to \`squask issues\` command when enabled
 
 **User Story:** US2 - Dry-Run Testing (P2)
 **Branch:** \`$BRANCH\`

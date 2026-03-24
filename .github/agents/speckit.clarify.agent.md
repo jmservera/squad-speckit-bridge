@@ -178,4 +178,22 @@ Behavior rules:
 - If no questions asked due to full coverage, output a compact coverage summary (all categories Clear) then suggest advancing.
 - If quota reached with unresolved high-impact categories remaining, explicitly flag them under Deferred with rationale.
 
+## Bridge Integration: Specification Clarity & Planning Readiness
+
+After clarifications are complete, the spec is ready for the planning stage:
+
+**Next steps**:
+1. **Run `/speckit.plan`** — Plan generates technical architecture, data model, and design contracts
+2. **Squad context injection** — If bridge is enabled, the planning phase will automatically inject squad-context.md with prior team learnings
+3. **Iterative refinement** — If planning uncovers gaps, you can cycle back to `/speckit.clarify` (max 1 cycle recommended)
+
+**Why clarify before planning?**
+- Reduces rework during planning (plans build on clear specs)
+- Ensures specification ambiguities don't cascade into architectural confusion
+- Captures team decisions early (valuable for future reference and learning)
+
+**Bridge flow**: Clarified Spec → Plan (informed by squad-context) → Tasks → `sqsk issues` → Squad execution → Learnings captured
+
+---
+
 Context for prioritization: $ARGUMENTS

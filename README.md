@@ -134,6 +134,68 @@ See [Usage Guide](./docs/usage.md) for complete workflows, advanced options, and
 
 ---
 
+## Demo
+
+Try a complete end-to-end demo that walks through the entire pipeline without making real GitHub issues:
+
+### Basic Demo
+
+```bash
+npm run demo
+```
+
+This runs the full pipeline simulation: spec → plan → tasks → design review → issue creation (simulated).
+
+### Dry Run (Recommended First Try)
+
+Simulate GitHub issue creation without making API calls:
+
+```bash
+npm run demo -- --dry-run
+```
+
+**Output:** Full pipeline trace with a preview of what issues would be created.
+
+### Keep Artifacts
+
+Preserve all demo files for inspection or reuse:
+
+```bash
+npm run demo -- --keep
+```
+
+**Output:** Demo directory remains on disk (normally cleaned up). Useful for debugging or manual inspection.
+
+### Verbose Output
+
+Detailed logs showing every step, validation, and intermediate file:
+
+```bash
+npm run demo -- --verbose
+```
+
+**Output:** Timestamps, file paths, and processing details for each stage.
+
+### Combine Flags
+
+Run all stages with detailed output and keep artifacts:
+
+```bash
+npm run demo -- --verbose --keep --dry-run
+```
+
+### JSON Output
+
+Machine-readable report for automation or scripting:
+
+```bash
+npm run demo -- --json
+```
+
+**Output:** Structured JSON with stage results, counts, and diagnostic info.
+
+---
+
 ## Architecture Overview
 
 ```
