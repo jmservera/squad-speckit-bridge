@@ -50,6 +50,17 @@ export interface AgentHistoryReader {
   extractLearnings(agentDir: string, since?: Date): Promise<ExtractedLearning[]>;
 }
 
+/**
+ * Port for sync state persistence with timestamp convenience methods.
+ * Separates the pure state-persistence concern from spec-result reading.
+ */
+export interface SyncStatePersistence {
+  readSyncState(stateDir: string): Promise<SyncState | null>;
+  writeSyncState(stateDir: string, state: SyncState): Promise<void>;
+  getLastSyncTimestamp(stateDir: string): Promise<Date | null>;
+  clearState(stateDir: string): Promise<void>;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Pure helpers                                                       */
 /* ------------------------------------------------------------------ */
