@@ -363,3 +363,223 @@ tests/
 - Document architectural decisions here
 - Keep history focused on work, decisions focused on direction
 - Critical decisions requiring human judgment → escalate to Product Owner (Juanma)
+
+---
+
+## User Directives (2026-03-24)
+
+### Issue Creation Ownership
+
+**Date:** 2026-03-24T07:50:16Z  
+**Source:** Juanma (Product Owner)
+
+The SpecKit+Squad pipeline workflow:
+- **SpecKit generates:** `tasks.md` (autonomous planning output)
+- **Squad takes over:** Squad Coordinator creates GitHub issues from `tasks.md`
+- **SpecKit never creates:** SpecKit must NOT create issues directly
+
+**Why:** Preserves Squad's issue lifecycle (labeling, triage, squad:member assignment). Previous approach (SpecKit creating issues) bypassed Squad's routing layer, breaking team coordination.
+
+**Reproducible Process:**
+1. SpecKit: `specify` → `plan` → `tasks` → produces `tasks.md`
+2. Design Review ceremony: Squad validates task breakdown against team knowledge
+3. Squad Coordinator: Creates GitHub issues with `squad` labels from `tasks.md`
+4. Ralph/Lead: Applies `squad:{member}` labels during triage
+5. Agents: Pick up work via normal squad lifecycle
+
+**Status:** Active; encoded in Monica's handoff skill (`.squad/skills/speckit-squad-handoff/SKILL.md`)
+
+---
+
+### Parallel Agent Worktree Protocol
+
+**Date:** 2026-03-24T07:55:00Z  
+**Source:** Juanma (Product Owner)
+
+Always use `git worktree` when spawning parallel agents that write code. Each agent gets its own worktree so branches don't conflict.
+
+**Why:** Prevents file conflicts when multiple agents work simultaneously on different issues/branches.
+
+**Status:** Active; to be implemented in Ralph's agent spawning protocol
+
+---
+
+### Bridge Integration Sequence Design Requirement
+
+**Date:** 2026-03-24T07:56:00Z  
+**Source:** Juanma (Product Owner)
+
+The bridge must embed the correct step sequence for integrating SpecKit and Squad as a **formal spec** (not just documentation).
+
+**Requirement:** Design the pipeline programmatically so it's reproducible and automated:
+- SpecKit generates tasks → Squad creates issues → Lead triages → agents work
+
+**Why:** The bridge is the orchestrator-of-orchestrators and must control the handoff programmatically, not rely on human coordination alone. Future teams need codified, executable integration logic.
+
+**Status:** Queued for design phase; requires formal spec.md creation before implementation begins
+
+---
+
+## Post-v0.3.0 Analysis Decisions
+
+### Pipeline Architecture Is Sound But Adoption Is Low (2026-03-24)
+
+**Decision:** The SpecKit→Squad pipeline architecture is correctly designed. Every step exists. The handoff boundary (tasks.md) is well-defined. Agent orchestration was excellent (correct routing, parallel batching, worktree isolation, 6.25% review rejection rate).
+
+**Critical Gap:** The bridge CLI was bypassed in favor of manual workarounds.
+- Issue creation: Used hand-written shell script (50 hardcoded `gh issue create` commands) instead of `squask issues`
+- Context injection: `squask context` never run; `before-specify.sh` hook never fired (hooks fire for CLI, not for Copilot Chat agents)
+- Knowledge sync: `squask sync` never run; knowledge feedback loop completed zero rotations
+
+**Verdict:** The bridge is a well-engineered machine that nobody turned on. The problem is not architecture — it's adoption and operational discipline.
+
+**Root Cause:** Hooks depend on SpecKit's CLI pipeline. Team used Copilot Chat agents exclusively (`/speckit.specify`, `/speckit.plan`), which bypass hooks. The bridge was designed for a CLI workflow but deployed in an agent workflow.
+
+**Next Steps:**
+1. **P0 (immediate):** Dogfood the bridge on next feature — use `squask context`, `squask issues`, `squask review`, `squask sync` instead of workarounds
+2. **P1 (next sprint):** Close the knowledge loop — wire SpecKit agents to read squad-context.md; add MCP server mode to eliminate agent-hook gap
+3. **P2 (next cycle):** Reduce dead code (1,500 LOC never used); fix 3 critical bugs (template permissions, command naming, CLI version)
+
+**Impact:** If the team doesn't actively use the bridge on the next cycle, the entire integration strategy fails. The bridge must be turned on to be validated.
+
+**Status:** Proposed for team action; Richard's full retrospective in `.squad/decisions/inbox/richard-pipeline-retrospective.md` (merging to this file)
+
+---
+
+### Bridge Hooks Structurally Sound, Operational Risks Identified (2026-03-24)
+
+**Decision:** The three-hook model (before-specify, after-tasks, after-implement) is structurally sound and correctly covers key boundaries. Squad-side GitHub Actions workflows are well-built and functional.
+
+**Operational Risks:**
+1. **Template permission bug (critical):** `before-specify.sh` and `after-implement.sh` templates are 644 (not executable). Fresh `squask install` will fail with `Permission denied` if copying without fixing permissions.
+2. **Command name inconsistency (critical):** `after-tasks.sh` uses scoped name `@jmservera/squad-speckit-bridge` while others use unscoped `squad-speckit-bridge`. Fragile if package installed locally.
+3. **CLI version stale (critical):** `src/cli/index.ts` reports 0.2.0 but `package.json` is 0.3.0.
+4. **Issue creation gap (significant):** `after-tasks.sh` sends Design Review notification but does NOT auto-create issues. Manual `squask issues` call still required. Documentation vs reality mismatch.
+5. **Missing hooks (significant):** No `after-plan`, `after-review`, or `on-rejection` hooks. Gaps between Design Review approval and issue creation.
+
+**Inventory:**
+- CLI Commands: 7 commands, 1 used (14% adoption rate: only `install` was used; `context`, `review`, `issues`, `sync`, `demo` all bypassed)
+- Skills: 4 skills created (`speckit-bridge`, `clean-architecture-bridge`, `project-conventions` placeholder, `speckit-squad-handoff`); none consumed by agent prompts
+- Agent Charters: Zero mentions of bridge, SpecKit, or integration workflow
+- Dead Code: ~1,500 LOC (squask context/review/issues/sync/demo, three hooks, speckit.taskstoissues agent, project-conventions placeholder)
+
+**Verdict:** Hooks designed well, but adoption is broken. The agent-CLI gap is architectural.
+
+**Fix Priority:**
+- **P0:** Fix three critical bugs (permissions, naming, version)
+- **P1:** Decide if `after-tasks.sh` should auto-create issues or if manual ceremony is intentional (and document clearly)
+- **P2:** Add MCP server mode so Copilot Chat agents can call bridge tools directly, eliminating the hook bypass problem
+
+**Status:** Proposed; Gilfoyle's full audit in `.squad/decisions/inbox/gilfoyle-hooks-audit.md` (merging to this file)
+
+---
+
+### Recommended Automation Priority (P0-P3) (2026-03-24)
+
+**Decision:** The bridge CLI identified 10 recommendations. Prioritize in three tiers:
+
+**P0 (immediate — must complete before next feature):**
+1. Dogfood the bridge: `squask context`, `squask issues`, `squask review`, `squask sync` on next feature (not shell scripts)
+2. Close the knowledge loop: Prove `squask context` + `squask sync` work end-to-end
+3. Fix three critical bugs: Template permissions, command naming, CLI version
+
+**P1 (next sprint — required for uninterrupted workflow):**
+1. Auto-route rejected PRs to different agent per lockout rule
+2. Wire `squask issues` with routing suggestions based on task keywords + agent expertise
+3. Add merge-trigger GitHub Action: `squask sync` on PR merge to main
+4. MCP server mode: Expose `bridge_context`, `bridge_review`, `bridge_issues`, `bridge_sync` as tools Copilot Chat agents can call directly
+
+**P2 (next cycle — hygiene and correctness):**
+1. Auto-prune merged `squad/*` branches (60 stale branches accumulate signal-to-noise)
+2. Consolidate `speckit.taskstoissues` agent and `squask issues` (two mechanisms guarantee one gets ignored)
+3. Right-size task generation: Template targets 15-20 tasks per feature (v0.3.0 had 50 = excessive friction)
+4. Create learnings directory structure: `specs/{feature}/learnings/` with extracted patterns
+
+**P3 (future):**
+1. Version sync: Build step to inject package.json version into CLI
+2. Remove dead code: Fill `project-conventions/SKILL.md` with actual conventions extracted from codebase
+3. Add integration tests: Zero tests verify end-to-end flow (context→plan→tasks→review→issues→sync)
+
+**Status:** Ranked by dependency and urgency; ready for implementation planning
+
+---
+
+### Hooks Never Fire With Copilot Chat Agents (Design Decision) (2026-03-24)
+
+**Decision:** Hooks are designed for SpecKit CLI pipeline. When SpecKit agents are invoked via Copilot Chat (`/speckit.specify`, `/speckit.plan`), they bypass hooks because the Chat interface doesn't invoke the SpecKit extension system.
+
+**Consequence:** The bridge was designed for CLI workflow (hooks fire) but deployed in agent workflow (hooks don't fire). This caused:
+- `before-specify.sh` never ran → no context injection
+- `after-tasks.sh` never ran → no Design Review notification
+- `after-implement.sh` never ran → no knowledge sync
+
+**Solution (P1):** Replace hook-based approach with MCP server mode, where bridge tools are available as Copilot Chat tool calls directly. Eliminates the agent-CLI gap permanently.
+
+**Interim Workaround:** Add manual prompts to SpecKit agents: "Before planning, run `npx squask context <spec-dir>`" and "After implementation, run `npx squask sync <spec-dir>`"
+
+**Status:** Architecture decision; influences bridge future design
+
+---
+
+### Issue Creation Should Use `squask issues`, Not Shell Scripts (2026-03-24)
+
+**Decision:** Feature 003 created 50 GitHub issues via hand-written `create-issues.sh` shell script with 50 hardcoded `gh issue create` commands. This bypassed the bridge's `squask issues` command (which has deduplication, routing suggestions, dry-run preview).
+
+**Why This Happened:** Friction. Running `squask issues tasks.md` for the first time felt riskier than a shell script. The bridge CLI has high friction for first-time users.
+
+**Fix:** Ensure `squask issues --dry-run` is frictionless enough that a shell script feels like more work, not less. The command must be:
+- Clearly safe (--dry-run preview shows exactly what it will create)
+- Fast feedback on first run
+- Idempotent (safe to re-run)
+- Integrated with agent routing (suggests `squad:{member}` labels based on task keywords)
+
+**Enforcement:** Next feature MUST use `squask issues`. If UX is bad, file bugs. If command fails, fix it. Either way, we need the feedback to improve the bridge.
+
+**Status:** Decision + action item; affects next feature cycle
+
+---
+
+### SpecKit Agent Workflows Must Inject Squad Context (2026-03-24)
+
+**Decision:** The `before-specify.sh` hook is designed to run `squask context` before planning. Since hooks don't fire for Copilot Chat agents, this step never happens.
+
+**Action:** Update SpecKit agent prompts (`.github/agents/speckit.specify.yaml`, `.github/agents/speckit.plan.yaml`) to check for and consume `squad-context.md` if it exists in the spec directory. Add to agent instructions:
+- "Before planning, check if `squad-context.md` exists in the current spec directory and incorporate its context"
+- "If `squad-context.md` doesn't exist, run `npx squask context <spec-dir>` first"
+
+**Why:** The knowledge flywheel (Squad learnings → SpecKit context → better planning) is designed but never activated. This closes the loop.
+
+**Status:** Design decision; requires agent prompt updates before next feature
+
+---
+
+### Squad-Context Loop Must Complete Full Rotation (2026-03-24)
+
+**Decision:** The knowledge feedback loop has completed zero rotations: SpecKit→Squad via tasks.md works; Squad→SpecKit via squad-context.md was never attempted.
+
+**Test Plan:** Before next feature cycle, execute full loop:
+1. **Generate context:** Run `squask context specs/004/` to generate `squad-context.md` from v0.3.0 learnings
+2. **Use context:** Run `/speckit.specify` for feature 004 with context present; verify plan/tasks reflect Squad knowledge
+3. **Sync learnings:** Run `squask sync specs/004/` after feature 004 implementation; verify learnings written to `.squad/`
+
+**Success Criteria:** Feature 004's spec.md explicitly references learnings from v0.3.0 (e.g., "Avoid 50 tasks; target 15-20 per PR feedback")
+
+**Status:** Proposed test; blocks P0 dogfooding requirement
+
+---
+
+### Team Must Actively Use Bridge or Deprecate It (2026-03-24)
+
+**Decision:** The bridge has been built with high engineering quality but achieved 14% adoption (1 of 7 commands used). The issue is not code quality — it's workflow friction and lack of demonstrated value.
+
+**Mandate:** Next feature cycle MUST use the bridge tools (`squask context`, `squask issues`, `squask review`, `squask sync`) instead of manual workarounds. This is non-negotiable validation.
+
+**If bridge is not used:** Recommend deprecation. High maintenance cost for unused code.
+
+**If bridge is used and works:** Invest in P1 recommendations (MCP server mode, auto-routing, merge-trigger sync). The bridge becomes core infrastructure.
+
+**Accountability:** Lead (Richard) owns verifying bridge usage on next cycle. Gilfoyle owns auditing hook execution. Juan (Product Owner) owns setting this as a team norm.
+
+**Status:** Team decision; affects roadmap priority
+
+---

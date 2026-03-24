@@ -23,7 +23,7 @@ program
   .description(
     'Hybrid integration package connecting Squad team memory with Spec Kit planning pipeline',
   )
-  .version('0.2.0')
+  .version('0.3.0')
   .option('--config <path>', 'Path to bridge configuration file')
   .option('--json', 'Output in JSON format', false)
   .option('--quiet', 'Suppress informational output', false)
@@ -352,6 +352,14 @@ program
     const verbose = (cmdOpts.verbose as boolean) || (globalOpts.verbose as boolean);
     const logger = createLogger({ verbose, quiet: globalOpts.quiet as boolean });
 
+    // T032: Wire graceful shutdown via AbortController + SIGINT
+    const controller = new AbortController();
+    const onSigint = () => {
+      controller.abort();
+      process.exitCode = 130;
+    };
+    process.on('SIGINT', onSigint);
+
     try {
       const demoDir = createDemoDirectory();
       logger.verbose(`Starting E2E demo in ${demoDir}`);
@@ -370,7 +378,7 @@ program
       };
 
       const runner = createDemoRunner();
-      const report = await runner.run(config);
+      const report = await runner.run(config, { signal: controller.signal });
 
       if (jsonOutput) {
         // Build extended report for JSON output
@@ -390,6 +398,8 @@ program
       const message = err instanceof Error ? err.message : String(err);
       emitError(message, 'demo', jsonOutput);
       process.exitCode = 1;
+    } finally {
+      process.removeListener('SIGINT', onSigint);
     }
   });
 

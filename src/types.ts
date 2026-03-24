@@ -370,6 +370,289 @@ export function detectConstitution(content: string | null): ConstitutionStatus {
   return { exists: true, isTemplate: false, warnings: [] };
 }
 
+// T001: Distribution Analysis Types
+
+export interface AgentAssignment {
+  issueNumber: number;
+  agentName: string;
+  labels: string[];
+}
+
+export interface DistributionWarning {
+  agentName: string;
+  assignedCount: number;
+  percentage: number;
+  message: string;
+}
+
+export interface RebalanceSuggestion {
+  fromAgent: string;
+  toAgent: string;
+  issueNumbers: number[];
+  rationale: string;
+}
+
+export interface DistributionAnalysis {
+  agentCounts: Record<string, number>;
+  totalIssues: number;
+  imbalanced: boolean;
+  threshold: number;
+  warnings: DistributionWarning[];
+  suggestions: RebalanceSuggestion[];
+}
+
+/**
+ * Analyzes issue distribution across agents for imbalance detection.
+ * Pure function — no I/O.
+ *
+ * @param availableAgents - All known agent names. Agents with 0 assignments
+ *   are included in the ideal-per-agent calculation so they can be suggested
+ *   for rebalancing.
+ */
+export function analyzeDistribution(
+  assignments: AgentAssignment[],
+  threshold = 0.5,
+  availableAgents?: string[],
+): DistributionAnalysis {
+  const agentCounts: Record<string, number> = {};
+
+  // Seed counts from availableAgents so 0-assignment agents are included
+  const allAgents = availableAgents ?? [];
+  for (const name of allAgents) {
+    agentCounts[name] = 0;
+  }
+
+  for (const a of assignments) {
+    agentCounts[a.agentName] = (agentCounts[a.agentName] ?? 0) + 1;
+  }
+
+  const totalIssues = assignments.length;
+  const agentNames = Object.keys(agentCounts);
+  const idealPerAgent = agentNames.length > 0 ? totalIssues / agentNames.length : 0;
+
+  const warnings: DistributionWarning[] = [];
+  const overAssigned: string[] = [];
+  const underAssigned: string[] = [];
+
+  for (const name of agentNames) {
+    const count = agentCounts[name];
+    const percentage = totalIssues > 0 ? count / totalIssues : 0;
+
+    if (percentage > threshold) {
+      warnings.push({
+        agentName: name,
+        assignedCount: count,
+        percentage,
+        message: `Agent '${name}' assigned ${Math.round(percentage * 100)}% of issues (${count}/${totalIssues}) — exceeds ${Math.round(threshold * 100)}% threshold`,
+      });
+      overAssigned.push(name);
+    }
+
+    if (count < idealPerAgent) {
+      underAssigned.push(name);
+    }
+  }
+
+  const suggestions: RebalanceSuggestion[] = [];
+  for (const from of overAssigned) {
+    // Collect all issues currently assigned to this over-assigned agent
+    const fromIssues = assignments
+      .filter(a => a.agentName === from)
+      .map(a => a.issueNumber);
+
+    // How many issues this agent has above the (floored) ideal load
+    const excess = agentCounts[from] - Math.floor(idealPerAgent);
+    if (excess <= 0 || fromIssues.length === 0) {
+      continue;
+    }
+
+    // Only consider up to "excess" issues as transferable
+    const transferableIssues = fromIssues.slice(0, excess);
+    let issueOffset = 0;
+
+    // Distribute distinct subsets of transferableIssues across under-assigned agents
+    const targets = underAssigned.filter(to => to !== from);
+    for (let i = 0; i < targets.length && issueOffset < transferableIssues.length; i++) {
+      const to = targets[i];
+      const remaining = transferableIssues.length - issueOffset;
+      const remainingRecipients = targets.length - i;
+
+      // Split remaining issues roughly evenly across remaining recipients
+      const countForTo = Math.max(1, Math.floor(remaining / remainingRecipients));
+      const end = issueOffset + countForTo;
+      const issueNumbers = transferableIssues.slice(issueOffset, end);
+
+      if (issueNumbers.length > 0) {
+        suggestions.push({
+          fromAgent: from,
+          toAgent: to,
+          issueNumbers,
+          rationale: `Rebalance: '${from}' has ${agentCounts[from]} issues, '${to}' has ${agentCounts[to]}`,
+        });
+      }
+
+      issueOffset = end;
+    }
+  }
+
+  return {
+    agentCounts,
+    totalIssues,
+    imbalanced: warnings.length > 0,
+    threshold,
+    warnings,
+    suggestions,
+  };
+}
+
+// T001: SpecRequirement entity
+export interface SpecRequirement {
+  id: string;
+  text: string;
+  category: string;
+}
+
+// Agent charter from .squad/agents/*/charter.md
+export interface AgentCharter {
+  agentName: string;
+  skills: string[];
+}
+
+// Raw skill file content from .squad/skills/*/SKILL.md
+export interface SkillFileContent {
+  name: string;
+  content: string;
+  sizeBytes: number;
+}
+
+// Fidelity review types (review module)
+export interface FunctionalRequirement {
+  id: string;
+  text: string;
+  category: string;
+}
+
+export interface ImplementationEvidence {
+  requirementId: string;
+  filePath: string;
+  line: number;
+  snippet: string;
+  kind: 'comment' | 'annotation' | 'reference';
+}
+
+export type FidelityStatus = 'covered' | 'partial' | 'missing';
+
+export interface FidelityEntry {
+  requirement: FunctionalRequirement;
+  status: FidelityStatus;
+  evidence: ImplementationEvidence[];
+}
+
+export interface FidelityReport {
+  specPath: string;
+  srcDir: string;
+  timestamp: string;
+  covered: FunctionalRequirement[];
+  missing: FunctionalRequirement[];
+  partial: FunctionalRequirement[];
+  entries: FidelityEntry[];
+  coverage: number;
+  summary: string;
+}
+
+// T001: Skill matching types
+
+export interface SkillMatch {
+  skillName: string;
+  relevanceScore: number;
+  matchedKeywords: string[];
+  contentSize: number;
+}
+
+export interface SkillInjection {
+  taskId: string;
+  injectedSkills: SkillMatch[];
+  totalContentSize: number;
+  truncated: boolean;
+  budgetBytes: number;
+}
+
+export interface DeadCodeEntry {
+  filePath: string;
+  exportName: string;
+  lineRange: [number, number];
+  category: string;
+  associatedCommand: string | null;
+}
+
+export interface DeadCodeReport {
+  entries: DeadCodeEntry[];
+  totalLines: number;
+  exercisedLines: number;
+  removedLines: number;
+  baselineCoverage: number;
+  finalCoverage: number;
+}
+
+export interface RequirementCoverage {
+  requirement: SpecRequirement;
+  covered: boolean;
+  evidence: string[];
+  gaps: string[];
+}
+
+export interface ImplementationReview {
+  specPath: string;
+  implementationDir: string;
+  requirements: RequirementCoverage[];
+  coveragePercent: number;
+  timestamp: string;
+  summary: string;
+}
+
+/**
+ * Matches skills against a task by keyword overlap.
+ * Returns matching skills sorted by relevance score descending.
+ */
+export function matchSkillsToTask(task: TaskEntry, skills: SkillEntry[]): SkillMatch[] {
+  if (skills.length === 0) return [];
+
+  const taskWords = extractWords(`${task.title} ${task.description}`);
+  if (taskWords.length === 0) return [];
+
+  const matches: SkillMatch[] = [];
+
+  for (const skill of skills) {
+    const skillWords = extractWords(
+      `${skill.name} ${skill.context} ${skill.patterns.join(' ')}`,
+    );
+    const matchedKeywords = taskWords.filter(
+      (tw) => tw.length > 2 && skillWords.some((sw) => sw === tw),
+    );
+
+    if (matchedKeywords.length === 0) continue;
+
+    const relevanceScore = Math.min(1, matchedKeywords.length / Math.max(taskWords.length, 1));
+
+    matches.push({
+      skillName: skill.name,
+      relevanceScore,
+      matchedKeywords,
+      contentSize: skill.rawSize,
+    });
+  }
+
+  return matches.sort((a, b) => b.relevanceScore - a.relevanceScore);
+}
+
+function extractWords(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length > 0);
+}
+
 // T010: Default BridgeConfig Factory
 
 export function createDefaultConfig(): BridgeConfig {

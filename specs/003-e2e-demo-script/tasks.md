@@ -41,7 +41,7 @@
 
 ## Phase 3: User Story 1 - Quick Pipeline Validation (Priority: P1) 🎯 MVP
 
-**Goal**: Developer can run `npm run demo` or `sqsk demo` and verify the entire integration pipeline works end-to-end with all stages completing successfully.
+**Goal**: Developer can run `npm run demo` or `squask demo` and verify the entire integration pipeline works end-to-end with all stages completing successfully.
 
 **Independent Test**: Run `npm run demo --dry-run` and observe console output showing successful completion of all 5 pipeline stages (specify → plan → tasks → review → issues) with clear status indicators.
 
@@ -58,7 +58,7 @@
 - [ ] T016 [US1] Create composition root factory in `src/main.ts`: createDemoRunner() that wires NodeProcessExecutor, FileSystemArtifactValidator, FileSystemCleanupHandler to runDemo()
 - [ ] T017 [US1] Register demo subcommand in `src/cli/index.ts`: add `.command('demo')` with description, default action calling createDemoRunner().run(), error handling with emitError()
 
-**Checkpoint**: At this point, User Story 1 should be fully functional - `sqsk demo --dry-run` completes all stages and shows success report
+**Checkpoint**: At this point, User Story 1 should be fully functional - `squask demo --dry-run` completes all stages and shows success report
 
 ---
 
@@ -71,7 +71,7 @@
 ### Implementation for User Story 2
 
 - [ ] T018 [US2] Add --dry-run flag option in `src/cli/index.ts`: register `.option('--dry-run', 'Simulate GitHub issue creation...', false)`
-- [ ] T019 [US2] Modify issues stage in `src/demo/orchestrator.ts`: detect dryRun flag in config, pass `--dry-run` argument to `sqsk issues` command when enabled
+- [ ] T019 [US2] Modify issues stage in `src/demo/orchestrator.ts`: detect dryRun flag in config, pass `--dry-run` argument to `squask issues` command when enabled
 - [ ] T020 [US2] Update stage validation in `src/demo/orchestrator.ts`: skip artifact validation for issues stage when dryRun is true (no artifact file created in dry-run mode)
 - [ ] T021 [US2] Add dry-run indicator to formatHumanOutput in `src/demo/formatters.ts`: show "(dry-run)" suffix on issues stage output, display simulated issue count
 - [ ] T022 [US2] Add dryRun field to JSON output in `src/demo/formatters.ts`: include `"dryRun": true/false` in stages array and flags object
@@ -246,7 +246,7 @@ Task T044: "Write CleanupHandler integration tests in tests/demo/adapters/cleanu
 1. Complete Phase 1: Setup (T001-T003) - ~15 minutes
 2. Complete Phase 2: Foundational (T004-T007) - ~45 minutes (CRITICAL - blocks all stories)
 3. Complete Phase 3: User Story 1 (T008-T017) - ~90 minutes
-4. **STOP and VALIDATE**: Test `sqsk demo --dry-run` works end-to-end
+4. **STOP and VALIDATE**: Test `squask demo --dry-run` works end-to-end
 5. Deploy/demo basic functionality
 
 **MVP Deliverable**: Working demo command that runs full pipeline and reports success/failure
@@ -254,7 +254,7 @@ Task T044: "Write CleanupHandler integration tests in tests/demo/adapters/cleanu
 ### Incremental Delivery
 
 1. Complete Setup + Foundational (Phases 1-2) → Foundation ready (~60 minutes)
-2. Add User Story 1 (Phase 3) → Test `sqsk demo --dry-run` → Deploy/Demo (MVP!) (~90 minutes)
+2. Add User Story 1 (Phase 3) → Test `squask demo --dry-run` → Deploy/Demo (MVP!) (~90 minutes)
 3. Add User Story 2 (Phase 4) → Test `--dry-run` flag → Deploy/Demo (~30 minutes)
 4. Add User Story 3 (Phase 5) → Test `--keep` flag → Deploy/Demo (~20 minutes)
 5. Add User Story 4 (Phase 6) → Test `--verbose` flag → Deploy/Demo (~30 minutes)

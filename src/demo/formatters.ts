@@ -9,6 +9,8 @@ import type {
   ExecutionReport,
   PipelineStage,
   DemoFlags,
+  ErrorEntry,
+  WarningEntry,
 } from './entities.js';
 import { StageStatus } from './entities.js';
 import { formatElapsedTime } from './utils.js';
@@ -56,11 +58,16 @@ function formatTimestamp(date: Date = new Date()): string {
  * Formats an ExecutionReport into human-readable console output.
  *
  * @param report - The execution report to format
+ * @param options - Optional formatting options (verbose mode)
  * @returns Formatted string with emoji indicators and structured output
  */
-export function formatHumanOutput(report: ExecutionReport): string {
+export function formatHumanOutput(
+  report: ExecutionReport,
+  options?: { verbose?: boolean },
+): string {
   const lines: string[] = [];
   const timestamp = formatTimestamp();
+  const verbose = options?.verbose ?? false;
 
   // Header
   lines.push('');
@@ -84,6 +91,42 @@ export function formatHumanOutput(report: ExecutionReport): string {
   lines.push(`  ${EMOJI.RUNNING} Total time: ${formatDuration(report.totalTimeMs)}`);
   lines.push('');
 
+  // Verbose Stage Details Section
+  if (verbose && report.stages && report.stages.length > 0) {
+    lines.push('── Stage Details ───────────────────────────────────────────');
+    lines.push('');
+
+    for (const stage of report.stages) {
+      lines.push(`  ${stage.displayName} (${stage.name})`);
+      lines.push(`    Status: ${stage.status}`);
+      lines.push(`    Command: ${stage.command.join(' ')}`);
+
+      if (stage.elapsedMs !== undefined) {
+        lines.push(`    Duration: ${formatDuration(stage.elapsedMs)}`);
+      }
+
+      if (stage.output?.stdout) {
+        const preview = stage.output.stdout.length > 200
+          ? stage.output.stdout.slice(0, 200) + '...'
+          : stage.output.stdout;
+        lines.push(`    Stdout: ${preview}`);
+      }
+
+      if (stage.output?.stderr) {
+        const preview = stage.output.stderr.length > 200
+          ? stage.output.stderr.slice(0, 200) + '...'
+          : stage.output.stderr;
+        lines.push(`    Stderr: ${preview}`);
+      }
+
+      if (stage.error) {
+        lines.push(`    Error: ${stage.error}`);
+      }
+
+      lines.push('');
+    }
+  }
+
   // Artifacts Section
   if (report.artifacts.length > 0) {
     lines.push('── Artifacts ───────────────────────────────────────────────');
@@ -100,7 +143,16 @@ export function formatHumanOutput(report: ExecutionReport): string {
   // Cleanup Section
   lines.push('── Cleanup ─────────────────────────────────────────────────');
   lines.push('');
-  if (report.cleanupPerformed) {
+  if (report.kept) {
+    lines.push(`  ${EMOJI.SUCCESS} Artifacts preserved (--keep)`);
+    if (report.artifactPaths && report.artifactPaths.length > 0) {
+      lines.push(`      Location: ${report.artifactPaths[0]}`);
+      for (const p of report.artifactPaths.slice(1)) {
+        const name = p.split('/').pop() ?? p;
+        lines.push(`      ${name}`);
+      }
+    }
+  } else if (report.cleanupPerformed) {
     lines.push(`  ${EMOJI.SUCCESS} Demo directory cleaned up`);
   } else {
     lines.push(`  ${EMOJI.RUNNING} Demo artifacts preserved`);
@@ -113,6 +165,53 @@ export function formatHumanOutput(report: ExecutionReport): string {
     lines.push('');
     lines.push(`  ${EMOJI.FAILED} ${report.errorSummary}`);
     lines.push('');
+  }
+
+  // T035: Detailed error/warning summary collecting all entries from all stages
+  const allErrors = (report.errors ?? []) as ErrorEntry[];
+  const allWarnings = report.warnings ?? [];
+
+  // Separate structured WarningEntries from plain strings
+  const structuredWarnings = allWarnings.filter(
+    (w): w is WarningEntry => typeof w !== 'string',
+  );
+
+  if (allErrors.length > 0 || structuredWarnings.length > 0) {
+    lines.push('── Error Summary ───────────────────────────────────────────');
+    lines.push('');
+
+    if (allErrors.length > 0) {
+      lines.push(`  Errors (${allErrors.length}):`);
+      for (const err of allErrors) {
+        lines.push(`    ${EMOJI.FAILED} [${err.stage}] ${err.message}`);
+        lines.push(`      Code: ${err.code} | Time: ${err.timestamp}`);
+      }
+      lines.push('');
+    }
+
+    if (structuredWarnings.length > 0) {
+      lines.push(`  Warnings (${structuredWarnings.length}):`);
+      for (const warn of structuredWarnings) {
+        lines.push(`    ⚠ [${warn.stage}] ${warn.message}`);
+        lines.push(`      Time: ${warn.timestamp}`);
+      }
+      lines.push('');
+    }
+  }
+
+  // Verbose Warnings Section (string warnings)
+  if (verbose) {
+    const stringWarnings = allWarnings.filter(
+      (w): w is string => typeof w === 'string',
+    );
+    if (stringWarnings.length > 0) {
+      lines.push('── Warnings ────────────────────────────────────────────────');
+      lines.push('');
+      for (const warn of stringWarnings) {
+        lines.push(`  ⚠ ${warn}`);
+      }
+      lines.push('');
+    }
   }
 
   // Footer
@@ -173,6 +272,14 @@ interface JsonOutputBase {
   demoDir: string;
   cleanupPerformed: boolean;
   flags: DemoFlags;
+  /** T036: Structured error entries */
+  errors: ErrorEntry[];
+  /** T036: Structured warning entries */
+  warnings: WarningEntry[];
+  /** T026: Whether artifacts were kept */
+  kept?: boolean;
+  /** T026: Paths to preserved artifacts */
+  artifactPaths?: string[];
 }
 
 interface JsonOutputSuccess extends JsonOutputBase {
@@ -270,6 +377,12 @@ export function formatJsonOutput(report: ExtendedExecutionReport): string {
     return pendingStage;
   });
 
+  // T036: Collect errors and warnings
+  const errors: ErrorEntry[] = (report.errors ?? []) as ErrorEntry[];
+  const allWarnings: WarningEntry[] = (report.warnings ?? []).filter(
+    (w): w is WarningEntry => typeof w !== 'string',
+  );
+
   // Build output object
   const output: JsonOutput = success
     ? {
@@ -280,6 +393,10 @@ export function formatJsonOutput(report: ExtendedExecutionReport): string {
         demoDir: report.demoDir,
         cleanupPerformed: report.cleanupPerformed,
         flags: report.flags,
+        errors,
+        warnings: allWarnings,
+        kept: report.kept,
+        artifactPaths: report.artifactPaths,
       }
     : {
         success: false,
@@ -291,6 +408,10 @@ export function formatJsonOutput(report: ExtendedExecutionReport): string {
         demoDir: report.demoDir,
         cleanupPerformed: report.cleanupPerformed,
         flags: report.flags,
+        errors,
+        warnings: allWarnings,
+        kept: report.kept,
+        artifactPaths: report.artifactPaths,
       };
 
   return JSON.stringify(output, null, 2);

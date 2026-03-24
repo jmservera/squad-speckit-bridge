@@ -13,6 +13,7 @@ import type {
   IssueRecord,
   LearningEntry,
   SkillEntry,
+  SpecRequirement,
   SyncRecord,
   TaskEntry,
 } from '../types.js';
@@ -64,12 +65,18 @@ export interface ConfigLoader {
 export interface IssueCreator {
   create(task: TaskEntry, labels: string[], repo: string): Promise<IssueRecord>;
   createBatch(tasks: TaskEntry[], labels: string[], repo: string): Promise<IssueRecord[]>;
+  listExisting(repo: string, labels: string[]): Promise<IssueRecord[]>;
 }
 
 // Output port: writes learnings back to Squad state
 export interface SquadMemoryWriter {
   writeLearning(agentName: string, title: string, content: string): Promise<string>;
   writeDecision(title: string, content: string): Promise<string>;
+}
+
+// Input port: reads spec requirements for fidelity review
+export interface SpecReader {
+  readRequirements(specPath: string): Promise<SpecRequirement[]>;
 }
 
 // Input port: reads tasks markdown for issue creation
