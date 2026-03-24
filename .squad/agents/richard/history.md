@@ -159,3 +159,30 @@ Adopt pipeline integration model: Spec Kit (upstream planning) → Squad (downst
 - **SpecKit agents and Squad operate as parallel systems, not integrated ones.** The 10 SpecKit agents in `.github/agents/` are invoked directly and don't read Squad state. Squad's coordinator never calls SpecKit agents. The integration is conceptual (via tasks.md handoff) not technical.
 - **`speckit.taskstoissues` agent went unused alongside `sqsk issues` command.** Two mechanisms for the same job, both ignored in favor of a shell script. Consolidation needed.
 - **Decision proposal written to** `.squad/decisions/inbox/richard-integration-analysis.md` with P0-P3 prioritized recommendations. Key P0: dogfood the bridge on the next feature. Key root cause: agent vs CLI gap means hooks are architecturally bypassed.
+
+---
+
+## 2025-03-24: Triage Redistribution — 50 Open Issues
+
+**Context:** All 50 open issues had placeholder labels (squad:richard, go:needs-research). Bulk assignment needed proper triage to map issues to correct team members.
+
+**Triage Framework Applied:**
+- **Dinesh (Integration):** Adapters, ports, wiring, layer:adapter, layer:framework, feature implementation (flags, handlers, validators)
+- **Gilfoyle (Research):** Layer:use-case, entity design, complex orchestration, algorithms
+- **Jared (Data/Testing):** All testing tasks (T037–T049), validation, benchmarking
+- **Monica (Documentation):** All doc tasks (T046–T054), prompt updates, template documentation
+- **Richard (Lead):** Only T016 (cross-cutting audit), T017 (final validation), T050 (compliance check)
+
+**Final Distribution:**
+| Member | Count | Type |
+|--------|-------|------|
+| Dinesh | 23 | Adapters (6), features (17), framework (1) |
+| Gilfoyle | 7 | Use cases (7) |
+| Jared | 9 | Testing (9) |
+| Monica | 6 | Documentation (6) |
+| Richard | 3 | Strategic (3: audit, polish, compliance) |
+
+**Outcome:** All 50 issues redistributed via batch GitHub API calls. Removal of wrong labels (squad:richard, go:needs-research) and assignment of correct (squad:{member}) completed. Issues now properly scoped and ready for parallel execution.
+
+**Key Decision:** Kept Richard's scope tight to only truly strategic work (cross-cutting audit, final validation, compliance). This aligns with team governance model where Lead focuses on architecture and decisions, not task execution.
+
