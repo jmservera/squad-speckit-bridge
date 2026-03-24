@@ -144,6 +144,10 @@ export interface ExecutionReport {
   artifacts: ArtifactSummary[];
   /** True if demo directory was deleted */
   cleanupPerformed: boolean;
+  /** True if --keep flag was active and artifacts were preserved */
+  kept: boolean;
+  /** Paths to preserved artifacts when --keep is active */
+  artifactPaths: string[];
   /** High-level error description if demo failed */
   errorSummary?: string;
   /** Full pipeline stage details (populated when verbose) */

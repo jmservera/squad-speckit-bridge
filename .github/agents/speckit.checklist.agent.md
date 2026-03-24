@@ -293,3 +293,21 @@ Sample items:
 - Correct: Validation of requirement quality
 - Wrong: "Does it do X?"
 - Correct: "Is X clearly specified?"
+
+## Bridge Integration: Design Review & Squad Communication
+
+Before implementing, a comprehensive checklist ensures team alignment:
+
+**Design Review Process** (optional but recommended):
+1. Complete this checklist as a quality gate
+2. Review the checklist with cross-functional team (design, backend, frontend, product)
+3. Mark any gaps or concerns for discussion
+4. If major gaps found, cycle back to `/speckit.specify` or `/speckit.plan` before proceeding
+
+**Using this in Squad workflow**:
+- **Squad-aware teams** running the bridge can run `/speckit.checklist` to ensure Design Review readiness
+- **Create issues from checklist**: If your team uses Design Review ceremony, ensure checklist gaps are addressed before marking tasks.md as ready for `sqsk issues`
+- **Feedback loop**: If checklist reveals gaps, update spec/plan → regenerate tasks → re-run checklist until passing
+
+**Optional bridge integration**: The bridge can be configured to auto-generate a Design Review artifact (review.md) after this checklist completes, documenting team decisions and any waivers on open items.
+
