@@ -10,6 +10,7 @@ import { runDemo, createDemoDirectory, type DemoDependencies } from './orchestra
 import { NodeProcessExecutor } from './adapters/process-executor.js';
 import { FileSystemArtifactValidator } from './adapters/artifact-validator.js';
 import { FileSystemCleanupHandler } from './adapters/cleanup-handler.js';
+import type { Logger } from '../cli/logger.js';
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -38,6 +39,8 @@ export interface DemoRunnerOptions {
   artifactValidator?: DemoDependencies['artifactValidator'];
   /** Custom cleanup handler (for testing) */
   cleanupHandler?: DemoDependencies['cleanupHandler'];
+  /** Optional logger for verbose diagnostics */
+  logger?: Logger;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -57,11 +60,14 @@ export interface DemoRunnerOptions {
  * @returns DemoRunner with run(config) method
  */
 export function createDemoRunner(options: DemoRunnerOptions = {}): DemoRunner {
+  const logger = options.logger;
+
   // Wire default adapters or use provided overrides
   const deps: DemoDependencies = {
-    processExecutor: options.processExecutor ?? new NodeProcessExecutor(),
-    artifactValidator: options.artifactValidator ?? new FileSystemArtifactValidator(),
+    processExecutor: options.processExecutor ?? new NodeProcessExecutor(logger),
+    artifactValidator: options.artifactValidator ?? new FileSystemArtifactValidator(logger),
     cleanupHandler: options.cleanupHandler ?? new FileSystemCleanupHandler(),
+    logger,
   };
 
   return {

@@ -3,6 +3,7 @@
  *
  * Transforms execution reports into human-friendly console output
  * with emoji indicators and structured stage information.
+ * Supports verbose mode with stage durations, command outputs, and warnings.
  */
 
 import type {
@@ -11,7 +12,7 @@ import type {
   DemoFlags,
 } from './entities.js';
 import { StageStatus } from './entities.js';
-import { formatElapsedTime } from './utils.js';
+import { formatElapsedTime, formatFileSize } from './utils.js';
 
 // ─────────────────────────────────────────────────────────────
 // Emoji Indicators
@@ -24,6 +25,8 @@ const EMOJI = {
   FAILED: '✗',
   COMPLETE: '✅',
   ERROR: '❌',
+  WARN: '⚠',
+  DEBUG: '🔍',
 } as const;
 
 // ─────────────────────────────────────────────────────────────
@@ -49,6 +52,18 @@ function formatTimestamp(date: Date = new Date()): string {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Verbose Output Options
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Options controlling the level of detail in human output.
+ */
+export interface FormatOptions {
+  /** When true, include stage durations, command outputs, artifact sizes, and warnings */
+  verbose?: boolean;
+}
+
+// ─────────────────────────────────────────────────────────────
 // Main Formatter
 // ─────────────────────────────────────────────────────────────
 
@@ -56,11 +71,13 @@ function formatTimestamp(date: Date = new Date()): string {
  * Formats an ExecutionReport into human-readable console output.
  *
  * @param report - The execution report to format
+ * @param options - Optional formatting options (verbose mode)
  * @returns Formatted string with emoji indicators and structured output
  */
-export function formatHumanOutput(report: ExecutionReport): string {
+export function formatHumanOutput(report: ExecutionReport, options?: FormatOptions): string {
   const lines: string[] = [];
   const timestamp = formatTimestamp();
+  const verbose = options?.verbose ?? false;
 
   // Header
   lines.push('');
@@ -83,6 +100,39 @@ export function formatHumanOutput(report: ExecutionReport): string {
   lines.push(`  ${successIcon} ${statusText}`);
   lines.push(`  ${EMOJI.RUNNING} Total time: ${formatDuration(report.totalTimeMs)}`);
   lines.push('');
+
+  // Verbose: Per-stage breakdown with timing and command output
+  if (verbose && report.stages && report.stages.length > 0) {
+    lines.push('── Stage Details ───────────────────────────────────────────');
+    lines.push('');
+
+    for (const stage of report.stages) {
+      const stageIcon =
+        stage.status === StageStatus.Success
+          ? EMOJI.SUCCESS
+          : stage.status === StageStatus.Failed
+            ? EMOJI.FAILED
+            : EMOJI.RUNNING;
+      const duration = stage.elapsedMs != null ? ` (${formatDuration(stage.elapsedMs)})` : '';
+
+      lines.push(`  ${stageIcon} ${stage.displayName}${duration}`);
+      lines.push(`      Command: ${stage.command.join(' ')}`);
+      lines.push(`      Status: ${stage.status}`);
+
+      if (stage.output?.stdout?.trim()) {
+        const stdoutPreview = stage.output.stdout.trim().slice(0, 200);
+        lines.push(`      Stdout: ${stdoutPreview}${stage.output.stdout.trim().length > 200 ? '...' : ''}`);
+      }
+      if (stage.output?.stderr?.trim()) {
+        const stderrPreview = stage.output.stderr.trim().slice(0, 200);
+        lines.push(`      Stderr: ${stderrPreview}${stage.output.stderr.trim().length > 200 ? '...' : ''}`);
+      }
+      if (stage.error) {
+        lines.push(`      Error: ${stage.error}`);
+      }
+      lines.push('');
+    }
+  }
 
   // Artifacts Section
   if (report.artifacts.length > 0) {
@@ -112,6 +162,16 @@ export function formatHumanOutput(report: ExecutionReport): string {
     lines.push('── Errors ──────────────────────────────────────────────────');
     lines.push('');
     lines.push(`  ${EMOJI.FAILED} ${report.errorSummary}`);
+    lines.push('');
+  }
+
+  // Verbose: Warnings that were suppressed in normal mode
+  if (verbose && report.warnings && report.warnings.length > 0) {
+    lines.push('── Warnings ────────────────────────────────────────────────');
+    lines.push('');
+    for (const warning of report.warnings) {
+      lines.push(`  ${EMOJI.WARN} ${warning}`);
+    }
     lines.push('');
   }
 

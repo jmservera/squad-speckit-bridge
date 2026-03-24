@@ -18,6 +18,8 @@ import type {
   ArtifactValidator,
   CleanupHandler,
 } from './ports.js';
+import type { Logger } from '../cli/logger.js';
+import { createNullLogger } from '../cli/logger.js';
 import { generateTimestamp, formatFileSize, formatElapsedTime } from './utils.js';
 
 // ─────────────────────────────────────────────────────────────
@@ -32,6 +34,8 @@ export interface DemoDependencies {
   processExecutor: ProcessExecutor;
   artifactValidator: ArtifactValidator;
   cleanupHandler: CleanupHandler;
+  /** Optional logger for verbose diagnostics */
+  logger?: Logger;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -107,15 +111,21 @@ export async function runDemo(
   config: DemoConfiguration,
   deps: DemoDependencies
 ): Promise<ExecutionReport> {
+  const logger = deps.logger ?? createNullLogger();
+  const verbose = config.flags.verbose;
   const startTime = Date.now();
   const stages = createPipelineStages(config);
   const completedArtifacts: DemoArtifact[] = [];
+  const warnings: string[] = [];
 
   let stagesCompleted = 0;
   let stagesFailed = 0;
   let errorSummary: string | undefined;
 
   const timeoutMs = (config.timeout || 30) * 1000;
+
+  logger.verbose(`Pipeline starting with ${stages.length} stages`);
+  logger.verbose(`Configuration: demoDir=${config.demoDir}, timeout=${config.timeout}s, dryRun=${config.flags.dryRun}, keep=${config.flags.keep}`);
 
   // Execute stages sequentially with explicit status transitions
   for (const stage of stages) {
@@ -124,6 +134,9 @@ export async function runDemo(
     // Transition: pending → running
     stage.status = StageStatus.Running;
     stage.startTime = stageStartTime;
+
+    logger.verbose(`[${stage.name}] Starting: ${stage.displayName}`);
+    logger.verbose(`[${stage.name}] Command: ${stage.command.join(' ')}`);
 
     // Execute stage via processExecutor.run() with output capture
     const result = await deps.processExecutor.run(
@@ -142,9 +155,16 @@ export async function runDemo(
       stderr: result.stderr,
     };
 
+    logger.verbose(`[${stage.name}] Completed in ${formatElapsedTime(stage.elapsedMs)}`);
+
     if (result.success) {
+      logger.verbose(`[${stage.name}] Command succeeded (exit code 0)`);
+
       // Validate artifact after successful execution
       const artifactPath = `${config.demoDir}/${stage.artifact}`;
+
+      logger.verbose(`[${stage.name}] Validating artifact: ${artifactPath}`);
+
       const artifact = await deps.artifactValidator.validate(artifactPath, stage);
       completedArtifacts.push(artifact);
 
@@ -152,12 +172,15 @@ export async function runDemo(
         // Transition: running → success (command ran and artifact is valid)
         stage.status = StageStatus.Success;
         stagesCompleted++;
+        logger.verbose(`[${stage.name}] ✓ Stage passed — artifact valid (${formatFileSize(artifact.sizeBytes)})`);
       } else {
         // Transition: running → failed (command ran but artifact validation failed)
         stage.status = StageStatus.Failed;
         stage.error = `Artifact validation failed (${formatElapsedTime(stage.elapsedMs!)}): ${artifact.errors.join(', ')}`;
         stagesFailed++;
         errorSummary = `Artifact validation failed for ${stage.name}: ${artifact.errors.join(', ')}`;
+        logger.verbose(`[${stage.name}] ✗ Artifact validation failed: ${artifact.errors.join(', ')}`);
+        warnings.push(`Stage '${stage.name}' artifact validation failed: ${artifact.errors.join(', ')}`);
         // Halt pipeline on first failure
         break;
       }
@@ -173,22 +196,36 @@ export async function runDemo(
       ];
       if (result.timedOut) {
         errorParts.push('Status: Timed out');
+        warnings.push(`Stage '${stage.name}' timed out after ${formatElapsedTime(stage.elapsedMs!)}`);
       } else {
         errorParts.push(`Exit code: ${result.exitCode ?? 'unknown'}`);
       }
       if (result.stderr.trim()) {
         errorParts.push(`Error: ${result.stderr.trim().slice(0, 500)}`);
+        warnings.push(`Stage '${stage.name}' stderr: ${result.stderr.trim().slice(0, 200)}`);
       }
       stage.error = errorParts.join('; ');
 
       errorSummary = `Stage '${stage.name}' failed: ${stage.error}`;
+
+      logger.verbose(`[${stage.name}] ✗ Stage failed: ${stage.error}`);
 
       // Halt pipeline on first failure (don't continue to next stage)
       break;
     }
   }
 
+  // Log skipped stages
+  for (const stage of stages) {
+    if (stage.status === StageStatus.Pending) {
+      logger.verbose(`[${stage.name}] Skipped (pipeline halted)`);
+      warnings.push(`Stage '${stage.name}' was skipped due to earlier failure`);
+    }
+  }
+
   const totalTimeMs = Date.now() - startTime;
+
+  logger.verbose(`Pipeline finished: ${stagesCompleted} passed, ${stagesFailed} failed, total ${formatElapsedTime(totalTimeMs)}`);
 
   // Build artifact summaries
   const artifacts: ArtifactSummary[] = completedArtifacts
@@ -207,6 +244,8 @@ export async function runDemo(
     artifacts,
     cleanupPerformed: false,
     errorSummary,
+    stages: verbose ? [...stages] : undefined,
+    warnings: verbose ? warnings : undefined,
   };
 
   // Automatic cleanup logic:
@@ -214,7 +253,11 @@ export async function runDemo(
   // - If keep=true OR any stage failed: skip cleanup (preserve artifacts for debugging)
   const allStagesSucceeded = stagesFailed === 0;
   if (!config.flags.keep && allStagesSucceeded) {
+    logger.verbose('Performing cleanup (keep=false, all stages passed)');
     report = await deps.cleanupHandler.cleanup(config, report);
+    logger.verbose(`Cleanup ${report.cleanupPerformed ? 'completed' : 'skipped'}`);
+  } else {
+    logger.verbose(`Cleanup skipped (keep=${config.flags.keep}, allPassed=${allStagesSucceeded})`);
   }
   // Otherwise, cleanupPerformed remains false (artifacts preserved)
 

@@ -369,20 +369,20 @@ program
         specifyDir: 'specs',
       };
 
-      const runner = createDemoRunner();
+      const runner = createDemoRunner({ logger });
       const report = await runner.run(config);
 
       if (jsonOutput) {
         // Build extended report for JSON output
         const extendedReport: ExtendedExecutionReport = {
           ...report,
-          stages: [], // Stages are internal to orchestrator
+          stages: report.stages ?? [],
           demoDir: config.demoDir,
           flags: config.flags,
         };
         console.log(formatJsonOutput(extendedReport));
       } else {
-        console.log(formatHumanOutput(report));
+        console.log(formatHumanOutput(report, { verbose }));
       }
 
       process.exitCode = report.stagesFailed > 0 ? 1 : 0;
