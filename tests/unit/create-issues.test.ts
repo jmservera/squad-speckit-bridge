@@ -37,6 +37,7 @@ function makeIssueCreator(existingIssues: IssueRecord[] = []): IssueCreator {
     createBatch: vi.fn().mockResolvedValue([]),
     listExisting: vi.fn().mockResolvedValue(existingIssues),
 
+
   };
 }
 

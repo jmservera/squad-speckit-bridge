@@ -158,6 +158,7 @@ export class GitHubIssueAdapter implements IssueCreator {
     // Should be unreachable, but satisfies TypeScript
     throw lastError ?? new Error(`Failed to list issues for ${repo}: unknown error`);
 
+
   }
 
   private extractTaskId(title: string): string {
