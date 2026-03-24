@@ -62,4 +62,48 @@ export class GitHubIssueAdapter implements IssueCreator {
     }
     return results;
   }
+
+  async listExisting(repo: string, labels: string[]): Promise<IssueRecord[]> {
+    try {
+      const args = [
+        'issue', 'list',
+        '--repo', repo,
+        '--json', 'number,title,body,labels,url,createdAt',
+        '--state', 'all',
+        '--limit', '200',
+      ];
+
+      for (const label of labels) {
+        args.push('--label', label);
+      }
+
+      const { stdout } = await execFileAsync('gh', args);
+      const issues = JSON.parse(stdout) as Array<{
+        number: number;
+        title: string;
+        body: string;
+        labels: Array<{ name: string }>;
+        url: string;
+        createdAt: string;
+      }>;
+
+      return issues.map((issue) => ({
+        issueNumber: issue.number,
+        title: issue.title,
+        body: issue.body,
+        labels: issue.labels.map((l) => l.name),
+        taskId: this.extractTaskId(issue.title),
+        url: issue.url,
+        createdAt: issue.createdAt,
+      }));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Failed to list issues for ${repo}: ${message}`);
+    }
+  }
+
+  private extractTaskId(title: string): string {
+    const match = title.match(/^(T\d+):/);
+    return match ? match[1] : '';
+  }
 }

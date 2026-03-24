@@ -11,7 +11,7 @@ import { readFile } from 'node:fs/promises';
 import { join, basename, dirname } from 'node:path';
 import { glob } from 'glob';
 import type { SquadStateReader } from '../ports.js';
-import type { SkillEntry, DecisionEntry, LearningEntry } from '../../types.js';
+import type { SkillEntry, DecisionEntry, LearningEntry, AgentCharter, SkillFileContent } from '../../types.js';
 import {
   parseSkillFile,
   parseDecisionsFile,
@@ -150,5 +150,92 @@ export class SquadFileReader implements SquadStateReader {
     }
 
     return null;
+  }
+
+  async readAgentCharters(): Promise<AgentCharter[]> {
+    const pattern = join(this.squadDir, 'agents', '*', 'charter.md');
+    let files: string[];
+
+    try {
+      files = await glob(pattern.replace(/\\/g, '/'));
+    } catch {
+      return [];
+    }
+
+    const charters: AgentCharter[] = [];
+
+    for (const file of files) {
+      try {
+        const content = await readFile(file, 'utf-8');
+        const agentName = basename(dirname(file));
+        const skills = this.extractSkillsFromCharter(content);
+        charters.push({ agentName, skills });
+      } catch (err) {
+        if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+          continue;
+        }
+        this.warnings.push({
+          file,
+          reason: err instanceof Error ? err.message : 'Read error',
+        });
+      }
+    }
+
+    return charters;
+  }
+
+  async readSkillFiles(): Promise<SkillFileContent[]> {
+    const pattern = join(this.squadDir, 'skills', '*', 'SKILL.md');
+    let files: string[];
+
+    try {
+      files = await glob(pattern.replace(/\\/g, '/'));
+    } catch {
+      return [];
+    }
+
+    const results: SkillFileContent[] = [];
+
+    for (const file of files) {
+      try {
+        const content = await readFile(file, 'utf-8');
+        const name = basename(dirname(file));
+        results.push({ name, content, sizeBytes: Buffer.byteLength(content, 'utf-8') });
+      } catch (err) {
+        if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+          continue;
+        }
+        this.warnings.push({
+          file,
+          reason: err instanceof Error ? err.message : 'Read error',
+        });
+      }
+    }
+
+    return results;
+  }
+
+  private extractSkillsFromCharter(content: string): string[] {
+    const skills: string[] = [];
+    const lines = content.split('\n');
+    let inSkillSection = false;
+
+    for (const line of lines) {
+      if (/^##\s+.*(?:skill|expertise|capabilit)/i.test(line)) {
+        inSkillSection = true;
+        continue;
+      }
+      if (inSkillSection && /^##\s/.test(line)) {
+        break;
+      }
+      if (inSkillSection) {
+        const match = line.match(/^[-*]\s+(.+)/);
+        if (match) {
+          skills.push(match[1].trim());
+        }
+      }
+    }
+
+    return skills;
   }
 }
