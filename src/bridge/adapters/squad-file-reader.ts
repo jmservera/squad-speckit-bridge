@@ -190,6 +190,7 @@ export class SquadFileReader implements SquadStateReader {
 
 
 
+
     const pattern = join(this.squadDir, 'agents', '*', 'charter.md');
     let files: string[];
 
@@ -208,6 +209,7 @@ export class SquadFileReader implements SquadStateReader {
           this.warnings.push({ file, reason: 'Empty charter file — skipped' });
           continue;
         }
+
 
 
         const agentName = basename(dirname(file));
@@ -235,6 +237,7 @@ export class SquadFileReader implements SquadStateReader {
 
 
 
+
     const pattern = join(this.squadDir, 'skills', '*', 'SKILL.md');
     let files: string[];
 
@@ -253,6 +256,7 @@ export class SquadFileReader implements SquadStateReader {
           this.warnings.push({ file, reason: 'Empty skill file — skipped' });
           continue;
         }
+
 
 
         const name = basename(dirname(file));
