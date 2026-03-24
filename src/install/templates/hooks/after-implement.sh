@@ -5,13 +5,6 @@
 
 set -euo pipefail
 
-# Check npx availability
-if ! command -v npx &> /dev/null; then
-  echo "[squad-bridge] WARNING: npx not found — skipping learning sync."
-  echo "[squad-bridge] Install Node.js 18+ to enable the Squad-SpecKit bridge."
-  exit 0
-fi
-
 # Spec Kit sets SPECKIT_SPEC_DIR to the active spec directory
 SPEC_DIR="${SPECKIT_SPEC_DIR:-}"
 
@@ -36,10 +29,15 @@ fi
 
 # Sync learnings from implementation back to Squad memory
 echo "[squad-bridge] Syncing implementation results to Squad memory..."
-npx squad-speckit-bridge sync "$SPEC_DIR" --quiet 2>/dev/null || {
-  echo "[squad-bridge] WARNING: Learning sync failed — manual sync recommended."
-  echo "[squad-bridge] Run: npx squad-speckit-bridge sync ${SPEC_DIR}"
+if command -v squask &> /dev/null; then
+  squask sync "$SPEC_DIR" --quiet 2>/dev/null || {
+    echo "[squad-bridge] WARNING: Learning sync failed — manual sync recommended."
+    echo "[squad-bridge] Run: squask sync ${SPEC_DIR}"
+    exit 0
+  }
+  echo "[squad-bridge] Implementation learnings synced to Squad memory."
+else
+  echo "[squad-bridge] WARNING: squask not found — install squad-speckit-bridge to enable learning sync."
+  echo "[squad-bridge] Install with: npm install -g @jmservera/squad-speckit-bridge"
   exit 0
-}
-
-echo "[squad-bridge] Implementation learnings synced to Squad memory."
+fi

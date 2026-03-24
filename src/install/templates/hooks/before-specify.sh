@@ -5,13 +5,6 @@
 
 set -euo pipefail
 
-# Check npx availability
-if ! command -v npx &> /dev/null; then
-  echo "[squad-bridge] WARNING: npx not found — skipping context injection."
-  echo "[squad-bridge] Install Node.js 18+ to enable the Squad-SpecKit bridge."
-  exit 0
-fi
-
 # Spec Kit sets SPECKIT_SPEC_DIR to the active spec directory
 SPEC_DIR="${SPECKIT_SPEC_DIR:-}"
 
@@ -36,9 +29,14 @@ fi
 
 # Generate squad-context.md for the spec directory
 echo "[squad-bridge] Injecting Squad context into ${SPEC_DIR}..."
-npx squad-speckit-bridge context "$SPEC_DIR" --quiet 2>/dev/null || {
-  echo "[squad-bridge] WARNING: Context injection failed — continuing without Squad context."
+if command -v squask &> /dev/null; then
+  squask context "$SPEC_DIR" --quiet 2>/dev/null || {
+    echo "[squad-bridge] WARNING: Context injection failed — continuing without Squad context."
+    exit 0
+  }
+  echo "[squad-bridge] Squad context injected successfully."
+else
+  echo "[squad-bridge] WARNING: squask not found — install squad-speckit-bridge to enable context injection."
+  echo "[squad-bridge] Install with: npm install -g @jmservera/squad-speckit-bridge"
   exit 0
-}
-
-echo "[squad-bridge] Squad context injected successfully."
+fi
