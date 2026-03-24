@@ -206,6 +206,7 @@ export interface IssuesOutput {
   jsonOutput: {
     created: IssueRecord[];
     skippedCount: number;
+    duplicateCount: number;
     total: number;
     dryRun: boolean;
   };
@@ -241,10 +242,17 @@ export function createIssueCreator(options: IssuesOptions = {}) {
       });
 
       return {
-        humanOutput: formatIssuesHuman(result.created, result.skipped.length, result.total, result.dryRun),
+        humanOutput: formatIssuesHuman(
+          result.created,
+          result.skipped.length,
+          result.duplicates.length,
+          result.total,
+          result.dryRun,
+        ),
         jsonOutput: {
           created: result.created,
           skippedCount: result.skipped.length,
+          duplicateCount: result.duplicates.length,
           total: result.total,
           dryRun: result.dryRun,
         },
@@ -657,6 +665,7 @@ function formatReviewJson(record: DesignReviewRecord, outputPath: string) {
 function formatIssuesHuman(
   created: IssueRecord[],
   skippedCount: number,
+  duplicateCount: number,
   total: number,
   dryRun: boolean,
 ): string {
@@ -668,6 +677,7 @@ function formatIssuesHuman(
   lines.push(`Total tasks: ${total}`);
   lines.push(`Eligible: ${created.length}`);
   lines.push(`Skipped (completed): ${skippedCount}`);
+  lines.push(`Duplicates (already exist): ${duplicateCount}`);
   lines.push('');
 
   if (created.length > 0) {

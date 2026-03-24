@@ -1,12 +1,13 @@
 /**
- * Integration tests for T025: SpecKitContextWriter adapter
+ * Integration tests for T025 + T004: SpecKitContextWriter adapter
  *
  * Tests writing ContextSummary to markdown with YAML frontmatter.
+ * T004: Tests cycle metadata persistence (read, increment, overwrite).
  * Uses temp directories for isolation.
  */
 
 import { describe, it, expect, afterEach } from 'vitest';
-import { readFile, rm, mkdtemp } from 'node:fs/promises';
+import { readFile, rm, mkdtemp, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { SpecKitContextWriter } from '../../src/bridge/adapters/speckit-writer.js';
@@ -202,5 +203,118 @@ describe('SpecKitContextWriter', () => {
     expect(meta).not.toBeNull();
     expect(meta!.generated).toBe('2025-07-25T10:00:00.000Z');
     expect(meta!.cycleCount).toBe(2);
+  });
+
+  // T004: Cycle metadata persistence tests
+
+  it('writeWithCycleIncrement starts at cycle 1 on first write', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'speckit-writer-'));
+    const writer = new SpecKitContextWriter(tempDir);
+
+    const summary = makeSummary();
+    const cycle = await writer.writeWithCycleIncrement(summary);
+
+    expect(cycle).toBe(1);
+    expect(summary.metadata.cycleCount).toBe(1);
+
+    const content = await readFile(join(tempDir, 'squad-context.md'), 'utf-8');
+    expect(content).toContain('cycle_count: 1');
+  });
+
+  it('writeWithCycleIncrement increments cycle count on subsequent writes', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'speckit-writer-'));
+    const writer = new SpecKitContextWriter(tempDir);
+
+    // First write
+    const summary1 = makeSummary();
+    const cycle1 = await writer.writeWithCycleIncrement(summary1);
+    expect(cycle1).toBe(1);
+
+    // Second write
+    const summary2 = makeSummary();
+    const cycle2 = await writer.writeWithCycleIncrement(summary2);
+    expect(cycle2).toBe(2);
+
+    // Third write
+    const summary3 = makeSummary();
+    const cycle3 = await writer.writeWithCycleIncrement(summary3);
+    expect(cycle3).toBe(3);
+
+    const content = await readFile(join(tempDir, 'squad-context.md'), 'utf-8');
+    expect(content).toContain('cycle_count: 3');
+  });
+
+  it('writeWithCycleIncrement recovers from corrupted previous file', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'speckit-writer-'));
+    const writer = new SpecKitContextWriter(tempDir);
+
+    // Write a corrupted file manually
+    await writeFile(
+      join(tempDir, 'squad-context.md'),
+      '---\nbroken: yaml: [invalid\n---\ngarbage content',
+      'utf-8',
+    );
+
+    // Should recover gracefully and start at cycle 1
+    const summary = makeSummary();
+    const cycle = await writer.writeWithCycleIncrement(summary);
+    expect(cycle).toBe(1);
+  });
+
+  it('readPreviousMetadata returns null for empty file', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'speckit-writer-'));
+    const writer = new SpecKitContextWriter(tempDir);
+
+    // Write an empty file
+    await writeFile(join(tempDir, 'squad-context.md'), '', 'utf-8');
+
+    const meta = await writer.readPreviousMetadata();
+    expect(meta).toBeNull();
+  });
+
+  it('readPreviousMetadata returns null for malformed frontmatter', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'speckit-writer-'));
+    const writer = new SpecKitContextWriter(tempDir);
+
+    // Write file with broken YAML frontmatter
+    await writeFile(
+      join(tempDir, 'squad-context.md'),
+      '---\ninvalid: yaml: [broken\n---\nContent here',
+      'utf-8',
+    );
+
+    const meta = await writer.readPreviousMetadata();
+    expect(meta).toBeNull();
+  });
+
+  it('readPreviousMetadata defaults cycle_count to 1 for missing field', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'speckit-writer-'));
+    const writer = new SpecKitContextWriter(tempDir);
+
+    // Write file with frontmatter that has generated but no cycle_count
+    await writeFile(
+      join(tempDir, 'squad-context.md'),
+      '---\ngenerated: 2025-07-25T10:00:00.000Z\n---\nContent',
+      'utf-8',
+    );
+
+    const meta = await writer.readPreviousMetadata();
+    expect(meta).not.toBeNull();
+    expect(meta!.cycleCount).toBe(1);
+  });
+
+  it('readPreviousMetadata defaults cycle_count to 1 for non-numeric value', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'speckit-writer-'));
+    const writer = new SpecKitContextWriter(tempDir);
+
+    await writeFile(
+      join(tempDir, 'squad-context.md'),
+      '---\ngenerated: 2025-07-25T10:00:00.000Z\ncycle_count: "not-a-number"\n---\nContent',
+      'utf-8',
+    );
+
+    const meta = await writer.readPreviousMetadata();
+    expect(meta).not.toBeNull();
+    expect(meta!.cycleCount).toBe(1);
   });
 });
