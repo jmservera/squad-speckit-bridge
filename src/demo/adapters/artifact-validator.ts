@@ -3,7 +3,7 @@
  *
  * FileSystemArtifactValidator implements the ArtifactValidator port interface using
  * Node.js fs module and gray-matter for frontmatter parsing. Validates artifact
- * existence, structure, and required sections.
+ * existence, structure, and required sections. Supports verbose mode for detailed diagnostics.
  */
 
 import { readFile, stat, readdir } from 'node:fs/promises';
@@ -12,6 +12,8 @@ import matter from 'gray-matter';
 import type { ArtifactValidator } from '../ports.js';
 import type { PipelineStage, DemoConfiguration, DemoArtifact } from '../entities.js';
 import { ArtifactType } from '../entities.js';
+import type { Logger } from '../../cli/logger.js';
+import { createNullLogger } from '../../cli/logger.js';
 
 /** Required sections by artifact type */
 const REQUIRED_SECTIONS: Record<ArtifactType, string[]> = {
@@ -37,8 +39,15 @@ const ARTIFACT_TYPE_MAP: Record<string, ArtifactType> = {
  * - YAML frontmatter parsing and validation
  * - Required section detection
  * - Detailed error reporting
+ * - Verbose mode: logs each file check, size, rules applied, pass/fail status
  */
 export class FileSystemArtifactValidator implements ArtifactValidator {
+  private readonly logger: Logger;
+
+  constructor(logger?: Logger) {
+    this.logger = logger ?? createNullLogger();
+  }
+
   /**
    * Validate a generated artifact file.
    *
@@ -56,9 +65,13 @@ export class FileSystemArtifactValidator implements ArtifactValidator {
     const artifactType = this.getArtifactType(filename, stage.name);
     const errors: string[] = [];
 
+    this.logger.verbose(`[validate] Checking artifact: ${artifactPath}`);
+    this.logger.verbose(`[validate] Artifact type: ${artifactType} (from file: ${filename}, stage: ${stage.name})`);
+
     // Check file existence
     const fileStats = await this.getFileStats(artifactPath);
     if (!fileStats.exists) {
+      this.logger.verbose(`[validate] ✗ File does not exist: ${artifactPath}`);
       return {
         path: artifactPath,
         type: artifactType,
@@ -69,12 +82,16 @@ export class FileSystemArtifactValidator implements ArtifactValidator {
       };
     }
 
+    this.logger.verbose(`[validate] File exists, size: ${fileStats.size} bytes`);
+
     // Read file content
     let content: string;
     try {
       content = await readFile(artifactPath, 'utf8');
+      this.logger.verbose(`[validate] File read successfully (${content.length} characters)`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
+      this.logger.verbose(`[validate] ✗ Failed to read file: ${errorMessage}`);
       return {
         path: artifactPath,
         type: artifactType,
@@ -86,23 +103,35 @@ export class FileSystemArtifactValidator implements ArtifactValidator {
     }
 
     // Validate frontmatter
+    this.logger.verbose('[validate] Rule: YAML frontmatter check');
     const frontmatterResult = this.validateFrontmatter(content);
     if (!frontmatterResult.valid) {
       errors.push(...frontmatterResult.errors);
+      this.logger.verbose(`[validate] ✗ Frontmatter check failed: ${frontmatterResult.errors.join(', ')}`);
+    } else {
+      this.logger.verbose('[validate] ✓ Frontmatter check passed');
     }
 
     // Validate required sections
+    const requiredSections = REQUIRED_SECTIONS[artifactType] || [];
+    this.logger.verbose(`[validate] Rule: Required sections check [${requiredSections.join(', ')}]`);
     const sectionsResult = this.validateRequiredSections(content, artifactType);
     if (!sectionsResult.valid) {
       errors.push(...sectionsResult.errors);
+      this.logger.verbose(`[validate] ✗ Sections check failed: ${sectionsResult.errors.join(', ')}`);
+    } else {
+      this.logger.verbose('[validate] ✓ Sections check passed');
     }
+
+    const valid = errors.length === 0;
+    this.logger.verbose(`[validate] Result: ${valid ? 'PASS' : 'FAIL'} (${errors.length} errors)`);
 
     return {
       path: artifactPath,
       type: artifactType,
       sizeBytes: fileStats.size,
       exists: true,
-      valid: errors.length === 0,
+      valid,
       errors,
     };
   }
@@ -120,10 +149,14 @@ export class FileSystemArtifactValidator implements ArtifactValidator {
     const artifacts: DemoArtifact[] = [];
     const knownArtifacts = Object.keys(ARTIFACT_TYPE_MAP);
 
+    this.logger.verbose(`[validateAll] Scanning directory: ${config.demoDir}`);
+
     let files: string[];
     try {
       files = await readdir(config.demoDir);
+      this.logger.verbose(`[validateAll] Found ${files.length} files`);
     } catch {
+      this.logger.verbose(`[validateAll] Directory not readable or does not exist`);
       // Directory doesn't exist or can't be read
       return [];
     }
@@ -146,6 +179,8 @@ export class FileSystemArtifactValidator implements ArtifactValidator {
         artifacts.push(artifact);
       }
     }
+
+    this.logger.verbose(`[validateAll] Validated ${artifacts.length} artifacts`);
 
     return artifacts;
   }

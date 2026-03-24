@@ -363,3 +363,59 @@ tests/
 - Document architectural decisions here
 - Keep history focused on work, decisions focused on direction
 - Critical decisions requiring human judgment → escalate to Product Owner (Juanma)
+
+---
+
+## User Directives (2026-03-24)
+
+### Issue Creation Ownership
+
+**Date:** 2026-03-24T07:50:16Z  
+**Source:** Juanma (Product Owner)
+
+The SpecKit+Squad pipeline workflow:
+- **SpecKit generates:** `tasks.md` (autonomous planning output)
+- **Squad takes over:** Squad Coordinator creates GitHub issues from `tasks.md`
+- **SpecKit never creates:** SpecKit must NOT create issues directly
+
+**Why:** Preserves Squad's issue lifecycle (labeling, triage, squad:member assignment). Previous approach (SpecKit creating issues) bypassed Squad's routing layer, breaking team coordination.
+
+**Reproducible Process:**
+1. SpecKit: `specify` → `plan` → `tasks` → produces `tasks.md`
+2. Design Review ceremony: Squad validates task breakdown against team knowledge
+3. Squad Coordinator: Creates GitHub issues with `squad` labels from `tasks.md`
+4. Ralph/Lead: Applies `squad:{member}` labels during triage
+5. Agents: Pick up work via normal squad lifecycle
+
+**Status:** Active; encoded in Monica's handoff skill (`.squad/skills/speckit-squad-handoff/SKILL.md`)
+
+---
+
+### Parallel Agent Worktree Protocol
+
+**Date:** 2026-03-24T07:55:00Z  
+**Source:** Juanma (Product Owner)
+
+Always use `git worktree` when spawning parallel agents that write code. Each agent gets its own worktree so branches don't conflict.
+
+**Why:** Prevents file conflicts when multiple agents work simultaneously on different issues/branches.
+
+**Status:** Active; to be implemented in Ralph's agent spawning protocol
+
+---
+
+### Bridge Integration Sequence Design Requirement
+
+**Date:** 2026-03-24T07:56:00Z  
+**Source:** Juanma (Product Owner)
+
+The bridge must embed the correct step sequence for integrating SpecKit and Squad as a **formal spec** (not just documentation).
+
+**Requirement:** Design the pipeline programmatically so it's reproducible and automated:
+- SpecKit generates tasks → Squad creates issues → Lead triages → agents work
+
+**Why:** The bridge is the orchestrator-of-orchestrators and must control the handoff programmatically, not rely on human coordination alone. Future teams need codified, executable integration logic.
+
+**Status:** Queued for design phase; requires formal spec.md creation before implementation begins
+
+---

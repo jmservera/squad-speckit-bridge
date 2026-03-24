@@ -1,5 +1,5 @@
 /**
- * T036: Diagnostic Logger
+ * T036 + T027: Diagnostic Logger
  *
  * Provides verbose logging when --verbose flag is set.
  * Outputs diagnostic info to stderr to keep stdout clean for machine parsing.
@@ -31,4 +31,13 @@ export function createLogger(options: { verbose: boolean; quiet: boolean }): Log
       console.error(`[ERROR] ${message}`);
     },
   };
+}
+
+/**
+ * Creates a no-op logger that silently discards all messages.
+ * Used as a default when no logger is provided.
+ */
+export function createNullLogger(): Logger {
+  const noop = (): void => {};
+  return { verbose: noop, info: noop, warn: noop, error: noop };
 }

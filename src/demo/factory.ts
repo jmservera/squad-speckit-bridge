@@ -6,10 +6,11 @@
  */
 
 import type { DemoConfiguration, ExecutionReport } from './entities.js';
-import { runDemo, createDemoDirectory, type DemoDependencies } from './orchestrator.js';
+import { runDemo, createDemoDirectory, type DemoDependencies, type RunDemoOptions } from './orchestrator.js';
 import { NodeProcessExecutor } from './adapters/process-executor.js';
 import { FileSystemArtifactValidator } from './adapters/artifact-validator.js';
 import { FileSystemCleanupHandler } from './adapters/cleanup-handler.js';
+import type { Logger } from '../cli/logger.js';
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -23,9 +24,10 @@ export interface DemoRunner {
    * Execute the demo pipeline with the given configuration.
    *
    * @param config - Demo configuration with flags and paths
+   * @param options - Optional execution controls (abort signal)
    * @returns Execution report with timing, artifacts, and status
    */
-  run(config: DemoConfiguration): Promise<ExecutionReport>;
+  run(config: DemoConfiguration, options?: RunDemoOptions): Promise<ExecutionReport>;
 }
 
 /**
@@ -38,6 +40,8 @@ export interface DemoRunnerOptions {
   artifactValidator?: DemoDependencies['artifactValidator'];
   /** Custom cleanup handler (for testing) */
   cleanupHandler?: DemoDependencies['cleanupHandler'];
+  /** Optional logger for verbose diagnostics */
+  logger?: Logger;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -57,16 +61,19 @@ export interface DemoRunnerOptions {
  * @returns DemoRunner with run(config) method
  */
 export function createDemoRunner(options: DemoRunnerOptions = {}): DemoRunner {
+  const logger = options.logger;
+
   // Wire default adapters or use provided overrides
   const deps: DemoDependencies = {
-    processExecutor: options.processExecutor ?? new NodeProcessExecutor(),
-    artifactValidator: options.artifactValidator ?? new FileSystemArtifactValidator(),
+    processExecutor: options.processExecutor ?? new NodeProcessExecutor(logger),
+    artifactValidator: options.artifactValidator ?? new FileSystemArtifactValidator(logger),
     cleanupHandler: options.cleanupHandler ?? new FileSystemCleanupHandler(),
+    logger,
   };
 
   return {
-    async run(config: DemoConfiguration): Promise<ExecutionReport> {
-      return runDemo(config, deps);
+    async run(config: DemoConfiguration, options?: RunDemoOptions): Promise<ExecutionReport> {
+      return runDemo(config, deps, options);
     },
   };
 }
