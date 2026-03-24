@@ -56,13 +56,13 @@ export class SyncStateAdapter implements SyncStateReader, SyncStatePersistence, 
   async readSpecResults(specDir: string): Promise<{ title: string; content: string }[]> {
     const results: { title: string; content: string }[] = [];
 
-    // Read tasks.md to find completed tasks
+    // Read tasks.md to find all tasks (checked and unchecked)
     try {
       const tasksContent = await readFile(join(specDir, 'tasks.md'), 'utf-8');
-      const completedTasks = this.extractCompletedTasks(tasksContent);
-      for (const task of completedTasks) {
+      const tasks = this.extractTasks(tasksContent);
+      for (const task of tasks) {
         results.push({
-          title: `Task ${task.id} completed: ${task.title}`,
+          title: `Task ${task.id}: ${task.title}`,
           content: task.description,
         });
       }
@@ -114,12 +114,18 @@ export class SyncStateAdapter implements SyncStateReader, SyncStatePersistence, 
     return decisionsPath;
   }
 
-  private extractCompletedTasks(content: string): { id: string; title: string; description: string }[] {
+  /**
+   * Extract all tasks from tasks.md content.
+   * Matches both checked [x] and unchecked [ ] tasks because squask sync
+   * is an explicit post-execution command — if you're running it, the spec
+   * was executed. Completion tracking is via GitHub issues, not markdown checkboxes.
+   */
+  private extractTasks(content: string): { id: string; title: string; description: string }[] {
     const tasks: { id: string; title: string; description: string }[] = [];
     const lines = content.split('\n');
 
     for (const line of lines) {
-      const match = line.match(/^-\s+\[[xX]\]\s+(T\d{3,4})\s+(.*)/);
+      const match = line.match(/^-\s+\[[ xX]\]\s+(T\d{3,4})\s+(.*)/);
       if (match) {
         const id = match[1];
         const rest = match[2].trim()
