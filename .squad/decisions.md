@@ -583,3 +583,25 @@ The bridge must embed the correct step sequence for integrating SpecKit and Squa
 **Status:** Team decision; affects roadmap priority
 
 ---
+
+---
+
+### Hook Exit Code Contract Must Be Tested (2026-03-24)
+
+**Author:** Jared (Data Analyst)  
+**Date:** 2026-03-24  
+**Context:** PR #328 changed hook error handlers from `exit 0` to `exit 1`, violating the hook contract (specs/005-hook-fixes-cli-polish/contracts/hook-scripts.md).
+
+**Decision:** All hook templates must have automated tests asserting `exit 0` on every exit path. This prevents future regressions where someone changes exit codes without realizing the contract constraint.
+
+**Tests Added (PR #331):**
+- Every `exit N` line in every template is validated to be `exit 0`
+- Cross-hook scan ensures CLI alias consistency (squask, not scoped package names)
+- Integration test confirms 755 permissions on deployed hooks
+
+**Rationale:** The exit code violation was caught by review, not automation. Adding the exit-code contract as a unit test makes this class of bug impossible going forward.
+
+**Classification:** Project-specific (applies to this codebase's hook system)
+
+**Status:** Implemented and validated in PR #331; merged.
+
