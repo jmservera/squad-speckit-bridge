@@ -1,8 +1,9 @@
 /**
- * Unit tests for T022: BuildSquadContext use case
+ * Unit tests for T022 + T003: BuildSquadContext use case
  *
  * Tests with mocked ports — no real filesystem access.
- * Validates orchestration logic, source toggles, and empty state handling.
+ * Validates orchestration logic, source toggles, empty state handling,
+ * and T003 hardening (graceful errors, warnings, partial failures).
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -178,5 +179,168 @@ describe('BuildSquadContext', () => {
     await buildSquadContext(reader, writer, { config });
 
     expect(reader.readLearnings).toHaveBeenCalledWith(new Date('2025-07-20T00:00:00.000Z'));
+  });
+
+  // --- T003: Hardening tests ---
+
+  describe('T003: graceful error handling', () => {
+    it('produces valid output when readSkills throws (missing skills dir)', async () => {
+      const reader = makeReader({
+        readSkills: vi.fn().mockRejectedValue(new Error('ENOENT: no such directory .squad/skills')),
+      });
+      const writer = makeWriter();
+      const config = makeConfig();
+
+      const result = await buildSquadContext(reader, writer, { config });
+
+      expect(result.summary.content.skills).toHaveLength(0);
+      expect(result.summary.content.warnings).toContainEqual(
+        expect.stringContaining('Skipped skills'),
+      );
+      expect(writer.write).toHaveBeenCalledOnce();
+    });
+
+    it('produces valid output when readDecisions throws', async () => {
+      const reader = makeReader({
+        readDecisions: vi.fn().mockRejectedValue(new Error('ENOENT: no such file decisions.md')),
+      });
+      const writer = makeWriter();
+      const config = makeConfig();
+
+      const result = await buildSquadContext(reader, writer, { config });
+
+      expect(result.summary.content.decisions).toHaveLength(0);
+      expect(result.summary.content.warnings).toContainEqual(
+        expect.stringContaining('Skipped decisions'),
+      );
+      expect(writer.write).toHaveBeenCalledOnce();
+    });
+
+    it('produces valid output when readLearnings throws', async () => {
+      const reader = makeReader({
+        readLearnings: vi.fn().mockRejectedValue(new Error('ENOENT: no such directory .squad/agents')),
+      });
+      const writer = makeWriter();
+      const config = makeConfig();
+
+      const result = await buildSquadContext(reader, writer, { config });
+
+      expect(result.summary.content.learnings).toHaveLength(0);
+      expect(result.summary.content.warnings).toContainEqual(
+        expect.stringContaining('Skipped histories'),
+      );
+      expect(writer.write).toHaveBeenCalledOnce();
+    });
+
+    it('produces valid output when ALL readers throw (completely missing .squad/)', async () => {
+      const err = new Error('ENOENT: .squad/ does not exist');
+      const reader = makeReader({
+        readSkills: vi.fn().mockRejectedValue(err),
+        readDecisions: vi.fn().mockRejectedValue(err),
+        readLearnings: vi.fn().mockRejectedValue(err),
+      });
+      const writer = makeWriter();
+      const config = makeConfig();
+
+      const result = await buildSquadContext(reader, writer, { config });
+
+      expect(result.summary.content.skills).toHaveLength(0);
+      expect(result.summary.content.decisions).toHaveLength(0);
+      expect(result.summary.content.learnings).toHaveLength(0);
+      expect(result.summary.content.warnings).toHaveLength(3);
+      expect(result.warnings).toHaveLength(3);
+      expect(writer.write).toHaveBeenCalledOnce();
+    });
+
+    it('still reads working sources when one reader throws', async () => {
+      const skills: SkillEntry[] = [
+        { name: 'ok', context: 'works', patterns: [], antiPatterns: [], rawSize: 5 },
+      ];
+      const reader = makeReader({
+        readSkills: vi.fn().mockResolvedValue(skills),
+        readDecisions: vi.fn().mockRejectedValue(new Error('missing')),
+      });
+      const writer = makeWriter();
+      const config = makeConfig();
+
+      const result = await buildSquadContext(reader, writer, { config });
+
+      expect(result.summary.metadata.sources.skills).toBe(1);
+      expect(result.summary.content.decisions).toHaveLength(0);
+      expect(result.summary.content.warnings).toContainEqual(
+        expect.stringContaining('Skipped decisions'),
+      );
+    });
+
+    it('handles readPreviousMetadata throwing gracefully', async () => {
+      const reader = makeReader();
+      const writer = makeWriter();
+      writer.readPreviousMetadata = vi.fn().mockRejectedValue(
+        new Error('ENOENT: squad-context.md not found'),
+      );
+      const config = makeConfig();
+
+      const result = await buildSquadContext(reader, writer, { config });
+
+      expect(result.summary.metadata.cycleCount).toBe(1);
+      expect(result.summary.content.warnings).toContainEqual(
+        expect.stringContaining('Could not read previous metadata'),
+      );
+      expect(writer.write).toHaveBeenCalledOnce();
+    });
+
+    it('handles writer.write throwing gracefully', async () => {
+      const reader = makeReader();
+      const writer = makeWriter();
+      writer.write = vi.fn().mockRejectedValue(
+        new Error('EACCES: permission denied'),
+      );
+      const config = makeConfig();
+
+      const result = await buildSquadContext(reader, writer, { config });
+
+      expect(result.summary).toBeDefined();
+      expect(result.summary.content.warnings).toContainEqual(
+        expect.stringContaining('Failed to write context'),
+      );
+    });
+
+    it('preserves non-Error rejection values in warnings', async () => {
+      const reader = makeReader({
+        readSkills: vi.fn().mockRejectedValue('string error'),
+      });
+      const writer = makeWriter();
+      const config = makeConfig();
+
+      const result = await buildSquadContext(reader, writer, { config });
+
+      expect(result.summary.content.warnings).toContainEqual(
+        expect.stringContaining('string error'),
+      );
+    });
+
+    it('returns warnings array in result for caller inspection', async () => {
+      const reader = makeReader({
+        readSkills: vi.fn().mockRejectedValue(new Error('boom')),
+      });
+      const writer = makeWriter();
+      const config = makeConfig();
+
+      const result = await buildSquadContext(reader, writer, { config });
+
+      expect(result.warnings).toBeDefined();
+      expect(result.warnings.length).toBeGreaterThan(0);
+      expect(result.warnings[0]).toContain('Skipped skills');
+    });
+
+    it('returns empty warnings array on success', async () => {
+      const reader = makeReader();
+      const writer = makeWriter();
+      const config = makeConfig();
+
+      const result = await buildSquadContext(reader, writer, { config });
+
+      expect(result.warnings).toEqual([]);
+    });
   });
 });

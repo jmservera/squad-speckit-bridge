@@ -82,3 +82,20 @@ If the user supplies partial updates (e.g., only one principle revision), still 
 If critical info missing (e.g., ratification date truly unknown), insert `TODO(<FIELD_NAME>): explanation` and include in the Sync Impact Report under deferred items.
 
 Do not create a new template; always operate on the existing `.specify/memory/constitution.md` file.
+
+## Bridge Integration: Governance & Squad Alignment
+
+The updated constitution feeds into all SpecKit and Squad agents:
+
+**How constitution shapes planning**:
+- During `/speckit.plan`, the bridge automatically validates planning against constitution principles
+- During `/speckit.analyze`, violations are flagged as CRITICAL findings
+- During team execution, Squad agents have access to constitution via `squad-context.md`
+
+**After updating constitution**:
+1. **Re-run dependent workflows** — If major changes made, re-run `/speckit.plan` and `/speckit.analyze` to ensure all existing artifacts remain compliant
+2. **Update squad knowledge** — If bridge is enabled, Squad agents automatically get the updated constitution in next context injection
+3. **Future features** — New features will build on the updated governance from the start
+
+**Why this matters for the pipeline**: Constitution ensures that SpecKit planning and Squad execution stay aligned to project values and quality standards. Changes propagate automatically through the bridge.
+

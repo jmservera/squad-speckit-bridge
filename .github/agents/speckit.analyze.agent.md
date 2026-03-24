@@ -158,6 +158,26 @@ At end of report, output a concise Next Actions block:
 - If only LOW/MEDIUM: User may proceed, but provide improvement suggestions
 - Provide explicit command suggestions: e.g., "Run /speckit.specify with refinement", "Run /speckit.plan to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
 
+## Bridge Integration: Quality Assurance & Squad Readiness
+
+Before handing off tasks to Squad execution via `sqsk issues`, ensure quality:
+
+**Quality gate checklist** (to decide if ready for `sqsk issues`):
+- ✅ No CRITICAL severity findings in analysis report
+- ✅ All requirements mapped to tasks (coverage ≥90%)
+- ✅ No constitution violations
+- ✅ All tasks follow checklist format
+- ✅ Dependency graph is acyclic (no circular dependencies)
+
+**If findings exist**:
+- **CRITICAL issues**: Do NOT run `sqsk issues` yet. Fix the issues first (re-run `/speckit.specify`, `/speckit.plan`, or `/speckit.tasks`)
+- **HIGH issues**: Consider fixing before `sqsk issues`, or proceed with documented risk
+- **MEDIUM/LOW issues**: Safe to proceed; add findings to design review if available
+
+**After fixing issues**: Re-run this analysis to confirm quality improvement.
+
+---
+
 ### 8. Offer Remediation
 
 Ask the user: "Would you like me to suggest concrete remediation edits for the top N issues?" (Do NOT apply them automatically.)
