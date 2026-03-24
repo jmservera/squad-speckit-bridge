@@ -5,7 +5,7 @@
 ## Command Signature
 
 ```bash
-sqsk demo [options]
+squask demo [options]
 ```
 
 **Aliases**: `squad-speckit-bridge demo`
@@ -24,7 +24,7 @@ sqsk demo [options]
   - Logs show simulated issue creation (title, labels, body preview)
   - Exit code 0 on success (same as normal run)
   - No authentication required (GitHub token not validated)
-- **Example**: `sqsk demo --dry-run`
+- **Example**: `squask demo --dry-run`
 
 ---
 
@@ -38,7 +38,7 @@ sqsk demo [options]
   - Artifacts remain for manual inspection
   - Cleanup is skipped even on failure
   - Output shows retained directory path
-- **Example**: `sqsk demo --keep`
+- **Example**: `squask demo --keep`
 
 ---
 
@@ -52,7 +52,7 @@ sqsk demo [options]
   - Displays artifact validation details (frontmatter keys, section counts)
   - Logs timing for each stage (start time, end time, elapsed)
   - Does not affect demo execution logic (read-only flag)
-- **Example**: `sqsk demo --verbose`
+- **Example**: `squask demo --verbose`
 
 ---
 
@@ -66,7 +66,7 @@ sqsk demo [options]
   - Prints single JSON object to stdout on completion
   - Schema documented below in "JSON Output Format" section
   - Suitable for parsing by scripts or CI/CD pipelines
-- **Example**: `sqsk demo --json`
+- **Example**: `squask demo --json`
 
 ---
 
@@ -80,7 +80,7 @@ sqsk demo [options]
   - Stage progress indicators hidden
   - Artifact paths not displayed
   - Error messages still output to stderr (not suppressed)
-- **Example**: `sqsk demo --quiet`
+- **Example**: `squask demo --quiet`
 
 ---
 
@@ -137,8 +137,8 @@ sqsk demo [options]
    Cleaned up: Yes
 
 📖 Next steps:
-   - Run `sqsk demo --keep` to inspect generated artifacts
-   - Run `sqsk demo` (without --dry-run) to create real issues
+   - Run `squask demo --keep` to inspect generated artifacts
+   - Run `squask demo` (without --dry-run) to create real issues
 ```
 
 **Failure Output**:
@@ -304,7 +304,7 @@ sqsk demo [options]
 
 ### Idempotency
 
-- **Requirement**: Running `sqsk demo` multiple times must not interfere with previous runs
+- **Requirement**: Running `squask demo` multiple times must not interfere with previous runs
 - **Implementation**: Each run generates a unique `demo-{timestamp}` directory
 - **Timestamp Format**: `YYYYMMDD-HHMMSS` (filesystem-safe, sortable)
 - **Collision Handling**: If timestamp collision occurs (sub-second execution), append `-{random}` suffix
@@ -355,7 +355,7 @@ sqsk demo [options]
 
 ### Basic Demo (Dry-Run)
 ```bash
-sqsk demo --dry-run
+squask demo --dry-run
 ```
 **Result**: Full pipeline executes, no GitHub issues created, artifacts cleaned up
 
@@ -363,7 +363,7 @@ sqsk demo --dry-run
 
 ### Inspect Artifacts
 ```bash
-sqsk demo --dry-run --keep
+squask demo --dry-run --keep
 ```
 **Result**: Artifacts preserved in `specs/demo-{timestamp}/`, can inspect spec.md, plan.md, tasks.md, review.md
 
@@ -371,7 +371,7 @@ sqsk demo --dry-run --keep
 
 ### Create Real Issues
 ```bash
-sqsk demo
+squask demo
 ```
 **Result**: Full pipeline executes, GitHub issues created (requires `GITHUB_TOKEN` env var), artifacts cleaned up
 
@@ -379,7 +379,7 @@ sqsk demo
 
 ### Debug Failure
 ```bash
-sqsk demo --verbose --keep
+squask demo --verbose --keep
 ```
 **Result**: Detailed logs displayed, artifacts preserved for inspection
 
@@ -387,7 +387,7 @@ sqsk demo --verbose --keep
 
 ### CI/CD Integration
 ```bash
-sqsk demo --dry-run --json --quiet
+squask demo --dry-run --json --quiet
 ```
 **Result**: JSON output to stdout, minimal noise, exit code 0 on success
 
@@ -400,8 +400,8 @@ The demo command **does not directly call** other bridge commands. Instead, it i
 1. **Stage 1 (specify)**: Invokes `/speckit.specify` agent
 2. **Stage 2 (plan)**: Invokes `/speckit.plan` agent
 3. **Stage 3 (tasks)**: Invokes `/speckit.tasks` agent
-4. **Stage 4 (review)**: Calls `sqsk review {tasks-file}` (bridge command)
-5. **Stage 5 (issues)**: Calls `sqsk issues {tasks-file} --dry-run` (if dry-run enabled) or `sqsk issues {tasks-file}` (if real issues)
+4. **Stage 4 (review)**: Calls `squask review {tasks-file}` (bridge command)
+5. **Stage 5 (issues)**: Calls `squask issues {tasks-file} --dry-run` (if dry-run enabled) or `squask issues {tasks-file}` (if real issues)
 
 **Note**: Spec Kit agents are external processes, not TypeScript imports. Communication is via command-line invocation.
 
@@ -411,12 +411,12 @@ The demo command **does not directly call** other bridge commands. Instead, it i
 
 ### Scenario 1: Squad/Spec Kit Not Installed
 
-**Input**: `sqsk demo`  
+**Input**: `squask demo`  
 **Condition**: `.squad/` or `.specify/` directory not found  
 **Output**:
 ```
 Error [SQUAD_NOT_FOUND]: Squad directory not found
-  Suggestion: Run `sqsk install` to initialize bridge components
+  Suggestion: Run `squask install` to initialize bridge components
 ```
 **Exit Code**: 1
 
@@ -424,7 +424,7 @@ Error [SQUAD_NOT_FOUND]: Squad directory not found
 
 ### Scenario 2: Stage Execution Failure
 
-**Input**: `sqsk demo --dry-run`  
+**Input**: `squask demo --dry-run`  
 **Condition**: `speckit plan` command exits with code 1  
 **Output**:
 ```
@@ -441,7 +441,7 @@ Error [SQUAD_NOT_FOUND]: Squad directory not found
 
 ### Scenario 3: Invalid Artifact
 
-**Input**: `sqsk demo --dry-run`  
+**Input**: `squask demo --dry-run`  
 **Condition**: Generated `spec.md` is empty (0 bytes)  
 **Output**:
 ```
@@ -457,7 +457,7 @@ Error [SQUAD_NOT_FOUND]: Squad directory not found
 
 ### Scenario 4: User Interrupt
 
-**Input**: `sqsk demo` (user presses Ctrl+C during stage 2)  
+**Input**: `squask demo` (user presses Ctrl+C during stage 2)  
 **Output**:
 ```
 ⏳ Stage 2/5: Creating implementation plan (plan)...

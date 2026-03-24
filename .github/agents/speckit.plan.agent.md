@@ -69,6 +69,18 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 4. **Stop and report**: Command ends after Phase 2 planning. Report branch, IMPL_PLAN path, and generated artifacts.
 
+## Bridge Integration: Context Injection & Continuity
+
+During planning, if bridge hooks are enabled, Squad context is automatically injected:
+
+- **squad-context.md** — Automatically generated (or can be manually triggered with `sqsk context`) to inject team decisions, skills, and learnings into your planning.
+- **How to use**: Review squad-context.md alongside your planning decisions to ensure alignment with prior work.
+- **If context is missing**: Run `sqsk context` manually to build the context file before proceeding, or continue planning without it (less optimal but still valid).
+
+**Bridge pipeline**: Spec (clarified) → Plan (informed by squad-context) → Tasks (generated from plan) → `sqsk issues` (convert to GitHub issues) → Squad execution → learnings sync back via bridge
+
+---
+
 5. **Check for extension hooks**: After reporting, check if `.specify/extensions.yml` exists in the project root.
    - If it exists, read it and look for entries under the `hooks.after_plan` key
    - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally

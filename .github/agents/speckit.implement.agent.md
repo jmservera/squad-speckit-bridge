@@ -168,6 +168,27 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `/speckit.tasks` first to regenerate the task list.
 
+## Bridge Integration: Learning Capture & Feedback Loop
+
+During and after implementation, the bridge captures execution learnings:
+
+**How the bridge improves next planning cycle**:
+- **`sqsk sync`** — After completing major milestones or the full implementation, sync execution learnings back to Squad memory
+- **Automatic capture** — If bridge hooks are enabled, learnings are automatically captured after implementation completes
+- **What gets captured**: Decisions made during implementation, architectural changes, performance learnings, bugs encountered and fixed
+- **Why it matters**: The next feature planning cycle automatically has access to what you learned. Plans get progressively better.
+
+**The feedback loop**:
+1. Spec → Plan → Tasks → `sqsk issues` (GitHub issues created)
+2. Implementation (tasks.md executed)
+3. `sqsk sync` (learnings captured) or automatic hook after `after_implement`
+4. Next feature: `sqsk context` auto-injects prior learnings into planning
+5. Loop repeats with better information
+
+**Optional**: If enabled, the `after_implement` hook automatically runs `sqsk sync` to capture learnings.
+
+---
+
 10. **Check for extension hooks**: After completion validation, check if `.specify/extensions.yml` exists in the project root.
     - If it exists, read it and look for entries under the `hooks.after_implement` key
     - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally

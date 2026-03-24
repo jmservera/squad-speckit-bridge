@@ -148,7 +148,7 @@ No entries required in this table. The demo feature implementation strictly foll
 ## Next Steps
 
 1. **Generate Tasks**: Run `/speckit.tasks` to create dependency-ordered task breakdown
-2. **Review Design**: (Optional) Run `sqsk review specs/003-e2e-demo-script/tasks.md` after tasks generation
+2. **Review Design**: (Optional) Run `squask review specs/003-e2e-demo-script/tasks.md` after tasks generation
 3. **Implementation**: Execute tasks in generated order (innermost layers first)
 4. **Testing**: Write tests per layer before moving to next layer (Test-First principle)
 5. **Integration**: Update documentation (README.md, docs/usage.md) with demo command examples
