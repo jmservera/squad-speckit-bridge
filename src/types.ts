@@ -512,6 +512,54 @@ export interface SpecRequirement {
   category: string;
 }
 
+// Agent charter from .squad/agents/*/charter.md
+export interface AgentCharter {
+  agentName: string;
+  skills: string[];
+}
+
+// Raw skill file content from .squad/skills/*/SKILL.md
+export interface SkillFileContent {
+  name: string;
+  content: string;
+  sizeBytes: number;
+}
+
+// Fidelity review types (review module)
+export interface FunctionalRequirement {
+  id: string;
+  text: string;
+  category: string;
+}
+
+export interface ImplementationEvidence {
+  requirementId: string;
+  filePath: string;
+  line: number;
+  snippet: string;
+  kind: 'comment' | 'annotation' | 'reference';
+}
+
+export type FidelityStatus = 'covered' | 'partial' | 'missing';
+
+export interface FidelityEntry {
+  requirement: FunctionalRequirement;
+  status: FidelityStatus;
+  evidence: ImplementationEvidence[];
+}
+
+export interface FidelityReport {
+  specPath: string;
+  srcDir: string;
+  timestamp: string;
+  covered: FunctionalRequirement[];
+  missing: FunctionalRequirement[];
+  partial: FunctionalRequirement[];
+  entries: FidelityEntry[];
+  coverage: number;
+  summary: string;
+}
+
 // T010: Default BridgeConfig Factory
 
 export function createDefaultConfig(): BridgeConfig {

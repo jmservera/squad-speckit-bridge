@@ -23,7 +23,7 @@ program
   .description(
     'Hybrid integration package connecting Squad team memory with Spec Kit planning pipeline',
   )
-  .version('0.2.0')
+  .version('0.3.0')
   .option('--config <path>', 'Path to bridge configuration file')
   .option('--json', 'Output in JSON format', false)
   .option('--quiet', 'Suppress informational output', false)

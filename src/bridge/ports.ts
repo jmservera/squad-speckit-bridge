@@ -65,6 +65,7 @@ export interface ConfigLoader {
 export interface IssueCreator {
   create(task: TaskEntry, labels: string[], repo: string): Promise<IssueRecord>;
   createBatch(tasks: TaskEntry[], labels: string[], repo: string): Promise<IssueRecord[]>;
+  listExisting(repo: string, labels: string[]): Promise<IssueRecord[]>;
 }
 
 // Output port: writes learnings back to Squad state

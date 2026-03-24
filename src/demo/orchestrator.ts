@@ -21,6 +21,7 @@ import type {
   ArtifactValidator,
   CleanupHandler,
 } from './ports.js';
+import type { Logger } from '../cli/logger.js';
 import { resolve, relative } from 'node:path';
 import { existsSync } from 'node:fs';
 import { generateTimestamp, formatFileSize, formatElapsedTime } from './utils.js';
@@ -37,6 +38,7 @@ export interface DemoDependencies {
   processExecutor: ProcessExecutor;
   artifactValidator: ArtifactValidator;
   cleanupHandler: CleanupHandler;
+  logger?: Logger;
 }
 
 // ─────────────────────────────────────────────────────────────
