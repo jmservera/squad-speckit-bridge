@@ -387,6 +387,28 @@ export interface ImplementationEvidence {
   kind: 'comment' | 'annotation' | 'reference';
 }
 
+// T012: FidelityReport — gap analysis between spec requirements and implementation
+
+export type FidelityStatus = 'covered' | 'missing' | 'partial';
+
+export interface FidelityEntry {
+  requirement: FunctionalRequirement;
+  status: FidelityStatus;
+  evidence: ImplementationEvidence[];
+}
+
+export interface FidelityReport {
+  specPath: string;
+  srcDir: string;
+  timestamp: string;
+  covered: FunctionalRequirement[];
+  missing: FunctionalRequirement[];
+  partial: FunctionalRequirement[];
+  entries: FidelityEntry[];
+  coverage: number; // 0–1, ratio of (covered + 0.5*partial) / total
+  summary: string;
+}
+
 // T010: Default BridgeConfig Factory
 
 export function createDefaultConfig(): BridgeConfig {
