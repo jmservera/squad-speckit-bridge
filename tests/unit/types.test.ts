@@ -130,6 +130,31 @@ describe('isValidConfig', () => {
     config.summarization = { ...config.summarization, maxDecisionAgeDays: 1 };
     expect(isValidConfig(config)).toBe(true);
   });
+
+  it('accepts autoCreateIssues explicitly set to true', () => {
+    const config = makeConfig();
+    config.hooks = { ...config.hooks, autoCreateIssues: true };
+    expect(isValidConfig(config)).toBe(true);
+  });
+
+  it('accepts autoCreateIssues explicitly set to false', () => {
+    const config = makeConfig();
+    config.hooks = { ...config.hooks, autoCreateIssues: false };
+    expect(isValidConfig(config)).toBe(true);
+  });
+
+  it('rejects non-boolean autoCreateIssues value', () => {
+    const config = makeConfig();
+    // Simulate bad JSON input that bypasses TypeScript
+    (config.hooks as Record<string, unknown>).autoCreateIssues = 'yes';
+    expect(isValidConfig(config)).toBe(false);
+  });
+
+  it('rejects numeric autoCreateIssues value', () => {
+    const config = makeConfig();
+    (config.hooks as Record<string, unknown>).autoCreateIssues = 1;
+    expect(isValidConfig(config)).toBe(false);
+  });
 });
 
 // T007: computeRelevanceScore
@@ -301,6 +326,10 @@ describe('createDefaultConfig', () => {
 
   it('enables afterTasks hook', () => {
     expect(createDefaultConfig().hooks.afterTasks).toBe(true);
+  });
+
+  it('enables autoCreateIssues hook by default', () => {
+    expect(createDefaultConfig().hooks.autoCreateIssues).toBe(true);
   });
 
   it('sets squadDir to .squad', () => {
