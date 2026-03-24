@@ -22,7 +22,7 @@ Today, knowledge flows only one way (SpecKit → Squad via tasks.md). The revers
 1. **Given** a project with `.squad/skills/`, `.squad/decisions/`, and `.squad/agents/` directories containing prior work artifacts, **When** a user runs `sqsk context`, **Then** a `squad-context.md` file is generated containing structured summaries of skills, decisions, and agent learnings.
 2. **Given** a generated `squad-context.md` file exists in the expected location, **When** a SpecKit planning agent (e.g., `speckit.plan` or `speckit.specify`) runs, **Then** the agent reads and incorporates the context document into its planning output.
 3. **Given** the `.squad/` directories are empty or missing, **When** a user runs `sqsk context`, **Then** a valid but minimal `squad-context.md` is produced with a note indicating no prior learnings are available.
-4. **Given** a `squad-context.md` already exists, **When** `sqsk context` is run again, **Then** the file is regenerated with the latest content, and the previous version is not lost (timestamped or versioned).
+4. **Given** a `squad-context.md` already exists, **When** `sqsk context` is run again, **Then** the file is overwritten with the latest content (no versioning or backup required — context is always regenerable from Squad memory, and cycle count metadata is preserved in the regenerated file).
 
 ---
 
@@ -178,13 +178,13 @@ From Richard's analysis: only 1 of 7 commands was ever used, creating a substant
 ### Edge Cases
 
 - What happens when `.squad/` directory structure is partially present (e.g., `skills/` exists but `decisions/` doesn't)? Context generation should handle partial structures gracefully, producing context from whatever is available.
-- What happens when `tasks.md` contains tasks from a previous feature that already have issues? The deduplication logic should match on task title/content, not just task number.
+- What happens when `tasks.md` contains tasks from a previous feature that already have issues? Deduplication MUST match on task title only (not content). Title matching is deterministic and sufficient — task descriptions may evolve between runs, making content matching unreliable. The `gh issue list --label <labels> --json title` query returns existing titles for exact-match comparison.
 - What happens when GitHub rate limits are hit during batch issue creation? The system should pause and retry with backoff, providing clear progress feedback to the user.
 - What happens when `sqsk review` is invoked mid-implementation (not at the end)? The review should report on what's been implemented so far, noting incomplete areas.
 - What happens when agent spawn prompts exceed context window limits after skill injection? The system should prioritize the most relevant skills and truncate or summarize lower-priority content.
 - What happens when `sqsk sync` is run but no agents have actually executed (empty history)? The command should exit cleanly with an informational message, no error.
 - What happens when multiple features are being worked on simultaneously and `sqsk context` is run? The context should be project-wide (not feature-scoped) since Squad memory is shared.
-- What happens when the label taxonomy has labels that don't exist in the GitHub repository? `sqsk issues` should create missing labels or warn the user about the mismatch.
+- What happens when the label taxonomy has labels that don't exist in the GitHub repository? `sqsk issues` MUST warn the user about missing labels but MUST NOT auto-create them (auto-creation risks orphaned or misspelled labels; the user should create labels deliberately via GitHub settings).
 
 ## Requirements *(mandatory)*
 
@@ -220,7 +220,7 @@ From Richard's analysis: only 1 of 7 commands was ever used, creating a substant
 #### Hook Gap Workaround
 
 - **FR-016**: SpecKit agent prompts (`speckit.specify`, `speckit.plan`, `speckit.tasks`, `speckit.implement`) MUST include explicit instructions to invoke the corresponding bridge commands (`sqsk context`, `sqsk issues`, `sqsk sync`).
-- **FR-017**: When a bridge command is expected but not invoked during a workflow, the system MUST display a warning to the user.
+- **FR-017**: Each modified agent prompt MUST include an advisory check: if the `sqsk` command is unavailable (e.g., bridge not installed), the agent MUST display a user-facing warning suggesting bridge installation but MUST continue its workflow normally. This is implemented as conditional logic in the agent prompt text, not as a runtime detection system (SpecKit agents run in Copilot's agent framework, which has no hook mechanism for external tooling checks).
 
 #### Task Granularity & Test Co-location
 
@@ -230,8 +230,8 @@ From Richard's analysis: only 1 of 7 commands was ever used, creating a substant
 
 #### Agent Distribution
 
-- **FR-021**: The coordinator MUST detect when a single agent is assigned more than 50% of total implementation issues.
-- **FR-022**: When distribution imbalance is detected, the coordinator MUST suggest a rebalancing plan that considers agent skills.
+- **FR-021**: The coordinator MUST detect when a single agent is assigned more than 50% of total implementation issues (detection threshold). Note: SC-006 uses a 60% ceiling as the *success criterion* for this feature — 50% triggers advisory warnings, while exceeding 60% represents a failure to rebalance.
+- **FR-022**: When distribution imbalance is detected (>50% threshold), the coordinator MUST suggest a rebalancing plan that considers agent skills.
 
 #### Skills Integration
 
@@ -286,3 +286,13 @@ From Richard's analysis: only 1 of 7 commands was ever used, creating a substant
 - **SC-007**: Every implementation task includes its associated tests — there is no separate "testing phase" in the task breakdown.
 - **SC-008**: Test coverage of the bridge codebase increases from baseline after dead code cleanup, and the dead code audit report accounts for 100% of the ~1,500 lines identified in the integration analysis.
 - **SC-009**: `sqsk review` successfully produces a design review for at least one feature, cross-referencing spec requirements against implementation.
+
+## Clarifications
+
+### Session 2026-03-24
+
+- Q: Context versioning vs overwrite — should `sqsk context` preserve previous versions of `squad-context.md`? → A: Overwrite-only. Context is always regenerable from Squad memory (the source of truth). Versioning adds complexity with no value. Cycle count metadata is preserved in the regenerated file. This aligns with the CLI contract which specifies "reads metadata for cycle count, then overwrites."
+- Q: Should `sqsk issues` auto-create missing GitHub labels or only warn? → A: Warn-only, no auto-creation. Auto-creating labels risks orphaned or misspelled labels in the repository. Users should create labels deliberately via GitHub settings. This aligns with the CLI contract specification.
+- Q: Should issue deduplication match on task title only or title + content? → A: Title-only matching. Title matching is deterministic and sufficient for deduplication. Content/description matching is unreliable because descriptions may evolve between runs. This aligns with the CLI contract (`gh issue list --label <labels> --json title`) and research findings.
+- Q: Contradiction between 50% detection threshold (FR-021/US-7) and 60% success criterion (SC-006) for agent distribution — which is correct? → A: Both are correct but serve different purposes. 50% is the *detection/warning threshold* — the system warns when any agent exceeds this. 60% is the *success criterion for this feature* — a softer ceiling acknowledging that perfect balance across 4 agents isn't always achievable. FR-021 updated with clarifying note.
+- Q: How does FR-017 detect that a bridge command was "expected but not invoked" in a Copilot agent context? → A: Advisory prompt text, not runtime detection. SpecKit agents run in Copilot's agent framework which has no hook mechanism. The "warning" is implemented as conditional logic in agent prompt text: check if `sqsk` is available, warn if not, but continue normally. FR-017 rewritten to specify this mechanism.
