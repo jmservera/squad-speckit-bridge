@@ -1,6 +1,6 @@
 {
   "name": "@jmservera/squad-speckit-bridge",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Bridge connecting Squad multi-agent team memory with Spec Kit structured planning — enabling agentic AI workflows with clean architecture.",
   "type": "module",
   "main": "./dist/main.js",

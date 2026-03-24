@@ -4,6 +4,27 @@ All notable changes to this project are documented here. See [CONTRIBUTING.md](.
 
 ---
 
+## [v0.3.1] - 2026-03-24
+
+### Bug Fixes
+
+- **AgentHistoryReaderAdapter wiring:** Fully implemented but never wired in `createSyncer()` factory — now properly instantiated and used
+- **Checkbox parsing:** `readSpecResults()` regex only matched `[x]` (checked) — fixed to match both `[x]` and `[ ]` (checked and unchecked) to capture all task states
+- **Constitution output:** Added `ConstitutionWriter` port + `ConstitutionAdapter` to write amended constitution to `.specify/memory/constitution.md` (was only going to squad memory)
+
+### New Features
+
+- `--agent-dir` CLI option to specify custom agent history directory (defaults to `.squad/agents/`)
+- `--no-constitution` CLI option to skip constitution amendment during sync
+- `ConstitutionAdapter` with automatic version bumping (1.0.0 → 1.1.0) and date updates
+
+### Tests
+
+- 13 new tests (843 → 856): 9 unit tests for adapters + 4 integration tests for sync pipeline
+- All tests pass; no regressions
+
+---
+
 ## [v0.3.0] - 2026-03-24
 
 ### Breaking Changes
