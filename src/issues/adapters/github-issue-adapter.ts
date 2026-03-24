@@ -1,10 +1,9 @@
 /**
- * T024 + T006: GitHubIssueAdapter
+ * T024: GitHubIssueAdapter
  *
  * Implements IssueCreator port. Uses `gh` CLI for issue creation
- * and listing to avoid requiring @octokit/rest as a production dependency.
- *
- * listExisting includes exponential backoff for GitHub rate limits.
+ * to avoid requiring @octokit/rest as a production dependency.
+ * Falls back to @octokit/rest if available.
  *
  * Adapter layer — uses child_process (framework), implements port.
  */
@@ -16,49 +15,7 @@ import type { TaskEntry, IssueRecord } from '../../types.js';
 
 const execFileAsync = promisify(execFile);
 
-const RATE_LIMIT_PATTERNS = [
-  'rate limit',
-  'secondary rate limit',
-  'abuse detection',
-  'API rate limit exceeded',
-  'retry-after',
-];
-
-export interface RetryOptions {
-  maxRetries: number;
-  baseDelayMs: number;
-  maxDelayMs: number;
-}
-
-const DEFAULT_RETRY: RetryOptions = {
-  maxRetries: 3,
-  baseDelayMs: 1000,
-  maxDelayMs: 16000,
-};
-
-function isRateLimitError(message: string): boolean {
-  const lower = message.toLowerCase();
-  return RATE_LIMIT_PATTERNS.some((p) => lower.includes(p.toLowerCase()));
-}
-
-function computeBackoffMs(attempt: number, opts: RetryOptions): number {
-  const delay = opts.baseDelayMs * Math.pow(2, attempt);
-  return Math.min(delay, opts.maxDelayMs);
-}
-
-// Exposed for testing; replaced by vi.fn in tests
-export const sleep = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms));
-
 export class GitHubIssueAdapter implements IssueCreator {
-  private retryOptions: RetryOptions;
-  private sleepFn: (ms: number) => Promise<void>;
-
-  constructor(retryOptions?: Partial<RetryOptions>, sleepFn?: (ms: number) => Promise<void>) {
-    this.retryOptions = { ...DEFAULT_RETRY, ...retryOptions };
-    this.sleepFn = sleepFn ?? sleep;
-  }
-
   async create(task: TaskEntry, labels: string[], repo: string): Promise<IssueRecord> {
     const title = `${task.id}: ${task.title}`;
     const body = task.description;
@@ -78,6 +35,7 @@ export class GitHubIssueAdapter implements IssueCreator {
       const { stdout } = await execFileAsync('gh', args);
       const url = stdout.trim();
 
+      // Extract issue number from URL
       const numberMatch = url.match(/\/issues\/(\d+)/);
       const issueNumber = numberMatch ? parseInt(numberMatch[1], 10) : 0;
 
@@ -106,59 +64,60 @@ export class GitHubIssueAdapter implements IssueCreator {
   }
 
   async listExisting(repo: string, labels: string[]): Promise<IssueRecord[]> {
-    const args = [
-      'issue', 'list',
-      '--repo', repo,
-      '--json', 'number,title,body,labels,url,createdAt',
-      '--state', 'all',
-      '--limit', '200',
-    ];
+    const allIssues: IssueRecord[] = [];
+    const perPage = 100;
+    let page = 1;
 
-    for (const label of labels) {
-      args.push('--label', label);
-    }
+    try {
+      while (true) {
+        const args = [
+          'api',
+          `repos/${repo}/issues`,
+          '--method', 'GET',
+          '-f', 'state=open',
+          '-f', `per_page=${perPage}`,
+          '-f', `page=${page}`,
+        ];
 
-    let lastError: Error | undefined;
-
-    for (let attempt = 0; attempt <= this.retryOptions.maxRetries; attempt++) {
-      try {
-        const { stdout } = await execFileAsync('gh', args);
-        const issues = JSON.parse(stdout) as Array<{
-          number: number;
-          title: string;
-          body: string;
-          labels: Array<{ name: string }>;
-          url: string;
-          createdAt: string;
-        }>;
-
-        return issues.map((issue) => ({
-          issueNumber: issue.number,
-          title: issue.title,
-          body: issue.body,
-          labels: issue.labels.map((l) => l.name),
-          taskId: this.extractTaskId(issue.title),
-          url: issue.url,
-          createdAt: issue.createdAt,
-        }));
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        lastError = new Error(`Failed to list issues for ${repo}: ${message}`);
-
-        if (isRateLimitError(message) && attempt < this.retryOptions.maxRetries) {
-          const delayMs = computeBackoffMs(attempt, this.retryOptions);
-          await this.sleepFn(delayMs);
-          continue;
+        if (labels.length > 0) {
+          args.push('-f', `labels=${labels.join(',')}`);
         }
 
-        throw lastError;
+        const { stdout } = await execFileAsync('gh', args);
+        const issues = JSON.parse(stdout || '[]') as Array<{
+          number: number;
+          title: string;
+          body: string | null;
+          labels: Array<{ name: string }>;
+          html_url: string;
+          created_at: string;
+          pull_request?: unknown;
+        }>;
+
+        // REST API includes PRs in /issues — filter them out
+        const realIssues = issues.filter((i) => !i.pull_request);
+
+        for (const issue of realIssues) {
+          allIssues.push({
+            issueNumber: issue.number,
+            title: issue.title,
+            body: issue.body ?? '',
+            labels: issue.labels.map((l) => l.name),
+            taskId: this.extractTaskId(issue.title),
+            url: issue.html_url,
+            createdAt: issue.created_at,
+          });
+        }
+
+        if (issues.length < perPage) break;
+        page++;
       }
+
+      return allIssues;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Failed to list issues for ${repo}: ${message}`);
     }
-
-    // Should be unreachable, but satisfies TypeScript
-    throw lastError ?? new Error(`Failed to list issues for ${repo}: unknown error`);
-
-
   }
 
   private extractTaskId(title: string): string {

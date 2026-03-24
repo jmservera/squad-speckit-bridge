@@ -370,45 +370,6 @@ export function detectConstitution(content: string | null): ConstitutionStatus {
   return { exists: true, isTemplate: false, warnings: [] };
 }
 
-// T011: FunctionalRequirement entity — parsed from spec.md FR-XXX entries
-export interface FunctionalRequirement {
-  id: string;           // e.g. "FR-001"
-  title: string;        // text after the ID on the same line
-  description: string;  // full body text including the title line
-  acceptanceCriteria: string[];  // extracted acceptance criteria bullets
-}
-
-// T011: ImplementationEvidence entity — source file referencing an FR-XXX
-export interface ImplementationEvidence {
-  requirementId: string;  // e.g. "FR-001"
-  filePath: string;       // relative path to the source file
-  line: number;           // line number where the reference was found
-  snippet: string;        // the matching line content (trimmed)
-  kind: 'comment' | 'annotation' | 'reference';
-}
-
-// T012: FidelityReport — gap analysis between spec requirements and implementation
-
-export type FidelityStatus = 'covered' | 'missing' | 'partial';
-
-export interface FidelityEntry {
-  requirement: FunctionalRequirement;
-  status: FidelityStatus;
-  evidence: ImplementationEvidence[];
-}
-
-export interface FidelityReport {
-  specPath: string;
-  srcDir: string;
-  timestamp: string;
-  covered: FunctionalRequirement[];
-  missing: FunctionalRequirement[];
-  partial: FunctionalRequirement[];
-  entries: FidelityEntry[];
-  coverage: number; // 0–1, ratio of (covered + 0.5*partial) / total
-  summary: string;
-}
-
 // T002: Port DTOs — SquadStateReader extensions
 
 export interface AgentCharter {
@@ -521,6 +482,9 @@ export function analyzeDistribution(
   assignments: AgentAssignment[],
   threshold: number = 0.5,
 ): DistributionAnalysis {
+  if (threshold <= 0 || threshold > 1) {
+    throw new RangeError(`threshold must be in (0, 1], got ${threshold}`);
+  }
   const agentCounts: Record<string, number> = {};
   for (const a of assignments) {
     agentCounts[a.agentName] = (agentCounts[a.agentName] ?? 0) + 1;
@@ -616,9 +580,7 @@ export function matchSkillsToTask(
   }
 
   return matches.sort((a, b) => b.relevanceScore - a.relevanceScore);
-
 }
-
 
 // T010: Default BridgeConfig Factory
 

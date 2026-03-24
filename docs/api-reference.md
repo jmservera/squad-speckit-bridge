@@ -549,4 +549,255 @@ Default `bridge.config.json`:
 
 ---
 
-**Note:** 🚧 This API is subject to change during v0.1 development. Breaking changes will be documented in CHANGELOG.md.
+## `squad-speckit-bridge demo`
+
+Run an end-to-end demo of the complete Squad-SpecKit Bridge pipeline.
+
+### Usage
+
+```bash
+npx @jmservera/squad-speckit-bridge demo [options]
+```
+
+### Options
+
+```
+--dry-run               Simulate GitHub issue creation without API calls (default: false)
+--keep                  Preserve demo artifacts after completion (default: false)
+--verbose               Enable verbose output for debugging (default: false)
+--json                  Output in JSON format (default: false)
+```
+
+### Output (Human-Readable Format)
+
+Displays a formatted report with stage progress, artifacts, and cleanup status:
+
+```
+═══════════════════════════════════════════════════════════
+🚀 E2E Demo Execution Report
+═══════════════════════════════════════════════════════════
+
+── Stage Progress ──────────────────────────────────────────
+
+  ✅ All 5 stages completed successfully
+  ⏳ Total time: 12.34s
+
+── Artifacts ───────────────────────────────────────────────
+
+  ✓ spec.md
+      Path: specs/demo-20260324-143022/spec.md
+      Size: 2.3 KB
+  ✓ plan.md
+      Path: specs/demo-20260324-143022/plan.md
+      Size: 1.8 KB
+  ✓ tasks.md
+      Path: specs/demo-20260324-143022/tasks.md
+      Size: 3.1 KB
+  ✓ review.md
+      Path: specs/demo-20260324-143022/review.md
+      Size: 1.2 KB
+  ✓ issues.json
+      Path: specs/demo-20260324-143022/issues.json
+      Size: 2.5 KB
+
+── Cleanup ─────────────────────────────────────────────────
+
+  ✓ Demo directory cleaned up
+
+═══════════════════════════════════════════════════════════
+✅ Demo Complete at 14:30:22
+═══════════════════════════════════════════════════════════
+```
+
+### Output (JSON Format)
+
+Structured JSON output for programmatic consumption:
+
+```json
+{
+  "success": true,
+  "totalTimeMs": 12340,
+  "totalTimeSeconds": "12.34s",
+  "stages": [
+    {
+      "name": "specify",
+      "displayName": "Generating specification",
+      "status": "success",
+      "elapsedMs": 2100,
+      "elapsedSeconds": "2.10s",
+      "artifact": {
+        "name": "spec.md",
+        "path": "specs/demo-20260324-143022/spec.md",
+        "sizeBytes": 2355,
+        "sizeKB": "2.3 KB"
+      }
+    },
+    {
+      "name": "plan",
+      "displayName": "Creating implementation plan",
+      "status": "success",
+      "elapsedMs": 1800,
+      "elapsedSeconds": "1.80s",
+      "artifact": {
+        "name": "plan.md",
+        "path": "specs/demo-20260324-143022/plan.md",
+        "sizeBytes": 1843,
+        "sizeKB": "1.8 KB"
+      }
+    },
+    {
+      "name": "tasks",
+      "displayName": "Generating task breakdown",
+      "status": "success",
+      "elapsedMs": 2300,
+      "elapsedSeconds": "2.30s",
+      "artifact": {
+        "name": "tasks.md",
+        "path": "specs/demo-20260324-143022/tasks.md",
+        "sizeBytes": 3174,
+        "sizeKB": "3.1 KB"
+      }
+    },
+    {
+      "name": "review",
+      "displayName": "Running quality review",
+      "status": "success",
+      "elapsedMs": 1500,
+      "elapsedSeconds": "1.50s",
+      "artifact": {
+        "name": "review.md",
+        "path": "specs/demo-20260324-143022/review.md",
+        "sizeBytes": 1229,
+        "sizeKB": "1.2 KB"
+      }
+    },
+    {
+      "name": "issues",
+      "displayName": "Creating GitHub issues",
+      "status": "success",
+      "elapsedMs": 4640,
+      "elapsedSeconds": "4.64s",
+      "issuesCreated": 8,
+      "dryRun": false
+    }
+  ],
+  "demoDir": "specs/demo-20260324-143022",
+  "cleanupPerformed": true,
+  "flags": {
+    "dryRun": false,
+    "keep": false,
+    "verbose": false
+  }
+}
+```
+
+### Failure Output (JSON Format)
+
+When a stage fails, JSON output indicates the failure point:
+
+```json
+{
+  "success": false,
+  "totalTimeMs": 3450,
+  "totalTimeSeconds": "3.45s",
+  "stages": [
+    {
+      "name": "specify",
+      "displayName": "Generating specification",
+      "status": "success",
+      "elapsedMs": 2100,
+      "elapsedSeconds": "2.10s",
+      "artifact": {
+        "name": "spec.md",
+        "path": "specs/demo-20260324-143022/spec.md",
+        "sizeBytes": 2355,
+        "sizeKB": "2.3 KB"
+      }
+    },
+    {
+      "name": "plan",
+      "displayName": "Creating implementation plan",
+      "status": "failed",
+      "elapsedMs": 1350,
+      "elapsedSeconds": "1.35s",
+      "error": "Command: speckit plan; Exit code: 1; Error: Spec Kit not found at .specify/"
+    },
+    {
+      "name": "tasks",
+      "displayName": "Generating task breakdown",
+      "status": "pending"
+    },
+    {
+      "name": "review",
+      "displayName": "Running quality review",
+      "status": "pending"
+    },
+    {
+      "name": "issues",
+      "displayName": "Creating GitHub issues",
+      "status": "pending"
+    }
+  ],
+  "failedStage": "plan",
+  "errorSummary": "Stage 'plan' failed: Command: speckit plan; Exit code: 1; Error: Spec Kit not found at .specify/",
+  "demoDir": "specs/demo-20260324-143022",
+  "cleanupPerformed": false,
+  "flags": {
+    "dryRun": false,
+    "keep": true,
+    "verbose": false
+  }
+}
+```
+
+### Pipeline Stages
+
+The demo executes the following stages sequentially (pipeline halts on first failure):
+
+1. **specify** — Generates spec.md using Spec Kit's specify agent
+2. **plan** — Creates plan.md using Spec Kit's plan agent
+3. **tasks** — Generates tasks.md using Spec Kit's tasks agent
+4. **review** — Runs quality analysis using Spec Kit's analyze agent
+5. **issues** — Creates GitHub issues using Spec Kit's taskstoissues agent (or dry-run if `--dry-run` is set)
+
+### Artifact Cleanup
+
+- **Default behavior (--keep not set):** Demo artifacts are automatically deleted after successful pipeline completion
+- **With --keep flag:** Demo directory is preserved for inspection, even if all stages succeed
+- **On failure:** Demo artifacts are always preserved (regardless of --keep flag) to enable debugging
+
+### Exit Codes
+
+- `0` — Demo completed successfully (all stages succeeded)
+- `1` — One or more stages failed; check `errorSummary` for details
+
+### Common Scenarios
+
+**Run a complete E2E demo with automatic cleanup:**
+```bash
+npx @jmservera/squad-speckit-bridge demo
+```
+
+**Run demo without actually creating GitHub issues:**
+```bash
+npx @jmservera/squad-speckit-bridge demo --dry-run
+```
+
+**Run demo and keep artifacts for inspection:**
+```bash
+npx @jmservera/squad-speckit-bridge demo --keep
+```
+
+**Get detailed execution logs for debugging:**
+```bash
+npx @jmservera/squad-speckit-bridge demo --verbose --keep
+```
+
+**Output demo results as JSON for CI/CD integration:**
+```bash
+npx @jmservera/squad-speckit-bridge demo --json
+```
+
+---
+
+**Note:** 🚧 This API is subject to change during v0.2 development. Breaking changes will be documented in CHANGELOG.md.
