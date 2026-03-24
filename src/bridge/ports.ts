@@ -13,6 +13,7 @@ import type {
   IssueRecord,
   LearningEntry,
   SkillEntry,
+  SpecRequirement,
   SyncRecord,
   TaskEntry,
 } from '../types.js';
@@ -74,7 +75,7 @@ export interface SquadMemoryWriter {
 
 // Input port: reads spec requirements for fidelity review
 export interface SpecReader {
-  readRequirements(specPath: string): Promise<import('../types.js').SpecRequirement[]>;
+  readRequirements(specPath: string): Promise<SpecRequirement[]>;
 }
 
 // Input port: reads tasks markdown for issue creation

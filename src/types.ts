@@ -455,19 +455,43 @@ export function analyzeDistribution(
 
   const suggestions: RebalanceSuggestion[] = [];
   for (const from of overAssigned) {
-    for (const to of underAssigned) {
-      const fromIssues = assignments
-        .filter(a => a.agentName === from)
-        .map(a => a.issueNumber);
-      const excess = agentCounts[from] - Math.ceil(idealPerAgent);
-      if (excess > 0 && fromIssues.length > 0) {
+    // Collect all issues currently assigned to this over-assigned agent
+    const fromIssues = assignments
+      .filter(a => a.agentName === from)
+      .map(a => a.issueNumber);
+
+    // How many issues this agent has above the (floored) ideal load
+    const excess = agentCounts[from] - Math.floor(idealPerAgent);
+    if (excess <= 0 || fromIssues.length === 0) {
+      continue;
+    }
+
+    // Only consider up to "excess" issues as transferable
+    const transferableIssues = fromIssues.slice(0, excess);
+    let issueOffset = 0;
+
+    // Distribute distinct subsets of transferableIssues across under-assigned agents
+    const targets = underAssigned.filter(to => to !== from);
+    for (let i = 0; i < targets.length && issueOffset < transferableIssues.length; i++) {
+      const to = targets[i];
+      const remaining = transferableIssues.length - issueOffset;
+      const remainingRecipients = targets.length - i;
+
+      // Split remaining issues roughly evenly across remaining recipients
+      const countForTo = Math.max(1, Math.floor(remaining / remainingRecipients));
+      const end = issueOffset + countForTo;
+      const issueNumbers = transferableIssues.slice(issueOffset, end);
+
+      if (issueNumbers.length > 0) {
         suggestions.push({
           fromAgent: from,
           toAgent: to,
-          issueNumbers: fromIssues.slice(0, excess),
+          issueNumbers,
           rationale: `Rebalance: '${from}' has ${agentCounts[from]} issues, '${to}' has ${agentCounts[to]}`,
         });
       }
+
+      issueOffset = end;
     }
   }
 

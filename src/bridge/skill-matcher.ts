@@ -121,8 +121,10 @@ export function scoreSkillRelevance(
 // Context truncation (pure)
 // ---------------------------------------------------------------------------
 
+const encoder = new TextEncoder();
+
 function byteSize(s: string): number {
-  return new TextEncoder().encode(s).length;
+  return encoder.encode(s).length;
 }
 
 /**
@@ -237,9 +239,11 @@ export function matchSkillsToTask(
       const remainingBytes = maxBytes - usedBytes;
       if (remainingBytes > 100) {
         const truncatedBlock = truncateToBytes(block, remainingBytes);
-        prompt += truncatedBlock;
-        usedBytes += byteSize(truncatedBlock);
-        included.push(match);
+        if (truncatedBlock.trim().length > 0) {
+          prompt += truncatedBlock;
+          usedBytes += byteSize(truncatedBlock);
+          included.push(match);
+        }
       }
       break;
     }
