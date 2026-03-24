@@ -4,6 +4,64 @@ All notable changes to this project are documented here. See [CONTRIBUTING.md](.
 
 ---
 
+## [v0.3.0] - 2026-03-24
+
+### Breaking Changes
+
+- **CLI Rename:** Command renamed from `squad-speckit-bridge` to `squask` (alias: `sqsk`). The old command name is no longer available.
+
+### New Features
+
+- **Bridge Self-Validation Architecture (T001-T015):**
+  - Entity types, port interfaces, and adapter hardening for layered architecture
+  - Issue dedup engine with fingerprint hashing and batch creation
+  - `listExisting` with paginated REST API and exponential backoff
+  - `syncLearnings` with idempotent extraction and SyncStateAdapter
+  - SpecReader + ImplementationScanner adapters for spec-to-code tracing
+  - Fidelity review mode for spec compliance checking
+  - `analyzeDistribution` with rebalancing warnings and skill matching pipeline
+
+- **CLI Feature Flags (T018-T036):**
+  - `--dry-run` — Full dry-run chain across all commands
+  - `--keep` — Preserve temporary artifacts after pipeline run
+  - `--verbose` — Detailed pipeline output with stage-by-stage reporting
+  - Safety checks, graceful shutdown (SIGINT → cleanup), and structured error reporting
+
+- **SpecKit Agent Prompts (T010):** Updated 9 agent prompt templates for SpecKit integration
+- **Task Generation Template (T013):** Right-sized task generation (15-20 tasks)
+- **Quickstart Guide (T049):** Comprehensive quickstart.md (576 lines)
+
+### Bug Fixes
+
+- `analyzeDistribution` now accepts `availableAgents` param — 0-assignment agents included in rebalancing
+- SpecReader preserves multi-paragraph FR descriptions (collects until next FR or EOF)
+- Skill matcher uses `\b` word boundaries instead of `includes()` — no more false positives
+- `listExisting` paginated to handle 200+ issues (was hardcoded limit)
+- SIGINT handler wired in CLI entry point with `process.exitCode = 130`
+- `isSafeToDelete()` rejects zone roots (`specs`, `temp`) — requires subdirectory
+- `program.name` updated to `squask` for consistent help output
+- Removed accidental `test-baseline.log` from repository
+- Threshold validation added to `analyzeDistribution` — must be in `(0, 1]`
+- `listExisting` filters by `state=open` instead of `state=all`
+- Module-level `TextEncoder` reuse in skill-matcher (was creating per-call)
+- Truncation guard: skills only marked as included when content is non-empty
+
+### Tests
+
+- Entity tests (T037), port interface tests (T038)
+- Orchestrator happy path, failure scenario, and cleanup tests (T039-T041)
+- ProcessExecutor integration tests (T042)
+- ArtifactValidator + CleanupHandler tests (T043-T044)
+- E2E demo tests (T045)
+- 200+ tests across all modules
+
+### Documentation
+
+- README demo section, usage docs, API reference
+- Quickstart guide with step-by-step walkthrough
+
+---
+
 ## [v0.2.0] - 2025-07-30
 
 ### Bug Fixes
