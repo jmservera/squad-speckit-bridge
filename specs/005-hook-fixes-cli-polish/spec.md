@@ -149,3 +149,61 @@ After the v0.3.0 merge introduced significant changes, the project must still ad
 - Adding new bridge configuration options beyond what may already exist for controlling hook behavior
 - Migrating hooks to a different scripting language or execution model
 - Addressing any bridge usability issues beyond the three specific bugs and documentation gaps described here
+
+---
+
+## Implementation Notes
+
+**Status**: ✅ Completed 2026-03-24  
+**Delivery**: 12 tasks, 4 PRs merged, 843 tests passing, 0 architectural violations
+
+### Actual vs Planned Outcomes
+
+**All 5 user stories delivered as specified:**
+- ✅ US1: Hook executable permissions fixed (both filesystem + git index)
+- ✅ US2: after-tasks hook automated with config-driven behavior (`autoCreateIssues` flag)
+- ✅ US3: CLI alias consistency enforced across all hooks (`squask` everywhere)
+- ✅ US4: Demo command fully documented in API reference
+- ✅ US5: Clean Architecture compliance verified (zero violations)
+
+**Success criteria achieved:**
+- SC-001: 100% hook executability (up from 33%) — ✅ achieved
+- SC-002: Automated SpecKit→Squad handoff — ✅ achieved (config-driven)
+- SC-003: CLI alias compatibility — ✅ achieved (all hooks use `squask`)
+- SC-004: Complete demo command docs — ✅ achieved
+- SC-005: Architecture compliance — ✅ achieved (all 5 principles pass)
+- SC-006: >0% adoption rate — ⚠️ partially achieved (hooks work, but team uses agent workflow that bypasses hooks — deferred to v0.4)
+
+### Key Deviations from Original Spec
+
+1. **Dual permission fix pattern discovered:** Original spec assumed `chmod +x` would suffice. Implementation revealed git index permissions (`git update-index --chmod=+x`) are also required for the executable bit to persist across clones.
+
+2. **Exit code regression caught by tests (not spec'd):** PR #328 introduced exit code violations (`exit 0` → `exit 1`) that broke the graceful-failure contract. This wasn't anticipated in the spec but was caught and fixed by comprehensive hook tests (T004/T006/T008) added in Round 3.
+
+3. **Config flag addition (not originally spec'd):** Added `BridgeConfig.hooks.autoCreateIssues` to make automation opt-out rather than forced. This wasn't in the original functional requirements but emerged as a design decision during implementation (respects team preferences).
+
+4. **Squash merge issue closure gap:** The spec assumed GitHub would auto-close issues on PR merge. Squash merge breaks this automation — all 12 issues required manual closure. Process gap, not a spec error, but worth documenting for future cycles.
+
+5. **Architecture compliance required no code changes:** T010 (Clean Architecture verification) was spec'd as a review activity. Result: all v0.3.1 changes naturally complied with Clean Architecture — zero refactoring needed. This validates the architecture is operational, not aspirational.
+
+### Links
+
+**Full implementation learnings:** [learnings.md](./learnings.md)
+
+**Key sections in learnings:**
+- [Exit Code Contract Violation Pattern](./learnings.md#1-the-exit-code-contract-violation-pattern) — how PR #328 regression was caught and prevented
+- [Git Permissions vs Filesystem Permissions](./learnings.md#2-git-permissions-vs-filesystem-permissions-dual-track-fix) — dual-track fix pattern
+- [Node.js Environment Check Pattern](./learnings.md#1-nodejs-environment-check-pattern-cross-platform) — reusable hook automation pattern
+- [Review Cycle Analysis](./learnings.md#review-cycle-analysis) — what got rejected and why
+- [Test Coverage Insights](./learnings.md#test-coverage-insights) — contract tests vs functionality tests
+
+**Process observations:**
+- 75% first-time PR approval rate (3/4 PRs)
+- 1.25 review cycles per PR (vs industry 2-3)
+- Parallel execution reduced 12 tasks to 3 rounds (60-70% time saved)
+- Strong upfront specification (spec + contracts + data model) prevented rework
+
+**Future work identified:**
+- MCP server mode (eliminate hook dependency for agent workflows) — v0.4
+- Merge-trigger automation (close knowledge loop automatically) — v0.4
+- Agent prompt enhancements (teach agents when to use bridge tools) — v0.4

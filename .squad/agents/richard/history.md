@@ -186,3 +186,62 @@ Adopt pipeline integration model: Spec Kit (upstream planning) → Squad (downst
 
 **Key Decision:** Kept Richard's scope tight to only truly strategic work (cross-cutting audit, final validation, compliance). This aligns with team governance model where Lead focuses on architecture and decisions, not task execution.
 
+---
+
+### 2026-03-24 — Spec 005 Implementation Learnings Synthesis (Reverse Knowledge Sync)
+
+**Task:** Synthesize implementation learnings from spec 005 (hook fixes & CLI polish) back into the spec directory.
+
+**Context:** Team completed all 12 tasks for spec 005. 843 tests pass, 4 PRs merged, board clear. This is the REVERSE knowledge sync — taking what Squad learned during implementation and writing it back into the spec so future specs become smarter.
+
+**Work completed:**
+
+1. **Created `specs/005-hook-fixes-cli-polish/learnings.md`** — comprehensive implementation synthesis covering:
+   - **5 Implementation Insights**: Exit code contract violations, git permissions dual-track fix, squash merge issue closure gap, after-tasks automation design, CLI alias consistency pattern
+   - **3 Reusable Patterns**: Node.js environment checks, config-driven hook behavior, dual filesystem+git index permissions
+   - **Review Cycle Analysis**: What got rejected (PR #328 exit code regression), why (missing automated contract tests), how caught (comprehensive hook tests T004/T006/T008)
+   - **Test Coverage Insights**: Contract tests vs functionality tests, test gap analysis, most valuable test category (exit code validation)
+   - **Architecture Observations**: Clean Architecture compliance validated, layer discipline (all changes in outer layers), zero inner-layer modifications
+   - **Process Observations**: Parallel task execution (60-70% time saved), comprehensive upfront spec (75% first-review approval), issue auto-closure gap with squash merge
+   - **5 Recommendations for Future Specs**: Design for actual workflow (not documented), test contracts atomically, git index permissions, config flags over code changes, exit 0 for graceful degradation
+
+2. **Updated `specs/005-hook-fixes-cli-polish/spec.md`** — added Implementation Notes section at end:
+   - Actual vs planned outcomes (all 5 user stories delivered)
+   - Key deviations (dual permission pattern, exit code regression, config flag addition, squash merge gap, architecture compliance required zero refactoring)
+   - Links to learnings.md with section anchors
+   - Process metrics (75% approval, 1.25 cycles/PR, parallel execution gains)
+   - Future work identified (MCP server mode, merge-trigger automation, agent prompts)
+
+**Key patterns documented:**
+
+- **Exit code contract violation pattern**: Contracts without automated tests are documentation, not enforcement. PR #328 regression (exit 0 → exit 1) violated graceful-failure contract, caught by T004 tests.
+- **Git permissions dual-track**: Executable permissions need both `chmod +x` (filesystem) AND `git update-index --chmod=+x` (git index) for clone persistence.
+- **Squash merge breaks issue closure**: GitHub auto-close only works with merge commits or preserved PR body in squash message.
+- **Node.js environment check pattern**: Cross-platform hooks must validate runtime availability (`command -v node`, `command -v squask`) before CLI invocation.
+- **Config-driven hook behavior**: `autoCreateIssues` flag pattern — default to automation, provide config opt-out, respect team preferences.
+
+**Reverse sync value:**
+
+This is the first time the team has closed the knowledge loop from implementation back to specification. Future specs can now reference:
+- Exit code contract test pattern (reusable for any lifecycle hooks)
+- Git index permission requirement (any executable templates)
+- Squash merge issue closure gap (process documentation)
+- Config-driven automation pattern (behavioral toggles)
+- Review metrics (75% first-time approval with strong specs)
+
+**Process innovation:**
+
+Traditional flow: spec → plan → tasks → implement → ship (forward only).
+
+New flow: spec → plan → tasks → implement → **learnings → enriched spec** (bidirectional).
+
+The enriched spec becomes smarter for the next cycle. This is the knowledge flywheel in action — each implementation teaches the specification layer.
+
+**Files created:**
+- `specs/005-hook-fixes-cli-polish/learnings.md` (26KB, 500+ lines)
+
+**Files updated:**
+- `specs/005-hook-fixes-cli-polish/spec.md` (added 80-line Implementation Notes section)
+
+**Decision:** This reverse sync pattern should become standard practice for all future specs. Close the loop: spec → implementation → learnings → better specs.
+

@@ -102,3 +102,43 @@
 - `DeadCodeCategory` extracted as a named union type for reuse.
 - `matchSkillsToTask` uses word-level tokenization (split on `\W+`, filter <=2 chars) — simple but effective for keyword matching without external NLP deps.
 - `analyzeDistribution` suggests moves to the single least-loaded agent. Future improvement could distribute across multiple targets.
+
+### 2026-03-24: Knowledge Feedback Gap Analysis — Reverse Sync Architecture
+
+**Analyzed:** Juanma's directive to close the knowledge feedback loop: *"sync from spec learnings back to specs, preferably after a nap from the squad."*
+
+**Key findings:**
+
+1. **Current State Gap:** `squask sync` implements forward-only flow (tasks.md → bridge memory). No reverse enrichment of spec artifacts post-implementation. One-way fact transfer; no architectural learnings, decisions made during work, or integration discoveries fed back.
+
+2. **Knowledge Sources Located:**
+   - Primary: Agent histories (`.squad/agents/*/history.md` — timestamped, 12KB+), Decisions file (`.squad/decisions.md`), Orchestration logs
+   - Secondary: Skills, constitution, implementation results in spec directory
+   - Risk: Agent histories contain raw transcripts, debug logs, sensitive context (APIs, customer data)
+
+3. **"Nap" Concept Interpreted:** Cooldown between work completion and feedback harvest. Rationale: agents still processing, histories messy, decisions in flux (inbox → merged). Three flavors: time-gated (24h default), manual ceremony override, event-driven (deferred).
+
+4. **Target Enrichment:** New `specs/{id}/learnings.md` captures implementation experience (discoveries, decisions made, integration patterns, risks, techniques). Proposed structure: Architectural Insights, Integration Patterns, Performance Notes, Decisions, Reusable Techniques, Risks & Workarounds.
+
+5. **Bridge Control Options:**
+   - Recommended MVP: Manual ceremony (`squask sync-reverse <spec-dir>` with `--cooldown 0` override)
+   - Phase 2: Time-gated automatic (default 24h, config override)
+   - Phase 3: Event-driven (queue on agent inbox entries)
+
+6. **Data Flow Architecture:** Source (histories/decisions) → Filter (cooldown, scope, dedup) → Transform (summarize, group by category) → Target (learnings.md). Deduplication via fingerprints (existing pattern). Privacy masking: regex strip secrets, PII patterns.
+
+7. **Critical Risks Identified:**
+   - Data integrity: duplicate entries, stale info, circular loops (mitigate with fingerprints, version numbering, loop-depth tracking)
+   - Privacy: exposed secrets, sensitive architecture, customer data (mitigate with regex masking, opt-in policy, PII stripping)
+   - State: timestamp drift, cooldown strictness, file corruption (mitigate with UTC validation, configurable cooldown, defensive parsing)
+   - Scope: hard to detect feature-level relevance (mitigate with explicit tagging, heuristic matching)
+
+8. **Clean Architecture Alignment:** Entity types (ReverseSyncOptions, ReverseSyncResult) → Use case (syncReverse) → Ports (SpecWriter) → Adapters (ReverseSyncAdapter) → CLI (sync-reverse command) → Composition root. No changes to Squad/Spec Kit core.
+
+**Recommendations for team alignment:**
+- Start with manual ceremony (lower risk) → time-gated automation (proven) → event-driven (if valuable)
+- Privacy filtering required from day 1 (no secrets in artifacts)
+- Cooldown flexible (24h default, override allowed)
+- Human-in-the-loop initially (manual trigger + team review)
+
+**Document:** Full research written to `specs/006-knowledge-feedback-loop/research.md` — ready for spec & planning phases.
