@@ -1,5 +1,5 @@
 /**
- * T022 + T034: BuildSquadContext Use Case
+ * T022 + T034 + T003: BuildSquadContext Use Case
  *
  * Orchestrates the full context generation pipeline:
  *   1. Read previous context metadata for cycle detection (T034)
@@ -9,10 +9,19 @@
  *   5. Produce ContextSummary entity with cycle count
  *   6. Write via ContextWriter port
  *
+ * T003 hardening: graceful handling of missing/partial .squad/ subdirs,
+ * valid output with warnings for skipped sources, empty-source scenarios.
+ *
  * Imports ONLY from types.ts and ports.ts — no I/O, no frameworks.
  */
 
-import type { BridgeConfig, ContextSummary } from '../types.js';
+import type {
+  BridgeConfig,
+  ContextSummary,
+  DecisionEntry,
+  LearningEntry,
+  SkillEntry,
+} from '../types.js';
 import type { SquadStateReader, ContextWriter } from './ports.js';
 import { summarizeContent } from './summarizer.js';
 
@@ -22,6 +31,26 @@ export interface BuildContextOptions {
 
 export interface BuildContextResult {
   summary: ContextSummary;
+  warnings: string[];
+}
+
+/** Safely call an async reader, returning fallback on error and collecting a warning. */
+async function safeRead<T>(
+  fn: () => Promise<T>,
+  fallback: T,
+  sourceName: string,
+  warnings: string[],
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (err: unknown) {
+    const message =
+      err instanceof Error ? err.message : String(err);
+    warnings.push(
+      `Skipped ${sourceName}: ${message}`,
+    );
+    return fallback;
+  }
 }
 
 /**
@@ -30,10 +59,9 @@ export interface BuildContextResult {
  * Reads all configured sources, applies progressive summarization,
  * writes the result via the context writer port.
  *
- * Cycle detection (T034): reads previous squad-context.md metadata
- * to extract last generation timestamp and cycle count. Passes timestamp
- * to readLearnings for incremental filtering and to summarizer for
- * recency bias weighting.
+ * Gracefully handles missing/partial .squad/ directories by catching
+ * reader errors and producing valid output with warnings for any
+ * skipped sources.
  */
 export async function buildSquadContext(
   reader: SquadStateReader,
@@ -41,24 +69,51 @@ export async function buildSquadContext(
   options: BuildContextOptions,
 ): Promise<BuildContextResult> {
   const { config } = options;
+  const warnings: string[] = [];
 
-  // T034: Detect previous cycle
-  const previousMeta = await writer.readPreviousMetadata();
-  const previousGenerated = previousMeta?.generated;
-  const previousCycleCount = previousMeta?.cycleCount ?? 0;
+  // T034: Detect previous cycle (non-fatal if unavailable)
+  let previousGenerated: string | undefined;
+  let previousCycleCount = 0;
+  try {
+    const previousMeta = await writer.readPreviousMetadata();
+    previousGenerated = previousMeta?.generated;
+    previousCycleCount = previousMeta?.cycleCount ?? 0;
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    warnings.push(`Could not read previous metadata: ${message}`);
+  }
 
   // Determine since-filter for incremental learning reads
   const sinceDateFilter = previousGenerated
     ? new Date(previousGenerated)
     : undefined;
 
-  // Read all configured sources in parallel
+  // Read all configured sources in parallel with graceful fallbacks
   const [skills, decisions, learnings] = await Promise.all([
-    config.sources.skills ? reader.readSkills() : Promise.resolve([]),
-    config.sources.decisions ? reader.readDecisions() : Promise.resolve([]),
+    config.sources.skills
+      ? safeRead<SkillEntry[]>(
+          () => reader.readSkills(),
+          [],
+          'skills',
+          warnings,
+        )
+      : Promise.resolve([] as SkillEntry[]),
+    config.sources.decisions
+      ? safeRead<DecisionEntry[]>(
+          () => reader.readDecisions(),
+          [],
+          'decisions',
+          warnings,
+        )
+      : Promise.resolve([] as DecisionEntry[]),
     config.sources.histories
-      ? reader.readLearnings(sinceDateFilter)
-      : Promise.resolve([]),
+      ? safeRead<LearningEntry[]>(
+          () => reader.readLearnings(sinceDateFilter),
+          [],
+          'histories',
+          warnings,
+        )
+      : Promise.resolve([] as LearningEntry[]),
   ]);
 
   // Apply progressive summarization with cycle awareness
@@ -73,8 +128,23 @@ export async function buildSquadContext(
   // T034: Track cycle count in output metadata
   summary.metadata.cycleCount = previousCycleCount + 1;
 
-  // Write the context summary via the output port
-  await writer.write(summary);
+  // Merge orchestration-level warnings into summary
+  summary.content.warnings = [
+    ...warnings,
+    ...summary.content.warnings,
+  ];
 
-  return { summary };
+  // Write the context summary (non-fatal if writer fails)
+  try {
+    await writer.write(summary);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    warnings.push(`Failed to write context: ${message}`);
+    summary.content.warnings = [
+      ...summary.content.warnings,
+      `Failed to write context: ${message}`,
+    ];
+  }
+
+  return { summary, warnings };
 }

@@ -61,6 +61,7 @@ export interface SyncStatePersistence {
   clearState(stateDir: string): Promise<void>;
 }
 
+
 /* ------------------------------------------------------------------ */
 /*  Pure helpers                                                       */
 /* ------------------------------------------------------------------ */
