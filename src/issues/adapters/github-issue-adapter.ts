@@ -74,7 +74,7 @@ export class GitHubIssueAdapter implements IssueCreator {
           'api',
           `repos/${repo}/issues`,
           '--method', 'GET',
-          '-f', 'state=all',
+          '-f', 'state=open',
           '-f', `per_page=${perPage}`,
           '-f', `page=${page}`,
         ];

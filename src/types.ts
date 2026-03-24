@@ -482,6 +482,9 @@ export function analyzeDistribution(
   assignments: AgentAssignment[],
   threshold: number = 0.5,
 ): DistributionAnalysis {
+  if (threshold <= 0 || threshold > 1) {
+    throw new RangeError(`threshold must be in (0, 1], got ${threshold}`);
+  }
   const agentCounts: Record<string, number> = {};
   for (const a of assignments) {
     agentCounts[a.agentName] = (agentCounts[a.agentName] ?? 0) + 1;

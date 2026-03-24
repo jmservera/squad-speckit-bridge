@@ -800,4 +800,4 @@ npx @jmservera/squad-speckit-bridge demo --json
 
 ---
 
-**Note:** 🚧 This API is subject to change during v0.1 development. Breaking changes will be documented in CHANGELOG.md.
+**Note:** 🚧 This API is subject to change during v0.2 development. Breaking changes will be documented in CHANGELOG.md.
