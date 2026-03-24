@@ -94,6 +94,30 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Suggested MVP scope (typically just User Story 1)
    - Format validation: Confirm ALL tasks follow the checklist format (checkbox, ID, labels, file paths)
 
+## Bridge Integration: Issues Creation & Squad Handoff
+
+After tasks.md is generated, the bridge enables seamless handoff to Squad execution:
+
+**Next step in the pipeline**:
+1. **Review tasks** (optional): Run `/speckit.analyze` to validate task quality and consistency
+2. **Create GitHub issues** (recommended): Run `sqsk issues` to convert tasks.md into GitHub issues for assignment
+   - This command parses tasks.md and creates issues in your repository with:
+     - Issue title from task description
+     - Labels from task IDs and user story markers
+     - Dependency relationships mapped to issue links
+     - Ready for Squad Coordinator to assign to agents
+3. **Design Review** (optional): If enabled, run `/speckit.checklist` or manually review design decisions before execution
+
+**Why use `sqsk issues`?** 
+- Creates a bridge between SpecKit planning and Squad execution
+- Issues become the "contract" between planning and execution
+- Enables tracking, coordination, and knowledge capture during implementation
+- Learnings from execution automatically feed back to next planning cycle
+
+**If you skip `sqsk issues`**: You can proceed directly to implementation with tasks.md, but you lose Squad coordination and automated learning capture.
+
+---
+
 6. **Check for extension hooks**: After tasks.md is generated, check if `.specify/extensions.yml` exists in the project root.
    - If it exists, read it and look for entries under the `hooks.after_tasks` key
    - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally

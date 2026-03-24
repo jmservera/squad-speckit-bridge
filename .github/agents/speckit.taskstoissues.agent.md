@@ -28,3 +28,31 @@ git config --get remote.origin.url
 
 > [!CAUTION]
 > UNDER NO CIRCUMSTANCES EVER CREATE ISSUES IN REPOSITORIES THAT DO NOT MATCH THE REMOTE URL
+
+## Bridge Integration: From SpecKit Planning to Squad Execution
+
+This command is the **primary bridge** between SpecKit planning and Squad execution:
+
+**What this command does**:
+- Converts tasks.md (specification-driven task breakdown) into GitHub issues
+- Adds labels for traceability (Task IDs, User Story markers)
+- Maps dependencies as issue links
+- Creates "ready-to-assign" issues for Squad Coordinator
+
+**Why use this command** (`sqsk issues` or `/speckit.taskstoissues`):
+1. **Closes the loop** — Spec → Plan → Tasks → **Issues** (handoff point)
+2. **Enables Squad coordination** — Coordinator assigns issues to agents with clear acceptance criteria
+3. **Captures learnings** — Issues updated during execution feed insights back to next planning cycle
+4. **Maintains traceability** — Link from requirement (spec) → task (tasks.md) → issue → code commit → learnings
+
+**Pipeline**:
+1. Spec generated (`/speckit.specify`)
+2. Plan created (`/speckit.plan`, with automatic squad-context injection if bridge enabled)
+3. Tasks generated (`/speckit.tasks`)
+4. **Issues created** (this command: `/speckit.taskstoissues` = `sqsk issues`)
+5. Squad execution (Coordinator assigns, agents implement, document learnings)
+6. `sqsk sync` (learnings captured back to Squad memory)
+7. **Next cycle**: Planning benefits from prior learnings via squad-context injection
+
+**Expected outcome**: When this command completes, your team has GitHub issues ready for Squad assignment, with full traceability to planning artifacts.
+

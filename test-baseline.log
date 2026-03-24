@@ -1,0 +1,5 @@
+
+> @jmservera/squad-speckit-bridge@0.2.0 test
+> vitest run
+
+sh: 1: vitest: not found

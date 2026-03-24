@@ -4,7 +4,7 @@ layout: default
 
 # Squad-SpecKit Bridge: Knowledge Flywheel for Hybrid Planning & Execution
 
-![Status Badge](https://img.shields.io/badge/version-0.1.0-blue) ![License](https://img.shields.io/badge/license-MIT-green)
+![Status Badge](https://img.shields.io/badge/version-0.2.0-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## The Problem
 
@@ -146,9 +146,10 @@ These files are part of your feature's planning record — future cycles and tea
 
 ## Get Started
 
-1. **[Installation](installation.md)** — Prerequisites, step-by-step setup, troubleshooting
-2. **[Usage Guide](usage.md)** — Copy-paste commands with expected output for each workflow step
-3. **[Architecture](architecture.md)** — Design principles, knowledge flow, extension points
+1. **[Quickstart](quickstart.md)** — 5-minute getting started guide with verification checklist
+2. **[Installation](installation.md)** — Prerequisites, step-by-step setup, troubleshooting
+3. **[Usage Guide](usage.md)** — Copy-paste commands with expected output for each workflow step
+4. **[Architecture](architecture.md)** — Design principles, knowledge flow, extension points
 
 ## Quick Reference
 
@@ -170,8 +171,10 @@ For more details, see the [Usage Guide](usage.md).
 
 ---
 
-**For First-Time Visitors:** Start with "Why This Bridge?" above, then jump to [Installation](installation.md).
+**For First-Time Visitors:** Start with the [Quickstart](quickstart.md) guide (5 minutes) to get up and running immediately.
 
-**For Experienced Squad/Spec Kit Users:** Skip to [Usage Guide](usage.md) for command reference.
+**For Detailed Setup:** See [Installation](installation.md) for comprehensive prerequisites and troubleshooting.
+
+**For Experienced Squad/Spec Kit Users:** Jump to [Usage Guide](usage.md) for command reference and advanced workflows.
 
 **For Architects:** See [Architecture](architecture.md) for Clean Architecture layers and design decisions.

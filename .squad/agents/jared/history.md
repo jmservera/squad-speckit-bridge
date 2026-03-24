@@ -45,3 +45,17 @@ Four reusable patterns documented in `.squad/extract/` for future projects:
 2. Constitutional governance at scale
 3. Progressive GitHub integration
 4. Team-size-driven framework configuration
+
+### 2026-03-24: T037 — Entity Validation Tests (#241)
+
+Wrote 60 unit tests for demo entity layer in `tests/demo/entities.test.ts`:
+- **StageStatus**: enum values, transition paths (pending → running → success/failed)
+- **DemoConfiguration**: defaults, flag behavior (dryRun affects issues command), timeout fallback
+- **PipelineStage**: structure, timing fields, stage ordering (5 stages: specify → plan → tasks → review → issues)
+- **DemoArtifact**: validation states, error arrays, existence checks
+- **ExecutionReport**: derived properties (completed + failed = total), cleanup logic, artifact preservation on failure
+- **Utility functions**: generateTimestamp, formatFileSize, formatElapsedTime, createDemoDirectory
+
+All 243 tests pass (183 existing + 60 new). Pushed to `squad/241-entity-tests`, closes #241.
+
+**Pattern:** Test factories (makeConfig, makeStage, makeReport) with Partial<T> overrides — consistent with existing types.test.ts pattern.

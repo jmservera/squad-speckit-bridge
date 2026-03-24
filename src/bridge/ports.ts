@@ -6,6 +6,7 @@
  */
 
 import type {
+  AgentCharter,
   BridgeConfig,
   ContextSummary,
   DecisionEntry,
@@ -13,6 +14,8 @@ import type {
   IssueRecord,
   LearningEntry,
   SkillEntry,
+  SkillFileContent,
+  SpecRequirement,
   SyncRecord,
   TaskEntry,
 } from '../types.js';
@@ -23,6 +26,8 @@ export interface SquadStateReader {
   readDecisions(): Promise<DecisionEntry[]>;
   readLearnings(since?: Date): Promise<LearningEntry[]>;
   readConstitution?(): Promise<string | null>;
+  readAgentCharters(): Promise<AgentCharter[]>;
+  readSkillFiles(): Promise<SkillFileContent[]>;
 }
 
 // Metadata from a previous context generation cycle
@@ -64,6 +69,7 @@ export interface ConfigLoader {
 export interface IssueCreator {
   create(task: TaskEntry, labels: string[], repo: string): Promise<IssueRecord>;
   createBatch(tasks: TaskEntry[], labels: string[], repo: string): Promise<IssueRecord[]>;
+  listExisting(repo: string, labels: string[]): Promise<IssueRecord[]>;
 }
 
 // Output port: writes learnings back to Squad state
@@ -75,4 +81,14 @@ export interface SquadMemoryWriter {
 // Input port: reads tasks markdown for issue creation
 export interface TasksMarkdownReader {
   readAndParse(path: string): Promise<TaskEntry[]>;
+}
+
+// Input port: reads spec requirements for validation (US-5)
+export interface SpecReader {
+  readRequirements(specPath: string): Promise<SpecRequirement[]>;
+}
+
+// Input port: scans implementation for requirement evidence (US-5)
+export interface ImplementationScanner {
+  scanForEvidence(srcDir: string, requirement: SpecRequirement): Promise<string[]>;
 }

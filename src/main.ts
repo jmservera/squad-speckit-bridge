@@ -47,6 +47,7 @@ export interface InstallerOptions {
 export interface InstallOutput {
   humanOutput: string;
   jsonOutput: {
+    dryRun: boolean;
     version: string;
     frameworks: {
       squad: { detected: boolean; path: string };
@@ -59,7 +60,7 @@ export interface InstallOutput {
 
 export interface StatusOutput {
   humanOutput: string;
-  jsonOutput: StatusReport;
+  jsonOutput: StatusReport & { dryRun: boolean };
 }
 
 export interface ReviewerOptions {
@@ -71,6 +72,7 @@ export interface ReviewerOptions {
 export interface ReviewOutput {
   humanOutput: string;
   jsonOutput: {
+    dryRun: boolean;
     reviewedArtifact: string;
     timestamp: string;
     approvalStatus: string;
@@ -90,12 +92,53 @@ export function createInstaller(options: InstallerOptions = {}) {
   });
 
   return {
-    async install(opts: { force?: boolean } = {}): Promise<InstallOutput> {
+    async install(opts: { force?: boolean; dryRun?: boolean } = {}): Promise<InstallOutput> {
       const config = await configLoader.load();
+      const dryRun = opts.dryRun ?? false;
 
       // Apply CLI overrides
       if (options.squadDir) config.paths.squadDir = options.squadDir;
       if (options.specifyDir) config.paths.specifyDir = options.specifyDir;
+
+      if (dryRun) {
+        // Dry-run: detect frameworks but skip file deployment
+        const hasSquad = await detector.detectSquad(config.paths.squadDir);
+        const hasSpecKit = await detector.detectSpecKit(config.paths.specifyDir);
+
+        const wouldInstall: string[] = [];
+        if (hasSquad) wouldInstall.push(`${config.paths.squadDir}/skills/bridge-integration.md`);
+        if (hasSpecKit) {
+          wouldInstall.push(`${config.paths.specifyDir}/extensions/squad-bridge.yml`);
+          wouldInstall.push(`${config.paths.specifyDir}/ceremonies/design-review.md`);
+        }
+
+        const humanOutput = formatInstallHuman(
+          {
+            version: '0.2.0',
+            installedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            components: { squadSkill: hasSquad, specKitExtension: hasSpecKit, ceremonyDef: hasSpecKit },
+            files: wouldInstall,
+          },
+          [],
+          config,
+          true,
+        );
+        const jsonOutput = formatInstallJson(
+          {
+            version: '0.2.0',
+            installedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            components: { squadSkill: hasSquad, specKitExtension: hasSpecKit, ceremonyDef: hasSpecKit },
+            files: wouldInstall,
+          },
+          [],
+          config,
+          true,
+        );
+
+        return { humanOutput, jsonOutput };
+      }
 
       // Load templates (including hooks)
       const [skillTemplate, ceremonyTemplate, extensionTemplate, afterTasksHook, beforeSpecifyHook, afterImplementHook] =
@@ -124,8 +167,8 @@ export function createInstaller(options: InstallerOptions = {}) {
         { config, force: opts.force },
       );
 
-      const humanOutput = formatInstallHuman(result.manifest, result.warnings, config);
-      const jsonOutput = formatInstallJson(result.manifest, result.warnings, config);
+      const humanOutput = formatInstallHuman(result.manifest, result.warnings, config, false);
+      const jsonOutput = formatInstallJson(result.manifest, result.warnings, config, false);
 
       return { humanOutput, jsonOutput };
     },
@@ -144,14 +187,15 @@ export function createStatusChecker(
   });
 
   return {
-    async check(): Promise<StatusOutput> {
+    async check(opts: { dryRun?: boolean } = {}): Promise<StatusOutput> {
+      const dryRun = opts.dryRun ?? false;
       const config = await configLoader.load();
       const squadDirPath = resolve(baseDir, config.paths.squadDir);
       const squadReader = new SquadFileReader(squadDirPath);
       const report = await checkStatus(detector, deployer, configLoader, squadReader);
       return {
-        humanOutput: formatStatusHuman(report),
-        jsonOutput: report,
+        humanOutput: formatStatusHuman(report, dryRun),
+        jsonOutput: { ...report, dryRun },
       };
     },
   };
@@ -170,8 +214,10 @@ export function createReviewer(options: ReviewerOptions = {}) {
     async review(
       tasksFile: string,
       outputPath?: string,
+      opts: { dryRun?: boolean } = {},
     ): Promise<ReviewOutput> {
       const config = await configLoader.load();
+      const dryRun = opts.dryRun ?? false;
 
       // Apply CLI override
       const squadDir = options.squadDir ?? config.paths.squadDir;
@@ -184,11 +230,13 @@ export function createReviewer(options: ReviewerOptions = {}) {
         tasksFilePath: tasksFile,
       });
 
-      await reviewWriter.write(record, resolvedOutputPath);
+      if (!dryRun) {
+        await reviewWriter.write(record, resolvedOutputPath);
+      }
 
       return {
-        humanOutput: formatReviewHuman(record, resolvedOutputPath),
-        jsonOutput: formatReviewJson(record, resolvedOutputPath),
+        humanOutput: formatReviewHuman(record, resolvedOutputPath, dryRun),
+        jsonOutput: formatReviewJson(record, resolvedOutputPath, dryRun),
       };
     },
   };
@@ -206,6 +254,7 @@ export interface IssuesOutput {
   jsonOutput: {
     created: IssueRecord[];
     skippedCount: number;
+    duplicateCount: number;
     total: number;
     dryRun: boolean;
   };
@@ -241,10 +290,17 @@ export function createIssueCreator(options: IssuesOptions = {}) {
       });
 
       return {
-        humanOutput: formatIssuesHuman(result.created, result.skipped.length, result.total, result.dryRun),
+        humanOutput: formatIssuesHuman(
+          result.created,
+          result.skipped.length,
+          result.duplicates.length,
+          result.total,
+          result.dryRun,
+        ),
         jsonOutput: {
           created: result.created,
           skippedCount: result.skipped.length,
+          duplicateCount: result.duplicates.length,
           total: result.total,
           dryRun: result.dryRun,
         },
@@ -302,9 +358,11 @@ function formatInstallHuman(
   manifest: InstallManifest,
   warnings: string[],
   config: { paths: { squadDir: string; specifyDir: string } },
+  dryRun: boolean,
 ): string {
   const lines: string[] = [];
-  lines.push(`Squad-SpecKit Bridge v${manifest.version}`);
+  const prefix = dryRun ? '[DRY RUN] ' : '';
+  lines.push(`${prefix}Squad-SpecKit Bridge v${manifest.version}`);
   lines.push('');
   lines.push('Detecting frameworks...');
 
@@ -325,19 +383,25 @@ function formatInstallHuman(
   const isPartial =
     !manifest.components.squadSkill || !manifest.components.specKitExtension;
   if (isPartial) {
-    lines.push('Installing partial components...');
+    lines.push(`${prefix}Installing partial components...`);
   } else {
-    lines.push('Installing components...');
+    lines.push(`${prefix}Installing components...`);
   }
 
   for (const file of manifest.files) {
-    lines.push(`  ✓ ${file}`);
+    lines.push(`  ${dryRun ? '•' : '✓'} ${file}`);
   }
-  lines.push(`  ✓ Manifest: .bridge-manifest.json`);
+  if (!dryRun) {
+    lines.push(`  ✓ Manifest: .bridge-manifest.json`);
+  }
 
   lines.push('');
 
-  if (isPartial) {
+  if (dryRun) {
+    lines.push(
+      `${prefix}Would install ${manifest.files.length} files. No changes were made.`,
+    );
+  } else if (isPartial) {
     lines.push(
       `Partial installation complete. ${manifest.files.length} files created.`,
     );
@@ -372,8 +436,10 @@ function formatInstallJson(
   manifest: InstallManifest,
   warnings: string[],
   config: { paths: { squadDir: string; specifyDir: string } },
+  dryRun: boolean,
 ) {
   return {
+    dryRun,
     version: manifest.version,
     frameworks: {
       squad: {
@@ -390,9 +456,10 @@ function formatInstallJson(
   };
 }
 
-function formatStatusHuman(report: StatusReport): string {
+function formatStatusHuman(report: StatusReport, dryRun: boolean): string {
   const lines: string[] = [];
-  lines.push(`Squad-SpecKit Bridge v${report.version}`);
+  const prefix = dryRun ? '[DRY RUN] ' : '';
+  lines.push(`${prefix}Squad-SpecKit Bridge v${report.version}`);
   lines.push('');
   lines.push('Frameworks:');
   lines.push(
@@ -468,11 +535,13 @@ export interface ContextBuilderOptions {
     histories: boolean;
   };
   baseDir?: string;
+  dryRun?: boolean;
 }
 
 export interface ContextOutput {
   humanOutput: string;
   jsonOutput: {
+    dryRun: boolean;
     output: string;
     sizeBytes: number;
     maxBytes: number;
@@ -496,6 +565,7 @@ export function createContextBuilder(options: ContextBuilderOptions) {
   return {
     async build(): Promise<ContextOutput> {
       const config = await configLoader.load();
+      const dryRun = options.dryRun ?? false;
 
       // Apply CLI overrides
       if (options.squadDir) config.paths.squadDir = options.squadDir;
@@ -508,15 +578,23 @@ export function createContextBuilder(options: ContextBuilderOptions) {
       const specDirPath = resolve(baseDir, options.specDir);
 
       const reader = new SquadFileReader(squadDirPath);
-      const writer = new SpecKitContextWriter(specDirPath);
+      const realWriter = new SpecKitContextWriter(specDirPath);
+
+      // In dry-run mode, wrap the writer to skip the actual file write
+      const writer = dryRun
+        ? {
+            write: async () => {},
+            readPreviousMetadata: () => realWriter.readPreviousMetadata(),
+          }
+        : realWriter;
 
       const { summary } = await buildSquadContext(reader, writer, { config });
 
       const outputPath = `${options.specDir}/squad-context.md`;
       const readerWarnings = reader.getWarnings();
 
-      const humanOutput = formatContextHuman(summary, outputPath, readerWarnings);
-      const jsonOutput = formatContextJson(summary, outputPath, readerWarnings);
+      const humanOutput = formatContextHuman(summary, outputPath, readerWarnings, dryRun);
+      const jsonOutput = formatContextJson(summary, outputPath, readerWarnings, dryRun);
 
       return { humanOutput, jsonOutput };
     },
@@ -527,11 +605,13 @@ function formatContextHuman(
   summary: ContextSummary,
   outputPath: string,
   parseWarnings: { file: string; reason: string }[],
+  dryRun: boolean,
 ): string {
   const lines: string[] = [];
   const m = summary.metadata;
+  const prefix = dryRun ? '[DRY RUN] ' : '';
 
-  lines.push(`Generating Squad context...`);
+  lines.push(`${prefix}Generating Squad context...`);
   lines.push('');
   lines.push('Sources processed:');
   lines.push(`  Skills:    ${m.sources.skills} included`);
@@ -551,9 +631,15 @@ function formatContextHuman(
   }
 
   lines.push('');
-  lines.push(
-    `Output: ${outputPath} (${(m.sizeBytes / 1024).toFixed(1)}KB / ${(m.maxBytes / 1024).toFixed(1)}KB limit)`,
-  );
+  if (dryRun) {
+    lines.push(
+      `${prefix}Would write: ${outputPath} (${(m.sizeBytes / 1024).toFixed(1)}KB / ${(m.maxBytes / 1024).toFixed(1)}KB limit). No changes were made.`,
+    );
+  } else {
+    lines.push(
+      `Output: ${outputPath} (${(m.sizeBytes / 1024).toFixed(1)}KB / ${(m.maxBytes / 1024).toFixed(1)}KB limit)`,
+    );
+  }
 
   return lines.join('\n');
 }
@@ -561,9 +647,11 @@ function formatContextHuman(
 function formatReviewHuman(
   record: DesignReviewRecord,
   outputPath: string,
+  dryRun: boolean,
 ): string {
   const lines: string[] = [];
-  lines.push(`Design Review prepared for ${record.reviewedArtifact}`);
+  const prefix = dryRun ? '[DRY RUN] ' : '';
+  lines.push(`${prefix}Design Review prepared for ${record.reviewedArtifact}`);
   lines.push('');
   lines.push('Pre-populated findings:');
   const high = record.findings.filter((f) => f.severity === 'high').length;
@@ -577,8 +665,12 @@ function formatReviewHuman(
     lines.push('  ✓ No issues detected');
   }
   lines.push('');
-  lines.push(`Review template written to: ${outputPath}`);
-  lines.push('Next: Run the Design Review ceremony with your Squad team.');
+  if (dryRun) {
+    lines.push(`${prefix}Would write review to: ${outputPath}. No changes were made.`);
+  } else {
+    lines.push(`Review template written to: ${outputPath}`);
+    lines.push('Next: Run the Design Review ceremony with your Squad team.');
+  }
 
   return lines.join('\n');
 }
@@ -587,6 +679,7 @@ function formatContextJson(
   summary: ContextSummary,
   outputPath: string,
   parseWarnings: { file: string; reason: string }[],
+  dryRun: boolean,
 ) {
   const m = summary.metadata;
 
@@ -615,6 +708,7 @@ function formatContextJson(
   );
 
   return {
+    dryRun,
     output: outputPath,
     sizeBytes: m.sizeBytes,
     maxBytes: m.maxBytes,
@@ -640,11 +734,12 @@ function formatContextJson(
   };
 }
 
-function formatReviewJson(record: DesignReviewRecord, outputPath: string) {
+function formatReviewJson(record: DesignReviewRecord, outputPath: string, dryRun: boolean) {
   const high = record.findings.filter((f) => f.severity === 'high').length;
   const medium = record.findings.filter((f) => f.severity === 'medium').length;
   const low = record.findings.filter((f) => f.severity === 'low').length;
   return {
+    dryRun,
     reviewedArtifact: record.reviewedArtifact,
     timestamp: record.timestamp,
     approvalStatus: record.approvalStatus,
@@ -657,6 +752,7 @@ function formatReviewJson(record: DesignReviewRecord, outputPath: string) {
 function formatIssuesHuman(
   created: IssueRecord[],
   skippedCount: number,
+  duplicateCount: number,
   total: number,
   dryRun: boolean,
 ): string {
@@ -668,10 +764,11 @@ function formatIssuesHuman(
   lines.push(`Total tasks: ${total}`);
   lines.push(`Eligible: ${created.length}`);
   lines.push(`Skipped (completed): ${skippedCount}`);
+  lines.push(`Duplicates (already exist): ${duplicateCount}`);
   lines.push('');
 
   if (created.length > 0) {
-    lines.push(`${prefix}Created issues:`);
+    lines.push(`${prefix}${dryRun ? 'Would create issues:' : 'Created issues:'}`);
     for (const issue of created) {
       if (dryRun) {
         lines.push(`  • ${issue.title} [${issue.labels.join(', ')}]`);
@@ -679,6 +776,10 @@ function formatIssuesHuman(
         lines.push(`  ✓ #${issue.issueNumber}: ${issue.title}`);
         if (issue.url) lines.push(`    ${issue.url}`);
       }
+    }
+    if (dryRun) {
+      lines.push('');
+      lines.push(`${prefix}No changes were made.`);
     }
   } else {
     lines.push('No eligible tasks to create issues for.');
@@ -701,6 +802,11 @@ function formatSyncHuman(record: SyncRecord, dryRun: boolean): string {
     for (const file of record.filesWritten) {
       lines.push(`  ✓ ${file}`);
     }
+  }
+
+  if (dryRun) {
+    lines.push('');
+    lines.push(`${prefix}No changes were made.`);
   }
 
   return lines.join('\n');
