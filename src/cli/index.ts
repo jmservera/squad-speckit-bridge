@@ -19,7 +19,7 @@ import type { DemoConfiguration } from '../demo/entities.js';
 const program = new Command();
 
 program
-  .name('squad-speckit-bridge')
+  .name('squask')
   .description(
     'Hybrid integration package connecting Squad team memory with Spec Kit planning pipeline',
   )
