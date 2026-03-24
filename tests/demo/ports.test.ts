@@ -509,6 +509,7 @@ describe('T038: No framework type leaks across ports', () => {
     const dtoTypes = [
       'BridgeConfig', 'ContextSummary', 'DecisionEntry', 'DeploymentFile',
       'IssueRecord', 'LearningEntry', 'SkillEntry', 'SyncRecord', 'TaskEntry',
+      'SpecRequirement',
     ];
     const primitives = ['string', 'boolean', 'number', 'void', 'null', 'Date'];
     const allowedTypes = [...dtoTypes, ...primitives, 'Promise', 'PreviousContextMetadata'];

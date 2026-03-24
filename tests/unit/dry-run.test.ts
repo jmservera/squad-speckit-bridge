@@ -47,6 +47,7 @@ function makeIssueCreator(): IssueCreator & { create: ReturnType<typeof vi.fn> }
       createdAt: new Date().toISOString(),
     })),
     createBatch: vi.fn().mockResolvedValue([]),
+    listExisting: vi.fn().mockResolvedValue([]),
   };
 }
 

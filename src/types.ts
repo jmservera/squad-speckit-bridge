@@ -560,6 +560,99 @@ export interface FidelityReport {
   summary: string;
 }
 
+// T001: Skill matching types
+
+export interface SkillMatch {
+  skillName: string;
+  relevanceScore: number;
+  matchedKeywords: string[];
+  contentSize: number;
+}
+
+export interface SkillInjection {
+  taskId: string;
+  injectedSkills: SkillMatch[];
+  totalContentSize: number;
+  truncated: boolean;
+  budgetBytes: number;
+}
+
+export interface DeadCodeEntry {
+  filePath: string;
+  exportName: string;
+  lineRange: [number, number];
+  category: string;
+  associatedCommand: string | null;
+}
+
+export interface DeadCodeReport {
+  entries: DeadCodeEntry[];
+  totalLines: number;
+  exercisedLines: number;
+  removedLines: number;
+  baselineCoverage: number;
+  finalCoverage: number;
+}
+
+export interface RequirementCoverage {
+  requirement: SpecRequirement;
+  covered: boolean;
+  evidence: string[];
+  gaps: string[];
+}
+
+export interface ImplementationReview {
+  specPath: string;
+  implementationDir: string;
+  requirements: RequirementCoverage[];
+  coveragePercent: number;
+  timestamp: string;
+  summary: string;
+}
+
+/**
+ * Matches skills against a task by keyword overlap.
+ * Returns matching skills sorted by relevance score descending.
+ */
+export function matchSkillsToTask(task: TaskEntry, skills: SkillEntry[]): SkillMatch[] {
+  if (skills.length === 0) return [];
+
+  const taskWords = extractWords(`${task.title} ${task.description}`);
+  if (taskWords.length === 0) return [];
+
+  const matches: SkillMatch[] = [];
+
+  for (const skill of skills) {
+    const skillWords = extractWords(
+      `${skill.name} ${skill.context} ${skill.patterns.join(' ')}`,
+    );
+    const matchedKeywords = taskWords.filter(
+      (tw) => tw.length > 2 && skillWords.some((sw) => sw === tw),
+    );
+
+    if (matchedKeywords.length === 0) continue;
+
+    const relevanceScore = Math.min(1, matchedKeywords.length / Math.max(taskWords.length, 1));
+
+    matches.push({
+      skillName: skill.name,
+      relevanceScore,
+      matchedKeywords,
+      contentSize: skill.rawSize,
+    });
+  }
+
+  return matches.sort((a, b) => b.relevanceScore - a.relevanceScore);
+}
+
+function extractWords(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length > 0);
+}
+
 // T010: Default BridgeConfig Factory
 
 export function createDefaultConfig(): BridgeConfig {

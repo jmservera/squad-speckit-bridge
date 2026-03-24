@@ -185,5 +185,11 @@ export interface ExecutionReport {
   /** T036: Structured error entries from all stages */
   errors?: ErrorEntry[];
   /** T036: Structured warning entries from all stages */
-  warnings?: WarningEntry[];
+  warnings?: (WarningEntry | string)[];
+  /** T027: Pipeline stage details (populated when verbose mode is active) */
+  stages?: PipelineStage[];
+  /** T026: True if --keep flag was active and artifacts were preserved */
+  kept?: boolean;
+  /** T026: Paths to preserved artifacts (populated when kept=true) */
+  artifactPaths?: string[];
 }

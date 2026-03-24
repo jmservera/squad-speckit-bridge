@@ -48,6 +48,16 @@ export class SquadFileReader implements SquadStateReader {
       try {
         const content = await readFile(file, 'utf-8');
         const skillName = basename(dirname(file));
+
+        // Skip empty files and record warning
+        if (content.trim().length === 0) {
+          this.warnings.push({
+            file,
+            reason: `Empty file: ${skillName}/SKILL.md`,
+          });
+          continue;
+        }
+
         const entry = parseSkillFile(content, skillName, file, this.warnings);
         if (entry) {
           skills.push(entry);

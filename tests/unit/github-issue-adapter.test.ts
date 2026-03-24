@@ -23,8 +23,8 @@ function makeIssue(n: number, opts?: { isPR?: boolean }) {
     title: `T${String(n).padStart(3, '0')}: Task ${n}`,
     body: `Description ${n}`,
     labels: [{ name: 'squad' }],
-    html_url: `https://github.com/test/repo/issues/${n}`,
-    created_at: '2025-01-01T00:00:00Z',
+    url: `https://github.com/test/repo/issues/${n}`,
+    createdAt: '2025-01-01T00:00:00Z',
     ...(opts?.isPR ? { pull_request: { url: 'https://...' } } : {}),
   };
 }
@@ -68,37 +68,30 @@ describe('GitHubIssueAdapter.listExisting', () => {
     expect(mockExecFile).toHaveBeenCalledTimes(1);
   });
 
-  it('paginates through multiple pages', async () => {
-    // Page 1: 100 issues, Page 2: 50 issues → total 150
-    mockExecFile
-      .mockReturnValueOnce(makePage(1, 100))
-      .mockReturnValueOnce(makePage(101, 50));
+  it('handles large result sets in single call', async () => {
+    // gh issue list --limit 200 returns all at once
+    mockExecFile.mockReturnValue(makePage(1, 150));
 
     const result = await adapter.listExisting('test/repo', []);
 
     expect(result).toHaveLength(150);
     expect(result[0].issueNumber).toBe(1);
-    expect(result[99].issueNumber).toBe(100);
-    expect(result[100].issueNumber).toBe(101);
     expect(result[149].issueNumber).toBe(150);
-    expect(mockExecFile).toHaveBeenCalledTimes(2);
+    expect(mockExecFile).toHaveBeenCalledTimes(1);
   });
 
-  it('paginates through 3+ pages (250 issues)', async () => {
-    mockExecFile
-      .mockReturnValueOnce(makePage(1, 100))
-      .mockReturnValueOnce(makePage(101, 100))
-      .mockReturnValueOnce(makePage(201, 50));
+  it('handles 200+ results from gh issue list', async () => {
+    mockExecFile.mockReturnValue(makePage(1, 200));
 
     const result = await adapter.listExisting('test/repo', ['squad']);
 
-    expect(result).toHaveLength(250);
-    expect(mockExecFile).toHaveBeenCalledTimes(3);
+    expect(result).toHaveLength(200);
+    expect(mockExecFile).toHaveBeenCalledTimes(1);
   });
 
-  it('filters out pull requests from results', async () => {
-    // 3 real issues + 1 PR disguised as issue
-    mockExecFile.mockReturnValue(makePage(1, 3, { includePR: true }));
+  it('does not include pull requests (gh issue list only returns issues)', async () => {
+    // gh issue list returns only issues, not PRs
+    mockExecFile.mockReturnValue(makePage(1, 3));
 
     const result = await adapter.listExisting('test/repo', []);
 
@@ -106,42 +99,43 @@ describe('GitHubIssueAdapter.listExisting', () => {
     expect(result.every((r) => r.issueNumber < 9000)).toBe(true);
   });
 
-  it('passes labels as comma-separated parameter', async () => {
+  it('passes labels as separate --label arguments', async () => {
     mockExecFile.mockReturnValue('[]');
 
     await adapter.listExisting('test/repo', ['squad', 'v0.2.0']);
 
     const callArgs = mockExecFile.mock.calls[0][1] as string[];
-    const labelsIdx = callArgs.indexOf('labels=squad,v0.2.0');
-    expect(labelsIdx).toBeGreaterThan(-1);
+    const labelIndices = callArgs.reduce<number[]>((acc, v, i) => (v === '--label' ? [...acc, i] : acc), []);
+    expect(labelIndices).toHaveLength(2);
+    expect(callArgs[labelIndices[0] + 1]).toBe('squad');
+    expect(callArgs[labelIndices[1] + 1]).toBe('v0.2.0');
   });
 
-  it('omits labels parameter when empty', async () => {
+  it('omits label arguments when labels array is empty', async () => {
     mockExecFile.mockReturnValue('[]');
 
     await adapter.listExisting('test/repo', []);
 
     const callArgs = mockExecFile.mock.calls[0][1] as string[];
-    const hasLabels = callArgs.some((a: string) => a.startsWith('labels='));
+    const hasLabels = callArgs.some((a: string) => a === '--label');
     expect(hasLabels).toBe(false);
   });
 
-  it('uses gh api with correct pagination parameters', async () => {
-    mockExecFile
-      .mockReturnValueOnce(makePage(1, 100))
-      .mockReturnValueOnce('[]');
+  it('uses gh issue list with correct parameters', async () => {
+    mockExecFile.mockReturnValue('[]');
 
     await adapter.listExisting('owner/repo', ['squad']);
 
-    // First call: page 1
-    const call1Args = mockExecFile.mock.calls[0][1] as string[];
-    expect(call1Args).toContain('repos/owner/repo/issues');
-    expect(call1Args).toContain('per_page=100');
-    expect(call1Args).toContain('page=1');
-
-    // Second call: page 2
-    const call2Args = mockExecFile.mock.calls[1][1] as string[];
-    expect(call2Args).toContain('page=2');
+    const callArgs = mockExecFile.mock.calls[0][1] as string[];
+    expect(callArgs).toContain('issue');
+    expect(callArgs).toContain('list');
+    expect(callArgs).toContain('--repo');
+    expect(callArgs).toContain('owner/repo');
+    expect(callArgs).toContain('--json');
+    expect(callArgs).toContain('--state');
+    expect(callArgs).toContain('all');
+    expect(callArgs).toContain('--limit');
+    expect(callArgs).toContain('200');
   });
 
   it('extracts taskId from issue title', async () => {

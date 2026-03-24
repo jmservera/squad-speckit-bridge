@@ -43,11 +43,17 @@ export class FileSystemCleanupHandler implements CleanupHandler {
     config: DemoConfiguration,
     report: ExecutionReport
   ): Promise<ExecutionReport> {
-    // If keep flag is set, skip cleanup
+    // If keep flag is set, skip cleanup and populate artifact paths
     if (config.flags.keep) {
+      const artifactPaths = [config.demoDir];
+      for (const artifact of report.artifacts ?? []) {
+        artifactPaths.push(artifact.path);
+      }
       return {
         ...report,
         cleanupPerformed: false,
+        kept: true,
+        artifactPaths,
       };
     }
 
@@ -57,6 +63,8 @@ export class FileSystemCleanupHandler implements CleanupHandler {
       return {
         ...report,
         cleanupPerformed: false,
+        kept: false,
+        artifactPaths: [],
         errorSummary: report.errorSummary
           ? `${report.errorSummary}; Cleanup skipped: path not safe to delete`
           : 'Cleanup skipped: path not safe to delete',
@@ -70,6 +78,8 @@ export class FileSystemCleanupHandler implements CleanupHandler {
       return {
         ...report,
         cleanupPerformed: false,
+        kept: false,
+        artifactPaths: [],
         errorSummary: report.errorSummary
           ? `${report.errorSummary}; Cleanup failed: ${result.error}`
           : `Cleanup failed: ${result.error}`,
@@ -79,6 +89,8 @@ export class FileSystemCleanupHandler implements CleanupHandler {
     return {
       ...report,
       cleanupPerformed: true,
+      kept: false,
+      artifactPaths: [],
     };
   }
 

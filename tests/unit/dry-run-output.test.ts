@@ -62,6 +62,7 @@ vi.mock('../../src/issues/adapters/github-issue-adapter.js', () => {
         createdAt: new Date().toISOString(),
       }));
       createBatch = vi.fn().mockResolvedValue([]);
+      listExisting = vi.fn().mockResolvedValue([]);
     },
   };
 });

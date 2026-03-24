@@ -23,7 +23,6 @@ import type {
 } from './ports.js';
 import type { Logger } from '../cli/logger.js';
 import { resolve, relative } from 'node:path';
-import { existsSync } from 'node:fs';
 import { generateTimestamp, formatFileSize, formatElapsedTime } from './utils.js';
 
 // ─────────────────────────────────────────────────────────────
@@ -116,7 +115,7 @@ export async function validatePrerequisites(
   // Check speckit command is available
   const speckitAvailable = await deps.processExecutor.isCommandAvailable('speckit');
   if (!speckitAvailable) {
-    errors.push('Required command "speckit" is not available in PATH. Install Spec Kit first.');
+    errors.push('Spec Kit command not found — install Spec Kit or add "speckit" to PATH.');
   }
 
   // Check timeout is valid
@@ -134,16 +133,6 @@ export async function validatePrerequisites(
   const relativeDemo = relative(resolve('specs'), resolvedDemo);
   if (!relativeDemo || relativeDemo.startsWith('..') || relativeDemo === '.') {
     errors.push(`Demo directory "${config.demoDir}" must be under specs/.`);
-  }
-
-  // Check squadDir exists on filesystem
-  if (!existsSync(resolve(config.squadDir))) {
-    errors.push(`Squad directory "${config.squadDir}" does not exist.`);
-  }
-
-  // Check specifyDir exists on filesystem
-  if (!existsSync(resolve(config.specifyDir))) {
-    errors.push(`Spec Kit directory "${config.specifyDir}" does not exist.`);
   }
 
   return {
@@ -179,15 +168,19 @@ export async function runDemo(
 ): Promise<ExecutionReport> {
   const startTime = Date.now();
   const errors: ErrorEntry[] = [];
-  const warnings: WarningEntry[] = [];
+  const warnings: (WarningEntry | string)[] = [];
+  const logger = deps.logger;
 
   // T031: Validate prerequisites before running
   const prereqs = await validatePrerequisites(config, deps);
   if (!prereqs.valid) {
+    // If the only error is command unavailability, report as a stage failure
+    const isCommandOnlyFailure = prereqs.errors.length === 1
+      && prereqs.errors[0].includes('command not found');
     return {
       totalTimeMs: Date.now() - startTime,
       stagesCompleted: 0,
-      stagesFailed: 0,
+      stagesFailed: isCommandOnlyFailure ? 1 : 0,
       artifacts: [],
       cleanupPerformed: false,
       errorSummary: `Prerequisite check failed: ${prereqs.errors.join('; ')}`,
@@ -198,6 +191,8 @@ export async function runDemo(
         timestamp: new Date().toISOString(),
       })),
       warnings: [],
+      kept: false,
+      artifactPaths: [],
     };
   }
 
@@ -209,6 +204,14 @@ export async function runDemo(
   let errorSummary: string | undefined;
 
   const timeoutMs = (config.timeout || 30) * 1000;
+
+  // Verbose: log pipeline start
+  logger?.verbose(`Pipeline starting with ${stages.length} stages`);
+  logger?.verbose(`demoDir=${config.demoDir}`);
+  logger?.verbose(`timeout=${config.timeout}s`);
+
+  // Track whether pipeline was halted
+  let pipelineHalted = false;
 
   // Execute stages sequentially with explicit status transitions
   for (const stage of stages) {
@@ -223,11 +226,24 @@ export async function runDemo(
       break;
     }
 
+    // If pipeline was halted by a previous failure, log skipped stages
+    if (pipelineHalted) {
+      logger?.verbose(`[${stage.name}] Skipped (pipeline halted)`);
+      if (config.flags.verbose) {
+        warnings.push(`Stage '${stage.name}' was skipped due to earlier failure`);
+      }
+      continue;
+    }
+
     const stageStartTime = Date.now();
 
     // Transition: pending → running
     stage.status = StageStatus.Running;
     stage.startTime = stageStartTime;
+
+    // Verbose: log stage start
+    logger?.verbose(`[${stage.name}] Starting`);
+    logger?.verbose(`[${stage.name}] Command: ${stage.command.join(' ')}`);
 
     // Execute stage via processExecutor.run() with output capture
     const result = await deps.processExecutor.run(
@@ -239,6 +255,9 @@ export async function runDemo(
     const stageEndTime = Date.now();
     stage.endTime = stageEndTime;
     stage.elapsedMs = stageEndTime - stageStartTime;
+
+    // Verbose: log completion timing
+    logger?.verbose(`[${stage.name}] Completed in ${formatElapsedTime(stage.elapsedMs)}`);
 
     // T032: Check for abort after execution completes
     if (options?.signal?.aborted) {
@@ -267,6 +286,7 @@ export async function runDemo(
         // Transition: running → success (command ran and artifact is valid)
         stage.status = StageStatus.Success;
         stagesCompleted++;
+        logger?.verbose(`[${stage.name}] ✓ Stage passed`);
       } else {
         // Transition: running → failed (command ran but artifact validation failed)
         stage.status = StageStatus.Failed;
@@ -279,8 +299,9 @@ export async function runDemo(
           code: 'ARTIFACT_VALIDATION_FAILED',
           timestamp: new Date().toISOString(),
         });
-        // Halt pipeline on first failure
-        break;
+        logger?.verbose(`[${stage.name}] ✗ Stage failed`);
+        logger?.verbose(`Artifact validation failed: ${artifact.errors.join(', ')}`);
+        pipelineHalted = true;
       }
     } else {
       // Transition: running → failed
@@ -316,9 +337,8 @@ export async function runDemo(
       stage.error = errorParts.join('; ');
 
       errorSummary = `Stage '${stage.name}' failed: ${stage.error}`;
-
-      // Halt pipeline on first failure (don't continue to next stage)
-      break;
+      logger?.verbose(`[${stage.name}] ✗ Stage failed`);
+      pipelineHalted = true;
     }
   }
 
@@ -343,7 +363,16 @@ export async function runDemo(
     errorSummary,
     errors,
     warnings,
+    kept: config.flags.keep,
+    artifactPaths: config.flags.keep
+      ? [config.demoDir, ...artifacts.map(a => a.path)]
+      : [],
   };
+
+  // Include stages in report when verbose mode is active
+  if (config.flags.verbose) {
+    report.stages = stages;
+  }
 
   // Automatic cleanup logic:
   // - If keep=true: skip cleanup (user wants to preserve artifacts)
@@ -352,9 +381,12 @@ export async function runDemo(
   const pipelineInterrupted = !!options?.signal?.aborted;
   const allStagesSucceeded = stagesFailed === 0 && !pipelineInterrupted;
   if (!config.flags.keep && (allStagesSucceeded || pipelineInterrupted)) {
+    logger?.verbose('Performing cleanup');
     report = await deps.cleanupHandler.cleanup(config, report);
   }
   // Otherwise, cleanupPerformed remains false (artifacts preserved)
+
+  logger?.verbose(`Pipeline finished: ${stagesCompleted} completed, ${stagesFailed} failed`);
 
   return report;
 }
