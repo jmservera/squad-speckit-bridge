@@ -82,3 +82,23 @@
 - 3 deferred to v0.2 (workflow notes section, governance boosting, research scanning)
 - Full analysis: `research-gilfoyle-meta-analysis.md` at repo root
 - Decision proposals: `.squad/decisions/inbox/gilfoyle-workflow-learnings.md`
+
+### 2025-07-24: T001 — Entity Types and Pure Functions (#256)
+
+**Delivered:** 11 new entity types + 2 pure functions + 28 new unit tests (68 total in types.test.ts, 211 full suite).
+
+**New types added to `src/types.ts`:**
+- US-7 (Distribution): `AgentAssignment`, `DistributionWarning`, `RebalanceSuggestion`, `DistributionAnalysis`
+- US-8 (Skill Matching): `SkillMatch`, `SkillInjection`
+- US-9 (Dead Code): `DeadCodeEntry`, `DeadCodeReport`, `DeadCodeCategory` (union type)
+- US-5 (Spec Requirements): `SpecRequirement`, `RequirementCoverage`, `ImplementationReview`
+
+**Pure functions:**
+- `analyzeDistribution(assignments, threshold?)` — counts per-agent issues, detects imbalance via configurable threshold (default 0.5), generates rebalance suggestions pointing to least-loaded agent.
+- `matchSkillsToTask(task, skills)` — tokenizes task title+description and skill content, matches on >2-char keywords, returns sorted by relevance score.
+
+**Design decisions:**
+- Kept all new types and functions in Layer 0 (entities) — zero I/O, zero external imports. Matches existing pattern.
+- `DeadCodeCategory` extracted as a named union type for reuse.
+- `matchSkillsToTask` uses word-level tokenization (split on `\W+`, filter <=2 chars) — simple but effective for keyword matching without external NLP deps.
+- `analyzeDistribution` suggests moves to the single least-loaded agent. Future improvement could distribute across multiple targets.

@@ -15,8 +15,14 @@ import type {
   DecisionEntry,
   LearningEntry,
   ApprovalStatus,
+  FunctionalRequirement,
+  ImplementationEvidence,
+  FidelityReport,
+  FidelityEntry,
+  FidelityStatus,
 } from '../types.js';
 import type { SquadStateReader, TasksReader } from '../bridge/ports.js';
+import type { SpecReader, ImplementationScanner } from './ports.js';
 
 export interface PrepareReviewOptions {
   tasksFilePath: string;
@@ -247,4 +253,134 @@ export async function prepareReview(
   };
 
   return { record };
+}
+
+// ── T012: Fidelity Review Mode ───────────────────────────────────────
+
+export interface FidelityReviewOptions {
+  specPath: string;
+  srcDir: string;
+}
+
+/**
+ * Classify a requirement's fidelity status based on implementation evidence.
+ *
+ * - 'covered': has at least one annotation or two distinct evidence lines
+ * - 'partial': has exactly one non-annotation evidence line
+ * - 'missing': no evidence at all
+ */
+function classifyRequirement(
+  req: FunctionalRequirement,
+  evidence: ImplementationEvidence[],
+): FidelityStatus {
+  const matches = evidence.filter((e) => e.requirementId === req.id);
+  if (matches.length === 0) return 'missing';
+  if (matches.some((e) => e.kind === 'annotation') || matches.length >= 2) {
+    return 'covered';
+  }
+  return 'partial';
+}
+
+/**
+ * Compute coverage ratio: covered counts as 1, partial as 0.5, missing as 0.
+ */
+function computeCoverage(entries: FidelityEntry[]): number {
+  if (entries.length === 0) return 1; // no requirements → trivially covered
+  const score = entries.reduce((sum, e) => {
+    if (e.status === 'covered') return sum + 1;
+    if (e.status === 'partial') return sum + 0.5;
+    return sum;
+  }, 0);
+  return score / entries.length;
+}
+
+/**
+ * Generate a human-readable summary for the fidelity report.
+ */
+function generateFidelitySummary(
+  entries: FidelityEntry[],
+  coverage: number,
+): string {
+  if (entries.length === 0) {
+    return 'No functional requirements found in spec. Nothing to verify.';
+  }
+
+  const covered = entries.filter((e) => e.status === 'covered').length;
+  const partial = entries.filter((e) => e.status === 'partial').length;
+  const missing = entries.filter((e) => e.status === 'missing').length;
+  const pct = Math.round(coverage * 100);
+
+  const parts: string[] = [
+    `Fidelity check: ${entries.length} requirements analyzed.`,
+    `Coverage: ${pct}% — ${covered} covered, ${partial} partial, ${missing} missing.`,
+  ];
+
+  if (missing > 0) {
+    const ids = entries
+      .filter((e) => e.status === 'missing')
+      .map((e) => e.requirement.id)
+      .join(', ');
+    parts.push(`Missing: ${ids}.`);
+  }
+
+  return parts.join(' ');
+}
+
+/**
+ * Fidelity Review — compares spec FR-XXX requirements against implementation.
+ *
+ * Reads requirements via SpecReader port, scans source via
+ * ImplementationScanner port, then produces a FidelityReport
+ * showing which requirements are covered, partial, or missing.
+ */
+export async function prepareFidelityReview(
+  specReader: SpecReader,
+  implScanner: ImplementationScanner,
+  options: FidelityReviewOptions,
+): Promise<FidelityReport> {
+  const requirements = await specReader.readRequirements(options.specPath);
+
+  // Handle empty spec gracefully
+  if (requirements.length === 0) {
+    return {
+      specPath: options.specPath,
+      srcDir: options.srcDir,
+      timestamp: new Date().toISOString(),
+      covered: [],
+      missing: [],
+      partial: [],
+      entries: [],
+      coverage: 1,
+      summary: generateFidelitySummary([], 1),
+    };
+  }
+
+  const requirementIds = requirements.map((r) => r.id);
+  const evidence = await implScanner.scan(options.srcDir, requirementIds);
+
+  const entries: FidelityEntry[] = requirements.map((req) => {
+    const reqEvidence = evidence.filter((e) => e.requirementId === req.id);
+    return {
+      requirement: req,
+      status: classifyRequirement(req, evidence),
+      evidence: reqEvidence,
+    };
+  });
+
+  const covered = entries.filter((e) => e.status === 'covered').map((e) => e.requirement);
+  const missing = entries.filter((e) => e.status === 'missing').map((e) => e.requirement);
+  const partial = entries.filter((e) => e.status === 'partial').map((e) => e.requirement);
+  const coverage = computeCoverage(entries);
+
+  return {
+    specPath: options.specPath,
+    srcDir: options.srcDir,
+    timestamp: new Date().toISOString(),
+    covered,
+    missing,
+    partial,
+    entries,
+    coverage,
+    summary: generateFidelitySummary(entries, coverage),
+  };
 }

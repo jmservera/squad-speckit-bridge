@@ -6,11 +6,26 @@ import {
   isHighSeverity,
   categorizeFindings,
   createDefaultConfig,
+  analyzeDistribution,
+  matchSkillsToTask,
 } from '../../src/types.js';
 import type {
   BridgeConfig,
   DecisionEntry,
   ReviewFinding,
+  AgentAssignment,
+  DistributionAnalysis,
+  DistributionWarning,
+  RebalanceSuggestion,
+  SkillMatch,
+  SkillInjection,
+  DeadCodeEntry,
+  DeadCodeReport,
+  SpecRequirement,
+  RequirementCoverage,
+  ImplementationReview,
+  TaskEntry,
+  SkillEntry,
 } from '../../src/types.js';
 
 // Helper factories
@@ -301,5 +316,274 @@ describe('createDefaultConfig', () => {
     const b = createDefaultConfig();
     a.contextMaxBytes = 1;
     expect(b.contextMaxBytes).toBe(8192);
+  });
+});
+
+// T001: Entity type shape tests
+
+describe('T001: New entity types', () => {
+  it('AgentAssignment has correct shape', () => {
+    const a: AgentAssignment = { issueNumber: 1, agentName: 'gilfoyle', labels: ['bug'] };
+    expect(a.issueNumber).toBe(1);
+    expect(a.agentName).toBe('gilfoyle');
+    expect(a.labels).toEqual(['bug']);
+  });
+
+  it('DistributionWarning has correct shape', () => {
+    const w: DistributionWarning = { agentName: 'dinesh', assignedCount: 5, percentage: 0.6, message: 'overloaded' };
+    expect(w.percentage).toBe(0.6);
+  });
+
+  it('RebalanceSuggestion has correct shape', () => {
+    const s: RebalanceSuggestion = { fromAgent: 'dinesh', toAgent: 'gilfoyle', issueNumbers: [1, 2], rationale: 'balance' };
+    expect(s.issueNumbers).toHaveLength(2);
+  });
+
+  it('SkillMatch has correct shape', () => {
+    const m: SkillMatch = { skillName: 'clean-arch', relevanceScore: 0.8, matchedKeywords: ['bridge'], contentSize: 500 };
+    expect(m.relevanceScore).toBe(0.8);
+  });
+
+  it('SkillInjection has correct shape', () => {
+    const inj: SkillInjection = {
+      taskId: 'T001',
+      injectedSkills: [],
+      totalContentSize: 0,
+      truncated: false,
+      budgetBytes: 8192,
+    };
+    expect(inj.truncated).toBe(false);
+  });
+
+  it('DeadCodeEntry has correct shape', () => {
+    const e: DeadCodeEntry = {
+      filePath: 'src/foo.ts',
+      exportName: 'unusedFn',
+      lineRange: [10, 20],
+      category: 'unused_export',
+      associatedCommand: null,
+    };
+    expect(e.lineRange).toEqual([10, 20]);
+    expect(e.category).toBe('unused_export');
+  });
+
+  it('DeadCodeReport has correct shape', () => {
+    const r: DeadCodeReport = {
+      entries: [],
+      totalLines: 100,
+      exercisedLines: 40,
+      removedLines: 10,
+      baselineCoverage: 0.6,
+      finalCoverage: 0.8,
+    };
+    expect(r.finalCoverage).toBeGreaterThan(r.baselineCoverage);
+  });
+
+  it('SpecRequirement has correct shape', () => {
+    const req: SpecRequirement = { id: 'FR-001', text: 'Must generate context', category: 'Context Generation' };
+    expect(req.id).toBe('FR-001');
+  });
+
+  it('RequirementCoverage has correct shape', () => {
+    const cov: RequirementCoverage = {
+      requirement: { id: 'FR-001', text: 'test', category: 'cat' },
+      covered: true,
+      evidence: ['src/context.ts'],
+      gaps: [],
+    };
+    expect(cov.covered).toBe(true);
+  });
+
+  it('ImplementationReview has correct shape', () => {
+    const rev: ImplementationReview = {
+      specPath: 'specs/001/spec.md',
+      implementationDir: 'src/',
+      requirements: [],
+      coveragePercent: 100,
+      timestamp: '2025-07-24T00:00:00Z',
+      summary: 'All covered',
+    };
+    expect(rev.coveragePercent).toBe(100);
+  });
+});
+
+// T001: analyzeDistribution
+
+describe('analyzeDistribution', () => {
+  function makeAssignments(counts: Record<string, number>): AgentAssignment[] {
+    const result: AgentAssignment[] = [];
+    let issueNum = 1;
+    for (const [agent, count] of Object.entries(counts)) {
+      for (let i = 0; i < count; i++) {
+        result.push({ issueNumber: issueNum++, agentName: agent, labels: [] });
+      }
+    }
+    return result;
+  }
+
+  it('returns empty analysis for no assignments', () => {
+    const result = analyzeDistribution([]);
+    expect(result.totalIssues).toBe(0);
+    expect(result.imbalanced).toBe(false);
+    expect(result.warnings).toHaveLength(0);
+    expect(result.suggestions).toHaveLength(0);
+  });
+
+  it('detects balanced distribution', () => {
+    const assignments = makeAssignments({ gilfoyle: 3, dinesh: 3, richard: 4 });
+    const result = analyzeDistribution(assignments);
+    expect(result.totalIssues).toBe(10);
+    expect(result.imbalanced).toBe(false);
+    expect(result.warnings).toHaveLength(0);
+  });
+
+  it('detects imbalanced distribution exceeding threshold', () => {
+    const assignments = makeAssignments({ gilfoyle: 8, dinesh: 1, richard: 1 });
+    const result = analyzeDistribution(assignments, 0.5);
+    expect(result.imbalanced).toBe(true);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0].agentName).toBe('gilfoyle');
+    expect(result.warnings[0].percentage).toBe(0.8);
+  });
+
+  it('uses default threshold of 0.5', () => {
+    const assignments = makeAssignments({ gilfoyle: 6, dinesh: 4 });
+    const result = analyzeDistribution(assignments);
+    expect(result.threshold).toBe(0.5);
+    expect(result.imbalanced).toBe(true);
+    expect(result.warnings[0].agentName).toBe('gilfoyle');
+  });
+
+  it('generates rebalance suggestions for imbalanced distributions', () => {
+    const assignments = makeAssignments({ gilfoyle: 8, dinesh: 2 });
+    const result = analyzeDistribution(assignments, 0.5);
+    expect(result.suggestions.length).toBeGreaterThan(0);
+    expect(result.suggestions[0].fromAgent).toBe('gilfoyle');
+    expect(result.suggestions[0].toAgent).toBe('dinesh');
+    expect(result.suggestions[0].issueNumbers.length).toBeGreaterThan(0);
+  });
+
+  it('handles single agent (all issues to one agent)', () => {
+    const assignments = makeAssignments({ gilfoyle: 5 });
+    const result = analyzeDistribution(assignments, 0.5);
+    expect(result.imbalanced).toBe(true);
+    // No suggestions when only one agent
+    expect(result.suggestions).toHaveLength(0);
+  });
+
+  it('correctly counts per-agent issues', () => {
+    const assignments = makeAssignments({ a: 2, b: 3, c: 1 });
+    const result = analyzeDistribution(assignments);
+    expect(result.agentCounts).toEqual({ a: 2, b: 3, c: 1 });
+  });
+
+  it('warning message includes percentage and threshold', () => {
+    const assignments = makeAssignments({ over: 6, under: 1 });
+    const result = analyzeDistribution(assignments, 0.5);
+    expect(result.warnings[0].message).toContain('86%');
+    expect(result.warnings[0].message).toContain('50%');
+  });
+
+  it('custom threshold of 1.0 never triggers warnings', () => {
+    const assignments = makeAssignments({ gilfoyle: 10 });
+    const result = analyzeDistribution(assignments, 1.0);
+    expect(result.imbalanced).toBe(false);
+  });
+
+  it('strict threshold catches mild imbalance', () => {
+    const assignments = makeAssignments({ a: 4, b: 3, c: 3 });
+    const result = analyzeDistribution(assignments, 0.3);
+    expect(result.imbalanced).toBe(true);
+    expect(result.warnings[0].agentName).toBe('a');
+  });
+});
+
+// T001: matchSkillsToTask
+
+describe('matchSkillsToTask', () => {
+  function makeTask(overrides: Partial<TaskEntry> = {}): TaskEntry {
+    return {
+      id: 'T001',
+      title: 'Implement bridge context generation',
+      description: 'Build the context summary generator with clean architecture patterns',
+      dependencies: [],
+      status: 'pending',
+      ...overrides,
+    };
+  }
+
+  function makeSkill(overrides: Partial<SkillEntry> = {}): SkillEntry {
+    return {
+      name: 'clean-architecture',
+      context: 'Bridge project structure',
+      patterns: ['dependency injection', 'port interfaces'],
+      antiPatterns: ['direct import'],
+      rawSize: 1000,
+      ...overrides,
+    };
+  }
+
+  it('returns empty array when no skills match', () => {
+    const task = makeTask({ title: 'unrelated xyz', description: 'nothing here' });
+    const skills = [makeSkill({ name: 'database', context: 'sql', patterns: ['orm'], antiPatterns: ['raw'] })];
+    const result = matchSkillsToTask(task, skills);
+    expect(result).toEqual([]);
+  });
+
+  it('matches skills by keyword overlap', () => {
+    const task = makeTask({ title: 'clean architecture bridge', description: 'patterns for context' });
+    const skill = makeSkill({ name: 'clean-architecture', patterns: ['clean', 'bridge', 'context'] });
+    const result = matchSkillsToTask(task, [skill]);
+    expect(result).toHaveLength(1);
+    expect(result[0].skillName).toBe('clean-architecture');
+    expect(result[0].matchedKeywords.length).toBeGreaterThan(0);
+  });
+
+  it('returns results sorted by relevance score descending', () => {
+    const task = makeTask({ title: 'bridge context clean arch', description: 'patterns injection' });
+    const high = makeSkill({ name: 'high-match', patterns: ['bridge', 'context', 'clean', 'patterns', 'injection'], antiPatterns: [], rawSize: 500 });
+    const low = makeSkill({ name: 'low-match', patterns: ['bridge'], antiPatterns: [], context: 'unrelated stuff', rawSize: 200 });
+    const result = matchSkillsToTask(task, [low, high]);
+    expect(result.length).toBeGreaterThanOrEqual(2);
+    expect(result[0].relevanceScore).toBeGreaterThanOrEqual(result[1].relevanceScore);
+  });
+
+  it('relevance score is between 0 and 1', () => {
+    const task = makeTask();
+    const skill = makeSkill();
+    const result = matchSkillsToTask(task, [skill]);
+    for (const m of result) {
+      expect(m.relevanceScore).toBeGreaterThanOrEqual(0);
+      expect(m.relevanceScore).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('includes contentSize from skill rawSize', () => {
+    const task = makeTask({ title: 'bridge', description: 'context' });
+    const skill = makeSkill({ name: 'test-skill', patterns: ['bridge'], rawSize: 4096 });
+    const result = matchSkillsToTask(task, [skill]);
+    expect(result.length).toBeGreaterThan(0);
+    expect(result[0].contentSize).toBe(4096);
+  });
+
+  it('handles empty skills array', () => {
+    const result = matchSkillsToTask(makeTask(), []);
+    expect(result).toEqual([]);
+  });
+
+  it('ignores short words (<=2 chars)', () => {
+    const task = makeTask({ title: 'an is to', description: 'do it be' });
+    const skill = makeSkill({ patterns: ['an', 'is', 'to'], antiPatterns: [] });
+    const result = matchSkillsToTask(task, [skill]);
+    // Only matches on words > 2 chars
+    const shortOnly = result.filter(m => m.matchedKeywords.every(k => k.length <= 2));
+    expect(shortOnly).toHaveLength(0);
+  });
+
+  it('matching is case-insensitive', () => {
+    const task = makeTask({ title: 'BRIDGE Context', description: 'PATTERNS' });
+    const skill = makeSkill({ patterns: ['bridge', 'context', 'patterns'] });
+    const result = matchSkillsToTask(task, [skill]);
+    expect(result.length).toBeGreaterThan(0);
   });
 });

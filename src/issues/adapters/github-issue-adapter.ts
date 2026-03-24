@@ -62,4 +62,66 @@ export class GitHubIssueAdapter implements IssueCreator {
     }
     return results;
   }
+
+  async listExisting(repo: string, labels: string[]): Promise<IssueRecord[]> {
+    const allIssues: IssueRecord[] = [];
+    const perPage = 100;
+    let page = 1;
+
+    try {
+      while (true) {
+        const args = [
+          'api',
+          `repos/${repo}/issues`,
+          '--method', 'GET',
+          '-f', 'state=open',
+          '-f', `per_page=${perPage}`,
+          '-f', `page=${page}`,
+        ];
+
+        if (labels.length > 0) {
+          args.push('-f', `labels=${labels.join(',')}`);
+        }
+
+        const { stdout } = await execFileAsync('gh', args);
+        const issues = JSON.parse(stdout || '[]') as Array<{
+          number: number;
+          title: string;
+          body: string | null;
+          labels: Array<{ name: string }>;
+          html_url: string;
+          created_at: string;
+          pull_request?: unknown;
+        }>;
+
+        // REST API includes PRs in /issues — filter them out
+        const realIssues = issues.filter((i) => !i.pull_request);
+
+        for (const issue of realIssues) {
+          allIssues.push({
+            issueNumber: issue.number,
+            title: issue.title,
+            body: issue.body ?? '',
+            labels: issue.labels.map((l) => l.name),
+            taskId: this.extractTaskId(issue.title),
+            url: issue.html_url,
+            createdAt: issue.created_at,
+          });
+        }
+
+        if (issues.length < perPage) break;
+        page++;
+      }
+
+      return allIssues;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Failed to list issues for ${repo}: ${message}`);
+    }
+  }
+
+  private extractTaskId(title: string): string {
+    const match = title.match(/^(T\d+):/);
+    return match ? match[1] : '';
+  }
 }
