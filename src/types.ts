@@ -385,6 +385,214 @@ export interface ImplementationEvidence {
   line: number;           // line number where the reference was found
   snippet: string;        // the matching line content (trimmed)
   kind: 'comment' | 'annotation' | 'reference';
+// T002: Port DTOs — SquadStateReader extensions
+
+export interface AgentCharter {
+  agentName: string;
+  skills: string[];
+}
+
+export interface SkillFileContent {
+  name: string;
+  content: string;
+  sizeBytes: number;
+}
+
+// T001: New Entity Types — US-7 (Distribution Analysis)
+
+export interface AgentAssignment {
+  issueNumber: number;
+  agentName: string;
+  labels: string[];
+}
+
+export interface DistributionWarning {
+  agentName: string;
+  assignedCount: number;
+  percentage: number;
+  message: string;
+}
+
+export interface RebalanceSuggestion {
+  fromAgent: string;
+  toAgent: string;
+  issueNumbers: number[];
+  rationale: string;
+}
+
+export interface DistributionAnalysis {
+  agentCounts: Record<string, number>;
+  totalIssues: number;
+  imbalanced: boolean;
+  threshold: number;
+  warnings: DistributionWarning[];
+  suggestions: RebalanceSuggestion[];
+}
+
+// T001: New Entity Types — US-8 (Skill Matching)
+
+export interface SkillMatch {
+  skillName: string;
+  relevanceScore: number;
+  matchedKeywords: string[];
+  contentSize: number;
+}
+
+export interface SkillInjection {
+  taskId: string;
+  injectedSkills: SkillMatch[];
+  totalContentSize: number;
+  truncated: boolean;
+  budgetBytes: number;
+}
+
+// T001: New Entity Types — US-9 (Dead Code)
+
+export type DeadCodeCategory = 'untested' | 'unreachable' | 'unused_export';
+
+export interface DeadCodeEntry {
+  filePath: string;
+  exportName: string;
+  lineRange: [number, number];
+  category: DeadCodeCategory;
+  associatedCommand: string | null;
+}
+
+export interface DeadCodeReport {
+  entries: DeadCodeEntry[];
+  totalLines: number;
+  exercisedLines: number;
+  removedLines: number;
+  baselineCoverage: number;
+  finalCoverage: number;
+}
+
+// T001: New Entity Types — US-5 (Spec Requirements)
+
+export interface SpecRequirement {
+  id: string;
+  text: string;
+  category: string;
+}
+
+export interface RequirementCoverage {
+  requirement: SpecRequirement;
+  covered: boolean;
+  evidence: string[];
+  gaps: string[];
+}
+
+export interface ImplementationReview {
+  specPath: string;
+  implementationDir: string;
+  requirements: RequirementCoverage[];
+  coveragePercent: number;
+  timestamp: string;
+  summary: string;
+}
+
+// T001: Pure Functions — analyzeDistribution
+
+export function analyzeDistribution(
+  assignments: AgentAssignment[],
+  threshold: number = 0.5,
+): DistributionAnalysis {
+  const agentCounts: Record<string, number> = {};
+  for (const a of assignments) {
+    agentCounts[a.agentName] = (agentCounts[a.agentName] ?? 0) + 1;
+  }
+
+  const totalIssues = assignments.length;
+  const warnings: DistributionWarning[] = [];
+  const agentNames = Object.keys(agentCounts);
+
+  if (totalIssues > 0) {
+    for (const name of agentNames) {
+      const count = agentCounts[name];
+      const pct = count / totalIssues;
+      if (pct > threshold) {
+        warnings.push({
+          agentName: name,
+          assignedCount: count,
+          percentage: pct,
+          message: `Agent "${name}" has ${count}/${totalIssues} issues (${(pct * 100).toFixed(0)}%), exceeding ${(threshold * 100).toFixed(0)}% threshold.`,
+        });
+      }
+    }
+  }
+
+  const suggestions: RebalanceSuggestion[] = [];
+  if (warnings.length > 0 && agentNames.length > 1) {
+    const sorted = [...agentNames].sort((a, b) => agentCounts[a] - agentCounts[b]);
+    const leastLoaded = sorted[0];
+    for (const w of warnings) {
+      const overAgent = w.agentName;
+      const idealPerAgent = Math.ceil(totalIssues / agentNames.length);
+      const excess = agentCounts[overAgent] - idealPerAgent;
+      if (excess > 0) {
+        const issuesToMove = assignments
+          .filter(a => a.agentName === overAgent)
+          .slice(0, excess)
+          .map(a => a.issueNumber);
+        suggestions.push({
+          fromAgent: overAgent,
+          toAgent: leastLoaded,
+          issueNumbers: issuesToMove,
+          rationale: `Rebalance: move ${excess} issue(s) to "${leastLoaded}" for even distribution.`,
+        });
+      }
+    }
+  }
+
+  return {
+    agentCounts,
+    totalIssues,
+    imbalanced: warnings.length > 0,
+    threshold,
+    warnings,
+    suggestions,
+  };
+}
+
+// T001: Pure Functions — matchSkillsToTask
+
+export function matchSkillsToTask(
+  task: TaskEntry,
+  skills: SkillEntry[],
+): SkillMatch[] {
+  const taskText = `${task.title} ${task.description}`.toLowerCase();
+  const taskWords = new Set(
+    taskText.split(/\W+/).filter(w => w.length > 2),
+  );
+
+  const matches: SkillMatch[] = [];
+
+  for (const skill of skills) {
+    const skillWords = [
+      ...skill.patterns,
+      ...skill.antiPatterns,
+      skill.name,
+      skill.context,
+    ];
+    const keywords = skillWords.flatMap(s =>
+      s.toLowerCase().split(/\W+/).filter(w => w.length > 2),
+    );
+    const uniqueKeywords = [...new Set(keywords)];
+    const matched = uniqueKeywords.filter(kw => taskWords.has(kw));
+
+    if (matched.length > 0) {
+      const relevanceScore = Math.min(1, matched.length / Math.max(uniqueKeywords.length, 1));
+      matches.push({
+        skillName: skill.name,
+        relevanceScore,
+        matchedKeywords: matched,
+        contentSize: skill.rawSize,
+      });
+    }
+  }
+
+  return matches.sort((a, b) => b.relevanceScore - a.relevanceScore);
+
 }
 
 // T010: Default BridgeConfig Factory
