@@ -22,6 +22,7 @@ export interface BridgeConfig {
     afterTasks: boolean;
     beforeSpecify: boolean;
     afterImplement: boolean;
+    autoCreateIssues: boolean;
   };
   sync: {
     autoSync: boolean;
@@ -154,6 +155,11 @@ export function isValidConfig(config: BridgeConfig): boolean {
     return false;
   }
   if (config.summarization.maxDecisionAgeDays <= 0) {
+    return false;
+  }
+  // Validate hooks are booleans (guards against bad JSON input)
+  const hookValues = Object.values(config.hooks);
+  if (hookValues.some((v) => typeof v !== 'boolean')) {
     return false;
   }
   return true;
@@ -671,6 +677,7 @@ export function createDefaultConfig(): BridgeConfig {
       afterTasks: true,
       beforeSpecify: true,
       afterImplement: true,
+      autoCreateIssues: true,
     },
     sync: {
       autoSync: false,
