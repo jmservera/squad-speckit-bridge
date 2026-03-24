@@ -20,6 +20,7 @@ export interface SyncOptions {
   squadDir: string;
   dryRun: boolean;
   agentDir?: string;
+  constitutionPath?: string;
 }
 
 export interface SyncResult {
@@ -48,6 +49,12 @@ export interface SyncStateReader {
 /** Reads agent history/output files and extracts learnings. */
 export interface AgentHistoryReader {
   extractLearnings(agentDir: string, since?: Date): Promise<ExtractedLearning[]>;
+}
+
+/** Reads and appends curated learnings to a constitution file. */
+export interface ConstitutionWriter {
+  readConstitution(constitutionPath: string): Promise<string | null>;
+  appendLearnings(constitutionPath: string, specId: string, learnings: { title: string; content: string }[]): Promise<string>;
 }
 
 /**
@@ -94,8 +101,9 @@ export async function syncLearnings(
   memoryWriter: SquadMemoryWriter,
   options: SyncOptions,
   historyReader?: AgentHistoryReader,
+  constitutionWriter?: ConstitutionWriter,
 ): Promise<SyncResult> {
-  const { specDir, squadDir, dryRun, agentDir } = options;
+  const { specDir, squadDir, dryRun, agentDir, constitutionPath } = options;
 
   // Read previous sync state (may contain fingerprints from prior runs)
   const prevState = (await stateAdapter.readSyncState(squadDir)) as SyncStateWithFingerprints | null;
@@ -183,7 +191,18 @@ export async function syncLearnings(
     };
 
     await stateAdapter.writeSyncState(squadDir, newState);
+
+    // Write learnings to constitution if writer and path are provided
+    if (constitutionWriter && constitutionPath) {
+      const specId = specDir.replace(/\/+$/, '').split('/').pop() ?? 'unknown';
+      await constitutionWriter.appendLearnings(constitutionPath, specId, newLearnings);
+      filesWritten.push(constitutionPath);
+    }
   }
+
+  const constitutionNote = (constitutionWriter && constitutionPath && !dryRun)
+    ? ' + constitution updated'
+    : '';
 
   const record: SyncRecord = {
     syncTimestamp: new Date().toISOString(),
@@ -191,7 +210,7 @@ export async function syncLearnings(
     filesWritten,
     summary: dryRun
       ? `[DRY RUN] Would sync ${newLearnings.length} learning(s) from ${specDir}`
-      : `Synced ${newLearnings.length} learning(s) from ${specDir}`,
+      : `Synced ${newLearnings.length} learning(s) from ${specDir}${constitutionNote}`,
   };
 
   return { record, dryRun };

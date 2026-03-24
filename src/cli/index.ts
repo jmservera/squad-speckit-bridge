@@ -304,6 +304,8 @@ program
   )
   .argument('<spec-dir>', 'Spec directory with execution results')
   .option('--dry-run', 'Preview sync without writing', false)
+  .option('--agent-dir <path>', 'Path to agent histories directory')
+  .option('--no-constitution', 'Skip constitution update')
   .action(async (specDir: string, cmdOpts: Record<string, unknown>) => {
     const globalOpts = program.opts();
     const jsonOutput = globalOpts.json as boolean;
@@ -316,6 +318,8 @@ program
 
       const syncer = createSyncer({
         configPath: globalOpts.config as string | undefined,
+        agentDir: cmdOpts.agentDir as string | undefined,
+        noConstitution: cmdOpts.constitution === false,
       });
 
       const result = await syncer.sync(specDir, {

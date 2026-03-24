@@ -24,6 +24,8 @@ import { TasksMarkdownParser } from './issues/task-parser.js';
 import { GitHubIssueAdapter } from './issues/adapters/github-issue-adapter.js';
 import { syncLearnings } from './sync/sync-learnings.js';
 import { SyncStateAdapter } from './sync/adapters/sync-state-adapter.js';
+import { AgentHistoryReaderAdapter } from './sync/adapters/agent-history-reader.js';
+import { ConstitutionAdapter } from './sync/adapters/constitution-adapter.js';
 import type { StatusReport } from './install/status.js';
 import type { InstallManifest, ContextSummary, DesignReviewRecord, IssueRecord, SyncRecord } from './types.js';
 
@@ -319,13 +321,15 @@ export interface SyncOutput {
   };
 }
 
-export function createSyncer(options: { configPath?: string; baseDir?: string } = {}) {
+export function createSyncer(options: { configPath?: string; baseDir?: string; agentDir?: string; noConstitution?: boolean } = {}) {
   const baseDir = options.baseDir ?? process.cwd();
   const configLoader = new ConfigFileLoader({
     configPath: options.configPath,
     baseDir,
   });
   const syncAdapter = new SyncStateAdapter();
+  const historyReader = new AgentHistoryReaderAdapter();
+  const constitutionWriter = options.noConstitution ? undefined : new ConstitutionAdapter();
 
   return {
     async sync(
@@ -334,12 +338,18 @@ export function createSyncer(options: { configPath?: string; baseDir?: string } 
     ): Promise<SyncOutput> {
       const config = await configLoader.load();
       const squadDir = resolve(baseDir, config.paths.squadDir);
+      const agentDir = options.agentDir ?? resolve(squadDir, 'agents');
+      const constitutionPath = constitutionWriter
+        ? resolve(baseDir, config.paths.specifyDir, 'memory', 'constitution.md')
+        : undefined;
 
       const result = await syncLearnings(syncAdapter, syncAdapter, {
         specDir: resolve(baseDir, specDir),
         squadDir,
+        agentDir,
+        constitutionPath,
         dryRun: opts.dryRun ?? false,
-      });
+      }, historyReader, constitutionWriter);
 
       return {
         humanOutput: formatSyncHuman(result.record, result.dryRun),
