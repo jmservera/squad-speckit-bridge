@@ -195,8 +195,12 @@ export async function syncLearnings(
     // Write learnings to constitution if writer and path are provided
     if (constitutionWriter && constitutionPath) {
       const specId = specDir.replace(/\/+$/, '').split('/').pop() ?? 'unknown';
-      await constitutionWriter.appendLearnings(constitutionPath, specId, newLearnings);
-      filesWritten.push(constitutionPath);
+      try {
+        await constitutionWriter.appendLearnings(constitutionPath, specId, newLearnings);
+        filesWritten.push(constitutionPath);
+      } catch {
+        // Constitution path may not exist or be writable — non-fatal
+      }
     }
   }
 

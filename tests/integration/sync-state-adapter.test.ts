@@ -271,7 +271,7 @@ describe('SyncStateAdapter — readSpecResults', () => {
     }
   });
 
-  it('extracts completed tasks from tasks.md', async () => {
+  it('extracts all tasks from tasks.md regardless of checkbox state', async () => {
     tempDir = await mkdtemp(join(tmpdir(), 'sync-spec-'));
     await writeFile(
       join(tempDir, 'tasks.md'),
@@ -286,10 +286,11 @@ describe('SyncStateAdapter — readSpecResults', () => {
 
     const results = await adapter.readSpecResults(tempDir);
 
-    expect(results).toHaveLength(2);
+    expect(results).toHaveLength(3);
     expect(results[0].title).toContain('T001');
     expect(results[0].title).toContain('Setup project');
-    expect(results[1].title).toContain('T003');
+    expect(results[1].title).toContain('T002');
+    expect(results[2].title).toContain('T003');
   });
 
   it('returns empty array when tasks.md does not exist', async () => {
@@ -298,7 +299,7 @@ describe('SyncStateAdapter — readSpecResults', () => {
     expect(results).toEqual([]);
   });
 
-  it('returns empty array when no tasks are completed', async () => {
+  it('extracts unchecked tasks (sync runs post-execution)', async () => {
     tempDir = await mkdtemp(join(tmpdir(), 'sync-spec-'));
     await writeFile(
       join(tempDir, 'tasks.md'),
@@ -306,7 +307,9 @@ describe('SyncStateAdapter — readSpecResults', () => {
     );
 
     const results = await adapter.readSpecResults(tempDir);
-    expect(results).toEqual([]);
+    expect(results).toHaveLength(2);
+    expect(results[0].title).toContain('T001');
+    expect(results[1].title).toContain('T002');
   });
 
   it('returns empty array for non-existent directory', async () => {

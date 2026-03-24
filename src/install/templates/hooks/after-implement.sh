@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 # Squad-SpecKit Bridge — after_implement hook
 # Called by Spec Kit after implementation is complete (speckit.implement).
-# Syncs execution results back to Squad's memory for future planning cycles.
+# Syncs execution learnings back to Squad memory AND the project constitution.
+#
+# TIMING: This hook runs after the Squad "nap" — when Scribe has settled
+# histories, compacted decisions, and the team's knowledge is in a clean state.
+# That settled knowledge feeds into .specify/memory/constitution.md so the
+# next speckit.specify cycle inherits implementation experience.
 
 set -euo pipefail
 
@@ -32,15 +37,15 @@ if [ -f "$CONFIG_FILE" ]; then
   fi
 fi
 
-# Sync learnings from implementation back to Squad memory
-echo "[squad-bridge] Syncing implementation results to Squad memory..."
+# Sync learnings from implementation back to Squad memory + constitution
+echo "[squad-bridge] Syncing implementation learnings to Squad memory and constitution..."
 if command -v squask &> /dev/null; then
   squask sync "$SPEC_DIR" --quiet 2>/dev/null || {
     echo "[squad-bridge] WARNING: Learning sync failed — manual sync recommended."
     echo "[squad-bridge] Run: squask sync ${SPEC_DIR}"
     exit 0
   }
-  echo "[squad-bridge] Implementation learnings synced to Squad memory."
+  echo "[squad-bridge] Learnings synced to Squad memory and constitution."
 else
   echo "[squad-bridge] WARNING: squask not found — install squad-speckit-bridge to enable learning sync."
   echo "[squad-bridge] Install with: npm install -g @jmservera/squad-speckit-bridge"

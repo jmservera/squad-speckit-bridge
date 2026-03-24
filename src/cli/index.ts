@@ -300,9 +300,9 @@ program
 program
   .command('sync')
   .description(
-    'Sync implementation learnings back to Squad memory',
+    'Sync implementation learnings to Squad memory and project constitution',
   )
-  .argument('<spec-dir>', 'Spec directory with execution results')
+  .argument('<spec-dir>', 'Spec directory to sync learnings from')
   .option('--dry-run', 'Preview sync without writing', false)
   .option('--agent-dir <path>', 'Path to agent histories directory')
   .option('--no-constitution', 'Skip constitution update')
