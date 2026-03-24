@@ -207,6 +207,19 @@ Given that feature description, do this:
 
 7. Report completion with branch name, spec file path, checklist results, and readiness for the next phase (`/speckit.clarify` or `/speckit.plan`).
 
+## Bridge Integration: Next Steps
+
+After specification is complete, the bridge enables automatic knowledge sharing with Squad:
+
+**When spec is ready**, you may optionally invoke the bridge to inject Squad context or prepare for Squad integration:
+
+- **`sqsk context`** — If Squad agents need context about this specification for future reference, run this command to build squad-context.md (automatic if bridge hooks are enabled).
+- **Expected flow**: Spec → Clarify (if needed) → Plan → Tasks → `sqsk issues` (convert to GitHub issues for Squad executor) → Squad execution → learnings feed back via bridge
+
+**Note**: If bridge hooks are enabled (check `.specify/extensions.yml`), Squad context injection happens automatically during planning. Manual invocation is only needed if you want immediate context generation.
+
+---
+
 8. **Check for extension hooks**: After reporting completion, check if `.specify/extensions.yml` exists in the project root.
    - If it exists, read it and look for entries under the `hooks.after_specify` key
    - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
