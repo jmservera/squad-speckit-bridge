@@ -64,38 +64,56 @@ export class GitHubIssueAdapter implements IssueCreator {
   }
 
   async listExisting(repo: string, labels: string[]): Promise<IssueRecord[]> {
-    try {
-      const args = [
-        'issue', 'list',
-        '--repo', repo,
-        '--json', 'number,title,body,labels,url,createdAt',
-        '--state', 'all',
-        '--limit', '200',
-      ];
+    const allIssues: IssueRecord[] = [];
+    const perPage = 100;
+    let page = 1;
 
-      for (const label of labels) {
-        args.push('--label', label);
+    try {
+      while (true) {
+        const args = [
+          'api',
+          `repos/${repo}/issues`,
+          '--method', 'GET',
+          '-f', 'state=all',
+          '-f', `per_page=${perPage}`,
+          '-f', `page=${page}`,
+        ];
+
+        if (labels.length > 0) {
+          args.push('-f', `labels=${labels.join(',')}`);
+        }
+
+        const { stdout } = await execFileAsync('gh', args);
+        const issues = JSON.parse(stdout || '[]') as Array<{
+          number: number;
+          title: string;
+          body: string | null;
+          labels: Array<{ name: string }>;
+          html_url: string;
+          created_at: string;
+          pull_request?: unknown;
+        }>;
+
+        // REST API includes PRs in /issues — filter them out
+        const realIssues = issues.filter((i) => !i.pull_request);
+
+        for (const issue of realIssues) {
+          allIssues.push({
+            issueNumber: issue.number,
+            title: issue.title,
+            body: issue.body ?? '',
+            labels: issue.labels.map((l) => l.name),
+            taskId: this.extractTaskId(issue.title),
+            url: issue.html_url,
+            createdAt: issue.created_at,
+          });
+        }
+
+        if (issues.length < perPage) break;
+        page++;
       }
 
-      const { stdout } = await execFileAsync('gh', args);
-      const issues = JSON.parse(stdout) as Array<{
-        number: number;
-        title: string;
-        body: string;
-        labels: Array<{ name: string }>;
-        url: string;
-        createdAt: string;
-      }>;
-
-      return issues.map((issue) => ({
-        issueNumber: issue.number,
-        title: issue.title,
-        body: issue.body,
-        labels: issue.labels.map((l) => l.name),
-        taskId: this.extractTaskId(issue.title),
-        url: issue.url,
-        createdAt: issue.createdAt,
-      }));
+      return allIssues;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       throw new Error(`Failed to list issues for ${repo}: ${message}`);

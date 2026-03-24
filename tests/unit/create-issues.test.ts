@@ -30,6 +30,7 @@ function makeIssueCreator(): IssueCreator {
       createdAt: new Date().toISOString(),
     })),
     createBatch: vi.fn().mockResolvedValue([]),
+    listExisting: vi.fn().mockResolvedValue([]),
   };
 }
 
