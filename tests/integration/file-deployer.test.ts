@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdir, rm, readFile } from 'node:fs/promises';
+import { mkdir, rm, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { FileSystemDeployer } from '../../src/install/adapters/file-deployer.js';
@@ -124,5 +124,50 @@ describe('FileSystemDeployer', () => {
 
     expect(manifest2.installedAt).toBe(manifest1.installedAt);
     expect(manifest2.updatedAt).not.toBe(manifest1.installedAt);
+  });
+
+  describe('deployExecutable — T004 permission tests', () => {
+    it('sets 0o755 permissions on deployed hook scripts', async () => {
+      const deployer = new FileSystemDeployer(testDir);
+
+      await deployer.deployExecutable([
+        { targetPath: 'hooks/after-tasks.sh', content: '#!/usr/bin/env bash\nexit 0' },
+      ]);
+
+      const info = await stat(join(testDir, 'hooks/after-tasks.sh'));
+      // 0o755 = owner rwx, group rx, others rx
+      expect(info.mode & 0o777).toBe(0o755);
+    });
+
+    it('sets 0o755 on all hook templates deployed together', async () => {
+      const deployer = new FileSystemDeployer(testDir);
+
+      const hooks = [
+        { targetPath: 'hooks/after-tasks.sh', content: '#!/usr/bin/env bash\nexit 0' },
+        { targetPath: 'hooks/before-specify.sh', content: '#!/usr/bin/env bash\nexit 0' },
+        { targetPath: 'hooks/after-implement.sh', content: '#!/usr/bin/env bash\nexit 0' },
+      ];
+
+      const paths = await deployer.deployExecutable(hooks);
+
+      expect(paths).toHaveLength(3);
+      for (const hookPath of paths) {
+        const info = await stat(join(testDir, hookPath));
+        expect(info.mode & 0o777).toBe(0o755);
+      }
+    });
+
+    it('creates parent directories for executable files', async () => {
+      const deployer = new FileSystemDeployer(testDir);
+
+      await deployer.deployExecutable([
+        { targetPath: 'deep/nested/hook.sh', content: '#!/usr/bin/env bash' },
+      ]);
+
+      const content = await readFile(join(testDir, 'deep/nested/hook.sh'), 'utf-8');
+      expect(content).toBe('#!/usr/bin/env bash');
+      const info = await stat(join(testDir, 'deep/nested/hook.sh'));
+      expect(info.mode & 0o777).toBe(0o755);
+    });
   });
 });

@@ -23,12 +23,17 @@ fi
 # Check if the bridge is configured to run after-implement hooks
 CONFIG_FILE="${BRIDGE_CONFIG:-bridge.config.json}"
 if [ -f "$CONFIG_FILE" ]; then
-  HOOK_ENABLED=$(node -e "
-    try {
-      const c = JSON.parse(require('fs').readFileSync('$CONFIG_FILE','utf-8'));
-      console.log(c.hooks?.afterImplement !== false ? 'true' : 'false');
-    } catch { console.log('true'); }
-  " 2>/dev/null || echo "true")
+  if command -v node &> /dev/null; then
+    HOOK_ENABLED=$(node -e "
+      try {
+        const c = JSON.parse(require('fs').readFileSync('$CONFIG_FILE','utf-8'));
+        console.log(c.hooks?.afterImplement !== false ? 'true' : 'false');
+      } catch { console.log('true'); }
+    " 2>/dev/null || echo "true")
+  else
+    echo "[squad-bridge] WARNING: Node.js not found — cannot parse config, defaulting to hook enabled."
+    HOOK_ENABLED="true"
+  fi
   if [ "$HOOK_ENABLED" = "false" ]; then
     exit 0
   fi
