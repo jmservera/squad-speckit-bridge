@@ -21,6 +21,8 @@ import type {
   ArtifactValidator,
   CleanupHandler,
 } from './ports.js';
+import { resolve, relative } from 'node:path';
+import { existsSync } from 'node:fs';
 import { generateTimestamp, formatFileSize, formatElapsedTime } from './utils.js';
 
 // ─────────────────────────────────────────────────────────────
@@ -125,9 +127,21 @@ export async function validatePrerequisites(
     errors.push('Feature description is empty. Provide a feature description to specify.');
   }
 
-  // Check demoDir is under specs/
-  if (!config.demoDir.startsWith('specs/') && !config.demoDir.startsWith('specs\\')) {
+  // Check demoDir is under specs/ using resolve()+relative() containment check
+  const resolvedDemo = resolve(config.demoDir);
+  const relativeDemo = relative(resolve('specs'), resolvedDemo);
+  if (!relativeDemo || relativeDemo.startsWith('..') || relativeDemo === '.') {
     errors.push(`Demo directory "${config.demoDir}" must be under specs/.`);
+  }
+
+  // Check squadDir exists on filesystem
+  if (!existsSync(resolve(config.squadDir))) {
+    errors.push(`Squad directory "${config.squadDir}" does not exist.`);
+  }
+
+  // Check specifyDir exists on filesystem
+  if (!existsSync(resolve(config.specifyDir))) {
+    errors.push(`Spec Kit directory "${config.specifyDir}" does not exist.`);
   }
 
   return {
@@ -330,11 +344,12 @@ export async function runDemo(
   };
 
   // Automatic cleanup logic:
-  // - If keep=false AND all stages succeeded: perform cleanup
-  // - If keep=true OR any stage failed: skip cleanup (preserve artifacts for debugging)
-  // - T032: Skip cleanup if pipeline was interrupted
-  const allStagesSucceeded = stagesFailed === 0 && !options?.signal?.aborted;
-  if (!config.flags.keep && allStagesSucceeded) {
+  // - If keep=true: skip cleanup (user wants to preserve artifacts)
+  // - If keep=false AND (all stages succeeded OR pipeline was interrupted): perform cleanup
+  // - If keep=false AND a stage failed: skip cleanup (preserve for debugging)
+  const pipelineInterrupted = !!options?.signal?.aborted;
+  const allStagesSucceeded = stagesFailed === 0 && !pipelineInterrupted;
+  if (!config.flags.keep && (allStagesSucceeded || pipelineInterrupted)) {
     report = await deps.cleanupHandler.cleanup(config, report);
   }
   // Otherwise, cleanupPerformed remains false (artifacts preserved)

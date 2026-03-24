@@ -288,7 +288,7 @@ describe('T032: Graceful Shutdown (AbortSignal)', () => {
     expect(report.errorSummary).toContain('interrupted');
   });
 
-  it('does not perform cleanup when pipeline is interrupted', async () => {
+  it('performs cleanup when pipeline is interrupted and keep=false', async () => {
     const config = createMockConfig();
     const controller = new AbortController();
     controller.abort();
@@ -296,8 +296,8 @@ describe('T032: Graceful Shutdown (AbortSignal)', () => {
 
     const report = await runDemo(config, deps, { signal: controller.signal });
 
-    expect(report.cleanupPerformed).toBe(false);
-    expect(deps.cleanupHandler.cleanup).not.toHaveBeenCalled();
+    expect(report.cleanupPerformed).toBe(true);
+    expect(deps.cleanupHandler.cleanup).toHaveBeenCalled();
   });
 
   it('sets warning entries for skipped stages', async () => {

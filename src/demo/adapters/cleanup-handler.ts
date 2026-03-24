@@ -48,8 +48,6 @@ export class FileSystemCleanupHandler implements CleanupHandler {
       return {
         ...report,
         cleanupPerformed: false,
-        kept: true,
-        artifactPaths: [config.demoDir, ...report.artifacts.map((a) => a.path)],
       };
     }
 
@@ -111,12 +109,9 @@ export class FileSystemCleanupHandler implements CleanupHandler {
         return false;
       }
 
-      // T034: Path must start with an allowed prefix
+      // T034: Path must start with an allowed prefix (require subdirectory, reject zone roots)
       const safePrefixes = [`specs${sep}`, `temp${sep}`];
-      const safeExact = ['specs', 'temp'];
-      const isUnderSafeZone =
-        safePrefixes.some(p => relativePath.startsWith(p)) ||
-        safeExact.includes(relativePath);
+      const isUnderSafeZone = safePrefixes.some(p => relativePath.startsWith(p));
 
       if (!isUnderSafeZone) {
         return false;
