@@ -23,7 +23,7 @@ A developer installing the Squad-SpecKit Bridge for the first time wants to veri
 
 **Why this priority**: This is the primary use case - validating installation and demonstrating core functionality. Without this working, users cannot trust the bridge.
 
-**Independent Test**: Can be fully tested by running `npm run demo` or `sqsk demo` and observing console output showing successful completion of all pipeline stages. Delivers immediate value by confirming installation.
+**Independent Test**: Can be fully tested by running `npm run demo` or `squask demo` and observing console output showing successful completion of all pipeline stages. Delivers immediate value by confirming installation.
 
 **Acceptance Scenarios**:
 

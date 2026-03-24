@@ -206,17 +206,28 @@ export async function runDemo(
     stagesFailed,
     artifacts,
     cleanupPerformed: false,
+    kept: false,
+    artifactPaths: [],
     errorSummary,
   };
 
   // Automatic cleanup logic:
+  // - If keep=true: skip cleanup, mark artifacts as kept
   // - If keep=false AND all stages succeeded: perform cleanup
-  // - If keep=true OR any stage failed: skip cleanup (preserve artifacts for debugging)
+  // - If keep=false AND any stage failed: skip cleanup (preserve artifacts for debugging)
   const allStagesSucceeded = stagesFailed === 0;
-  if (!config.flags.keep && allStagesSucceeded) {
+  if (config.flags.keep) {
+    // --keep flag active: preserve artifacts and record their paths
+    const preservedPaths = artifacts.map((a) => a.path);
+    if (config.demoDir) {
+      preservedPaths.unshift(config.demoDir);
+    }
+    report.kept = true;
+    report.artifactPaths = preservedPaths;
+  } else if (allStagesSucceeded) {
     report = await deps.cleanupHandler.cleanup(config, report);
   }
-  // Otherwise, cleanupPerformed remains false (artifacts preserved)
+  // Otherwise, cleanupPerformed remains false (artifacts preserved for debugging)
 
   return report;
 }

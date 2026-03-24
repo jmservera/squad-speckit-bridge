@@ -72,6 +72,42 @@ Some content without frontmatter.
     // Even empty content parses fine with gray-matter, returns empty entry
     expect(result).not.toBeNull();
   });
+
+  it('records parse warning for content that throws in YAML parser', () => {
+    // Unclosed flow collections reliably cause YAML parse errors
+    const malformed = '---\nname: [unclosed\nversion: {broken\n';
+    const warnings: ParseWarning[] = [];
+    const result = parseSkillFile(malformed, 'bad', 'bad.md', warnings);
+    // gray-matter may either throw (warning recorded) or recover
+    // Either outcome is acceptable — no crash is the requirement
+    if (result === null) {
+      expect(warnings.length).toBeGreaterThan(0);
+      expect(warnings[0].reason).toContain('Parse error');
+    } else {
+      expect(result.name).toBe('bad');
+    }
+  });
+
+  it('returns valid skill for content with empty frontmatter', () => {
+    const content = '---\n---\n\n# Skill with no data\n\n## What to Do — Patterns\n\n- Pattern one\n';
+    const warnings: ParseWarning[] = [];
+    const result = parseSkillFile(content, 'no-data', 'no-data.md', warnings);
+
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('no-data');
+    expect(result!.patterns).toContain('Pattern one');
+    expect(warnings).toHaveLength(0);
+  });
+
+  it('returns valid skill for content with no frontmatter delimiters', () => {
+    const content = 'Just raw markdown\n\n## Patterns\n\n- A pattern\n';
+    const warnings: ParseWarning[] = [];
+    const result = parseSkillFile(content, 'raw', 'raw.md', warnings);
+
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('raw');
+    expect(warnings).toHaveLength(0);
+  });
 });
 
 describe('parseDecisionsFile', () => {
@@ -127,6 +163,21 @@ Some content.
     const warnings: ParseWarning[] = [];
     const result = parseDecisionsFile('', 'empty.md', warnings);
     expect(result).toHaveLength(0);
+  });
+
+  it('returns empty array for file with only frontmatter', () => {
+    const content = '---\ntitle: Decisions\n---\n';
+    const warnings: ParseWarning[] = [];
+    const result = parseDecisionsFile(content, 'frontmatter-only.md', warnings);
+    expect(result).toHaveLength(0);
+  });
+
+  it('handles decisions with no status gracefully', () => {
+    const content = '### No Status Decision (2025-08-01)\n\nSome content without status line.\n';
+    const warnings: ParseWarning[] = [];
+    const result = parseDecisionsFile(content, 'no-status.md', warnings);
+    expect(result).toHaveLength(1);
+    expect(result[0].status).toBe('unknown');
   });
 });
 

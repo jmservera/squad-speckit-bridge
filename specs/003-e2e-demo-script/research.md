@@ -172,8 +172,8 @@ try {
    Cleaned up: Yes
 
 📖 Next steps:
-   - Run `sqsk demo --keep` to inspect generated artifacts
-   - Run `sqsk demo` (without --dry-run) to create real issues
+   - Run `squask demo --keep` to inspect generated artifacts
+   - Run `squask demo` (without --dry-run) to create real issues
 ```
 
 ---

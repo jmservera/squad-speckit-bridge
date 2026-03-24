@@ -1,7 +1,7 @@
 /**
- * T028: SyncStateAdapter
+ * T028 + T009: SyncStateAdapter
  *
- * Implements SyncStateReader and SquadMemoryWriter ports.
+ * Implements SyncStateReader, SyncStatePersistence, and SquadMemoryWriter ports.
  * Reads sync state from .squad/.bridge-sync.json.
  * Reads execution results from spec directory (tasks.md completion status).
  * Writes learnings to .squad/agents/bridge/history.md.
@@ -9,20 +9,24 @@
  * Adapter layer — uses fs/promises (framework), implements ports.
  */
 
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import type { SquadMemoryWriter } from '../../bridge/ports.js';
 import type { SyncState } from '../../types.js';
-import type { SyncStateReader } from '../sync-learnings.js';
+import type { SyncStateReader, SyncStatePersistence } from '../sync-learnings.js';
 
 const SYNC_STATE_FILE = '.bridge-sync.json';
 
-export class SyncStateAdapter implements SyncStateReader, SquadMemoryWriter {
+export class SyncStateAdapter implements SyncStateReader, SyncStatePersistence, SquadMemoryWriter {
 
   async readSyncState(squadDir: string): Promise<SyncState | null> {
     try {
       const raw = await readFile(join(squadDir, SYNC_STATE_FILE), 'utf-8');
-      return JSON.parse(raw) as SyncState;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object' || !parsed.lastSyncTimestamp) {
+        return null;
+      }
+      return parsed as SyncState;
     } catch {
       return null;
     }
@@ -32,6 +36,21 @@ export class SyncStateAdapter implements SyncStateReader, SquadMemoryWriter {
     const fullPath = join(squadDir, SYNC_STATE_FILE);
     await mkdir(dirname(fullPath), { recursive: true });
     await writeFile(fullPath, JSON.stringify(state, null, 2) + '\n', 'utf-8');
+  }
+
+  async getLastSyncTimestamp(squadDir: string): Promise<Date | null> {
+    const state = await this.readSyncState(squadDir);
+    if (!state?.lastSyncTimestamp) return null;
+    const date = new Date(state.lastSyncTimestamp);
+    return isNaN(date.getTime()) ? null : date;
+  }
+
+  async clearState(squadDir: string): Promise<void> {
+    try {
+      await unlink(join(squadDir, SYNC_STATE_FILE));
+    } catch {
+      // Already missing — nothing to clear
+    }
   }
 
   async readSpecResults(specDir: string): Promise<{ title: string; content: string }[]> {
