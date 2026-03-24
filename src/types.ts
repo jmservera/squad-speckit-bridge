@@ -370,6 +370,19 @@ export function detectConstitution(content: string | null): ConstitutionStatus {
   return { exists: true, isTemplate: false, warnings: [] };
 }
 
+// T002: Port DTOs — SquadStateReader extensions
+
+export interface AgentCharter {
+  agentName: string;
+  skills: string[];
+}
+
+export interface SkillFileContent {
+  name: string;
+  content: string;
+  sizeBytes: number;
+}
+
 // T001: New Entity Types — US-7 (Distribution Analysis)
 
 export interface AgentAssignment {
