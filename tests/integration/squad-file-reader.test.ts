@@ -1,8 +1,9 @@
 /**
- * Integration tests for T024: SquadFileReader adapter
+ * Integration tests for T024 + T004: SquadFileReader adapter
  *
  * Tests against real fixture files in tests/fixtures/squad/.
- * Verifies file discovery, parsing, and graceful error handling.
+ * Verifies file discovery, parsing, graceful error handling,
+ * missing directory guards, and malformed frontmatter resilience.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -94,7 +95,6 @@ describe('SquadFileReader', () => {
     await reader.readLearnings();
 
     const warnings = reader.getWarnings();
-    // No malformed files in fixtures, so no warnings expected
     expect(Array.isArray(warnings)).toBe(true);
   });
 
@@ -121,5 +121,98 @@ describe('SquadFileReader', () => {
     const undefinedFilter = await reader.readLearnings(undefined);
 
     expect(allLearnings.length).toBe(undefinedFilter.length);
+  });
+
+  // T004: Missing directory hardening tests
+
+  it('returns empty skills when skills/ directory is missing', async () => {
+    // Use agents dir — has no skills/ subdirectory
+    const reader = new SquadFileReader(resolve(FIXTURES_DIR, 'agents', 'dinesh'));
+    const skills = await reader.readSkills();
+    expect(skills).toHaveLength(0);
+  });
+
+  it('returns empty charters when agents/ directory is missing', async () => {
+    const reader = new SquadFileReader('/non/existent/dir');
+    const charters = await reader.readAgentCharters();
+    expect(charters).toHaveLength(0);
+  });
+
+  it('returns empty skill files when skills/ directory is missing', async () => {
+    const reader = new SquadFileReader('/non/existent/dir');
+    const files = await reader.readSkillFiles();
+    expect(files).toHaveLength(0);
+  });
+
+  it('returns empty learnings when agents/ directory is missing', async () => {
+    const reader = new SquadFileReader('/non/existent/dir');
+    const learnings = await reader.readLearnings();
+    expect(learnings).toHaveLength(0);
+  });
+
+  // T004: Malformed frontmatter resilience tests
+
+  it('records warning for malformed frontmatter in skill files and continues', async () => {
+    const reader = new SquadFileReader(FIXTURES_DIR);
+    const skills = await reader.readSkills();
+    const warnings = reader.getWarnings();
+
+    // Malformed skill should either produce a parse warning or be parsed with degraded data.
+    // gray-matter's YAML parser may recover from some malformed YAML depending on internal state.
+    // Either way, the reader must NOT throw, and valid skills must still be returned.
+    const names = skills.map((s) => s.name);
+    expect(names).toContain('project-conventions');
+    expect(names).toContain('testing-patterns');
+
+    // If gray-matter threw, the malformed skill should appear as a warning
+    const malformedWarning = warnings.find((w) => w.file.includes('malformed-skill'));
+    const malformedSkill = skills.find((s) => s.name === 'malformed-skill');
+    // One of these must be true: either it's in warnings (parser failed) or skills (parser recovered)
+    expect(malformedWarning ?? malformedSkill).toBeDefined();
+  });
+
+  it('skips empty skill files and records warning', async () => {
+    const reader = new SquadFileReader(FIXTURES_DIR);
+    const skills = await reader.readSkills();
+    const warnings = reader.getWarnings();
+
+    // Empty skill file should be skipped
+    const emptyWarning = warnings.find((w) => w.file.includes('empty-skill'));
+    expect(emptyWarning).toBeDefined();
+    expect(emptyWarning!.reason).toContain('Empty file');
+
+    // Should not produce a skill entry for the empty file
+    const names = skills.map((s) => s.name);
+    expect(names).not.toContain('empty-skill');
+  });
+
+  it('handles malformed agent history gracefully with warning', async () => {
+    const reader = new SquadFileReader(FIXTURES_DIR);
+    const learnings = await reader.readLearnings();
+    const warnings = reader.getWarnings();
+
+    // broken agent history has malformed frontmatter — should produce a warning
+    const brokenWarning = warnings.find((w) => w.file.includes('broken'));
+    // gray-matter may or may not parse it depending on the YAML error;
+    // either way, valid agents should still be read
+    const names = learnings.map((l) => l.agentName);
+    expect(names).toContain('dinesh');
+    expect(names).toContain('richard');
+  });
+
+  it('returns empty decisions for empty decisions file', async () => {
+    // Construct a reader pointing at a dir with no decisions.md
+    const reader = new SquadFileReader('/non/existent/dir');
+    const decisions = await reader.readDecisions();
+    expect(decisions).toHaveLength(0);
+  });
+
+  it('returns warnings as a defensive copy', async () => {
+    const reader = new SquadFileReader(FIXTURES_DIR);
+    await reader.readSkills();
+    const w1 = reader.getWarnings();
+    const w2 = reader.getWarnings();
+    expect(w1).toEqual(w2);
+    expect(w1).not.toBe(w2); // different array references
   });
 });

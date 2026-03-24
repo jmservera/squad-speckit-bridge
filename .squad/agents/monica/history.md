@@ -48,4 +48,28 @@
 
 3. **Documentation is a product feature.** Installation docs are often the first impression. Clear choices, expected output, and troubleshooting that maps errors to solutions converts frustrated users into users who get it working. The installation guide is the gate; make it welcoming.
 
+### SpecKit→Squad Handoff Process Documentation (2026-03-24)
+
+**Documented the critical process rule Juanma established:** SpecKit generates tasks.md, Squad creates GitHub issues. SpecKit must NOT create issues directly.
+
+Key learnings from writing this skill:
+
+1. **Workflow rules encode human intent.** The "Squad creates issues" rule isn't arbitrary — it exists because Squad owns routing (labels), team awareness, and the ceremony checkpoint where knowledge corrects planning. Writing this out made the rule's dependencies obvious: label awareness, team composition knowledge, the ceremony itself. A rule without rationale is fragile; with rationale, it's defensible.
+
+2. **Handoff boundaries define system integrity.** tasks.md is a near-perfect integration boundary (structured, machine-parseable, represents the exact point where planning becomes execution). Crossing this boundary in the wrong direction (SpecKit creating issues) breaks the contract: it skips squad labels, bypasses the ceremony, and creates invisible work.
+
+3. **Anti-patterns reveal design intent.** Writing the "anti-patterns" section forced clarity on what NOT to do. Each anti-pattern (SpecKit creating issues, missing squad label, bulk-assigning agents) traces back to the same root: someone bypassing the ceremony or squad's routing system. This clarified that the rule's real purpose is protecting the ceremony and triage process.
+
+4. **Tables clarify role separation.** The comparison table (SpecKit vs Squad on label awareness, team knowledge, issue lifecycle) made the reason for role separation self-evident. Text alone doesn't convince; a structured comparison shows why Squad must own issue creation.
+
+5. **Examples force implementation thinking.** Writing Example 1 (correct workflow) and Example 2 (anti-pattern) made it clear what the bridge code needs to do: parse tasks.md, create issues with squad label, preserve task IDs, let Squad triage — and critically, don't pre-assign agents. This transitions Monica's skill into engineering guidance.
+
+### T046: Demo Command Documentation (2026-03-24)
+
+1. **Flags are better documented through usage patterns than flags tables.** Instead of listing `--dry-run: simulate without API calls`, showing `npm run demo -- --dry-run` followed by "Full pipeline trace with preview..." forces the writer to think like a user. The example clarifies intent better than a feature list. This pattern works for any CLI tool documentation.
+
+2. **Output descriptions ground examples in reality.** Adding "**Output:** ..." after each command variant acknowledges that users care about what happens next. Without it, copy-pasting commands feels risky. With it, the reader understands consequences and can predict what they'll see on their terminal.
+
+3. **Combination examples unlock power-user workflows.** Most CLI docs show commands in isolation. Adding "Combine Flags" section (e.g., `--verbose --keep --dry-run`) signals to experienced users that flags are orthogonal and composable. This reduces support burden by letting power users self-serve advanced workflows.
+
 <!-- Append learnings below -->

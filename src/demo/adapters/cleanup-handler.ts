@@ -48,6 +48,8 @@ export class FileSystemCleanupHandler implements CleanupHandler {
       return {
         ...report,
         cleanupPerformed: false,
+        kept: true,
+        artifactPaths: [config.demoDir, ...report.artifacts.map((a) => a.path)],
       };
     }
 
