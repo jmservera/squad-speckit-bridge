@@ -7,7 +7,7 @@
  * Adapter layer — uses fs/promises and glob (frameworks), implements port.
  */
 
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { join, basename, dirname } from 'node:path';
 import { glob } from 'glob';
 import type { SquadStateReader } from '../ports.js';
@@ -32,7 +32,22 @@ export class SquadFileReader implements SquadStateReader {
     return [...this.warnings];
   }
 
+  /** Check if a directory exists; returns false for ENOENT/ENOTDIR. */
+  private async directoryExists(dirPath: string): Promise<boolean> {
+    try {
+      const s = await stat(dirPath);
+      return s.isDirectory();
+    } catch {
+      return false;
+    }
+  }
+
   async readSkills(): Promise<SkillEntry[]> {
+    const skillsDir = join(this.squadDir, 'skills');
+    if (!(await this.directoryExists(skillsDir))) {
+      return [];
+    }
+
     const pattern = join(this.squadDir, 'skills', '*', 'SKILL.md');
     let files: string[];
 
@@ -47,13 +62,16 @@ export class SquadFileReader implements SquadStateReader {
     for (const file of files) {
       try {
         const content = await readFile(file, 'utf-8');
+        if (content.trim().length === 0) {
+          this.warnings.push({ file, reason: 'Empty file — skipped' });
+          continue;
+        }
         const skillName = basename(dirname(file));
         const entry = parseSkillFile(content, skillName, file, this.warnings);
         if (entry) {
           skills.push(entry);
         }
       } catch (err) {
-        // ENOENT or permission errors — skip gracefully
         if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
           continue;
         }
@@ -72,6 +90,10 @@ export class SquadFileReader implements SquadStateReader {
 
     try {
       const content = await readFile(decisionsPath, 'utf-8');
+      if (content.trim().length === 0) {
+        this.warnings.push({ file: decisionsPath, reason: 'Empty decisions file — skipped' });
+        return [];
+      }
       return parseDecisionsFile(content, decisionsPath, this.warnings);
     } catch (err) {
       if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -86,6 +108,11 @@ export class SquadFileReader implements SquadStateReader {
   }
 
   async readLearnings(since?: Date): Promise<LearningEntry[]> {
+    const agentsDir = join(this.squadDir, 'agents');
+    if (!(await this.directoryExists(agentsDir))) {
+      return [];
+    }
+
     const pattern = join(this.squadDir, 'agents', '*', 'history.md');
     let files: string[];
 
@@ -100,10 +127,13 @@ export class SquadFileReader implements SquadStateReader {
     for (const file of files) {
       try {
         const content = await readFile(file, 'utf-8');
+        if (content.trim().length === 0) {
+          this.warnings.push({ file, reason: 'Empty history file — skipped' });
+          continue;
+        }
         const agentName = basename(dirname(file));
         const entry = parseHistoryFile(content, agentName, file, this.warnings);
         if (entry) {
-          // T035: Apply date filtering if since parameter provided
           if (since) {
             const filtered = entry.entries.filter((e) => {
               const d = Date.parse(e.date);
@@ -153,6 +183,13 @@ export class SquadFileReader implements SquadStateReader {
   }
 
   async readAgentCharters(): Promise<AgentCharter[]> {
+    const agentsDir = join(this.squadDir, 'agents');
+    if (!(await this.directoryExists(agentsDir))) {
+      return [];
+    }
+
+
+
     const pattern = join(this.squadDir, 'agents', '*', 'charter.md');
     let files: string[];
 
@@ -167,6 +204,12 @@ export class SquadFileReader implements SquadStateReader {
     for (const file of files) {
       try {
         const content = await readFile(file, 'utf-8');
+        if (content.trim().length === 0) {
+          this.warnings.push({ file, reason: 'Empty charter file — skipped' });
+          continue;
+        }
+
+
         const agentName = basename(dirname(file));
         const skills = this.extractSkillsFromCharter(content);
         charters.push({ agentName, skills });
@@ -185,6 +228,13 @@ export class SquadFileReader implements SquadStateReader {
   }
 
   async readSkillFiles(): Promise<SkillFileContent[]> {
+    const skillsDir = join(this.squadDir, 'skills');
+    if (!(await this.directoryExists(skillsDir))) {
+      return [];
+    }
+
+
+
     const pattern = join(this.squadDir, 'skills', '*', 'SKILL.md');
     let files: string[];
 
@@ -199,6 +249,12 @@ export class SquadFileReader implements SquadStateReader {
     for (const file of files) {
       try {
         const content = await readFile(file, 'utf-8');
+        if (content.trim().length === 0) {
+          this.warnings.push({ file, reason: 'Empty skill file — skipped' });
+          continue;
+        }
+
+
         const name = basename(dirname(file));
         results.push({ name, content, sizeBytes: Buffer.byteLength(content, 'utf-8') });
       } catch (err) {
