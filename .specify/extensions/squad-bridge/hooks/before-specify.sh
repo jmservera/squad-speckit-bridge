@@ -43,7 +43,7 @@ fi
 echo "[squad-bridge] Injecting Squad context into ${SPEC_DIR}..."
 npx squad-speckit-bridge context "$SPEC_DIR" --quiet 2>/dev/null || {
   echo "[squad-bridge] WARNING: Context injection failed — continuing without Squad context."
-  exit 1
+  exit 0
 }
 
 echo "[squad-bridge] Squad context injected successfully."

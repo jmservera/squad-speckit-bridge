@@ -51,7 +51,7 @@ if command -v squask &> /dev/null; then
   squask issues "$TASKS_FILE" || {
     echo "[squad-bridge] WARNING: Issue creation failed."
     echo "[squad-bridge] Run manually: squask issues ${TASKS_FILE}"
-    exit 1
+    exit 0
   }
   echo "[squad-bridge] GitHub issues created successfully."
 else

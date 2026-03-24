@@ -44,7 +44,7 @@ echo "[squad-bridge] Syncing implementation results to Squad memory..."
 npx squad-speckit-bridge sync "$SPEC_DIR" --quiet 2>/dev/null || {
   echo "[squad-bridge] WARNING: Learning sync failed — manual sync recommended."
   echo "[squad-bridge] Run: npx squad-speckit-bridge sync ${SPEC_DIR}"
-  exit 1
+  exit 0
 }
 
 echo "[squad-bridge] Implementation learnings synced to Squad memory."

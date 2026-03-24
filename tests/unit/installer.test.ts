@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { installBridge } from '../../src/install/installer.js';
 import type { FrameworkDetector, FileDeployer } from '../../src/bridge/ports.js';
 import { createDefaultConfig } from '../../src/types.js';
@@ -156,4 +158,111 @@ describe('installBridge', () => {
     // Should succeed without errors — re-install is idempotent
     expect(result.manifest.files).toHaveLength(3);
   });
+});
+
+// --- T006: after-tasks hook automation tests ---
+
+const HOOKS_DIR = resolve(__dirname, '../../src/install/templates/hooks');
+
+function readHook(name: string): string {
+  return readFileSync(join(HOOKS_DIR, name), 'utf-8');
+}
+
+describe('after-tasks hook automation — T006', () => {
+  const hook = readHook('after-tasks.sh');
+
+  it('contains squask issues invocation', () => {
+    expect(hook).toContain('squask issues');
+  });
+
+  it('has error handling block for squask command', () => {
+    expect(hook).toContain('|| {');
+    expect(hook).toContain('WARNING: Issue creation failed');
+  });
+
+  it('checks bridge config before running', () => {
+    expect(hook).toContain('BRIDGE_CONFIG');
+    expect(hook).toContain('HOOK_ENABLED');
+  });
+
+  it('validates SPECKIT_SPEC_DIR is set', () => {
+    expect(hook).toContain('SPECKIT_SPEC_DIR');
+  });
+
+  it('exits 0 on error — hooks must not block pipeline', () => {
+    // Every exit in the file must be exit 0
+    const exitLines = hook.split('\n').filter((l) => /^\s*exit\s+\d/.test(l));
+    expect(exitLines.length).toBeGreaterThan(0);
+    for (const line of exitLines) {
+      expect(line.trim()).toBe('exit 0');
+    }
+  });
+
+  it('uses set -euo pipefail for strict mode', () => {
+    expect(hook).toContain('set -euo pipefail');
+  });
+
+  it('starts with bash shebang', () => {
+    expect(hook.startsWith('#!/usr/bin/env bash')).toBe(true);
+  });
+});
+
+// --- T008: Cross-hook CLI alias consistency ---
+
+describe('cross-hook CLI alias consistency — T008', () => {
+  const hookFiles = readdirSync(HOOKS_DIR).filter((f) => f.endsWith('.sh'));
+  const SCOPED_PACKAGE_PATTERNS = [
+    '@jmservera/squad-speckit-bridge',
+    'npx squad-speckit-bridge',
+    'npx @jmservera',
+  ];
+
+  it('finds all 3 hook templates', () => {
+    expect(hookFiles).toHaveLength(3);
+    expect(hookFiles).toContain('after-tasks.sh');
+    expect(hookFiles).toContain('before-specify.sh');
+    expect(hookFiles).toContain('after-implement.sh');
+  });
+
+  for (const hookFile of hookFiles) {
+    describe(hookFile, () => {
+      const content = readHook(hookFile);
+
+      it('does not invoke the bridge via scoped package names', () => {
+        // Lines that are just echo'd install instructions are acceptable
+        const lines = content.split('\n');
+        for (const line of lines) {
+          const trimmed = line.trim();
+          // Skip comment lines and echo/print lines (install instructions)
+          if (trimmed.startsWith('#') || trimmed.startsWith('echo')) continue;
+          for (const pattern of SCOPED_PACKAGE_PATTERNS) {
+            expect(trimmed).not.toContain(pattern);
+          }
+        }
+      });
+
+      it('uses squask CLI alias for bridge commands', () => {
+        // Every hook that invokes the bridge CLI should use `squask`, not npx or scoped names
+        const commandLines = content.split('\n').filter(
+          (l) => l.includes('squask ') || l.includes('npx ') || l.includes('squad-speckit-bridge'),
+        );
+        for (const line of commandLines) {
+          // Lines checking command availability are OK
+          if (line.includes('command -v')) continue;
+          // Informational echo lines with install instructions are OK
+          if (line.trim().startsWith('echo') && line.includes('npm install')) continue;
+          expect(line).toContain('squask');
+          expect(line).not.toContain('npx squad-speckit-bridge');
+        }
+      });
+
+      it('exits 0 on all exit paths — hooks must not block pipeline', () => {
+        const exitLines = content.split('\n').filter((l) => /^\s*exit\s+\d/.test(l));
+        expect(exitLines.length).toBeGreaterThan(0);
+        for (const line of exitLines) {
+          expect(line.trim()).toBe('exit 0');
+        }
+      });
+    });
+  }
 });

@@ -37,7 +37,7 @@ echo "[squad-bridge] Injecting Squad context into ${SPEC_DIR}..."
 if command -v squask &> /dev/null; then
   squask context "$SPEC_DIR" --quiet 2>/dev/null || {
     echo "[squad-bridge] WARNING: Context injection failed — continuing without Squad context."
-    exit 1
+    exit 0
   }
   echo "[squad-bridge] Squad context injected successfully."
 else
