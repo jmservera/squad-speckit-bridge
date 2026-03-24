@@ -9,6 +9,8 @@ import type {
   ExecutionReport,
   PipelineStage,
   DemoFlags,
+  ErrorEntry,
+  WarningEntry,
 } from './entities.js';
 import { StageStatus } from './entities.js';
 import { formatElapsedTime } from './utils.js';
@@ -115,6 +117,33 @@ export function formatHumanOutput(report: ExecutionReport): string {
     lines.push('');
   }
 
+  // T035: Detailed error/warning summary collecting all entries from all stages
+  const allErrors = report.errors ?? [];
+  const allWarnings = report.warnings ?? [];
+
+  if (allErrors.length > 0 || allWarnings.length > 0) {
+    lines.push('── Error Summary ───────────────────────────────────────────');
+    lines.push('');
+
+    if (allErrors.length > 0) {
+      lines.push(`  Errors (${allErrors.length}):`);
+      for (const err of allErrors) {
+        lines.push(`    ${EMOJI.FAILED} [${err.stage}] ${err.message}`);
+        lines.push(`      Code: ${err.code} | Time: ${err.timestamp}`);
+      }
+      lines.push('');
+    }
+
+    if (allWarnings.length > 0) {
+      lines.push(`  Warnings (${allWarnings.length}):`);
+      for (const warn of allWarnings) {
+        lines.push(`    ⚠ [${warn.stage}] ${warn.message}`);
+        lines.push(`      Time: ${warn.timestamp}`);
+      }
+      lines.push('');
+    }
+  }
+
   // Footer
   lines.push('═══════════════════════════════════════════════════════════');
   const finalStatus = report.stagesFailed === 0 ? EMOJI.COMPLETE : EMOJI.ERROR;
@@ -173,6 +202,10 @@ interface JsonOutputBase {
   demoDir: string;
   cleanupPerformed: boolean;
   flags: DemoFlags;
+  /** T036: Structured error entries */
+  errors: ErrorEntry[];
+  /** T036: Structured warning entries */
+  warnings: WarningEntry[];
 }
 
 interface JsonOutputSuccess extends JsonOutputBase {
@@ -270,6 +303,10 @@ export function formatJsonOutput(report: ExtendedExecutionReport): string {
     return pendingStage;
   });
 
+  // T036: Collect errors and warnings
+  const errors: ErrorEntry[] = report.errors ?? [];
+  const allWarnings: WarningEntry[] = report.warnings ?? [];
+
   // Build output object
   const output: JsonOutput = success
     ? {
@@ -280,6 +317,8 @@ export function formatJsonOutput(report: ExtendedExecutionReport): string {
         demoDir: report.demoDir,
         cleanupPerformed: report.cleanupPerformed,
         flags: report.flags,
+        errors,
+        warnings: allWarnings,
       }
     : {
         success: false,
@@ -291,6 +330,8 @@ export function formatJsonOutput(report: ExtendedExecutionReport): string {
         demoDir: report.demoDir,
         cleanupPerformed: report.cleanupPerformed,
         flags: report.flags,
+        errors,
+        warnings: allWarnings,
       };
 
   return JSON.stringify(output, null, 2);

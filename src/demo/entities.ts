@@ -131,6 +131,42 @@ export interface ArtifactSummary {
 }
 
 /**
+ * T031: Result of prerequisite validation before pipeline execution.
+ */
+export interface PrerequisiteResult {
+  /** True if all prerequisites are met */
+  valid: boolean;
+  /** List of prerequisite check failure messages */
+  errors: string[];
+}
+
+/**
+ * T035/T036: Structured error entry for output reporting.
+ */
+export interface ErrorEntry {
+  /** Pipeline stage that produced the error */
+  stage: string;
+  /** Human-readable error message */
+  message: string;
+  /** Machine-readable error code */
+  code: string;
+  /** ISO 8601 timestamp when error occurred */
+  timestamp: string;
+}
+
+/**
+ * T035/T036: Structured warning entry for output reporting.
+ */
+export interface WarningEntry {
+  /** Pipeline stage that produced the warning */
+  stage: string;
+  /** Human-readable warning message */
+  message: string;
+  /** ISO 8601 timestamp when warning occurred */
+  timestamp: string;
+}
+
+/**
  * Final summary after demo completion.
  */
 export interface ExecutionReport {
@@ -146,4 +182,8 @@ export interface ExecutionReport {
   cleanupPerformed: boolean;
   /** High-level error description if demo failed */
   errorSummary?: string;
+  /** T036: Structured error entries from all stages */
+  errors?: ErrorEntry[];
+  /** T036: Structured warning entries from all stages */
+  warnings?: WarningEntry[];
 }

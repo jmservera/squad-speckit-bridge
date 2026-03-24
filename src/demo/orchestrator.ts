@@ -11,6 +11,9 @@ import type {
   ExecutionReport,
   ArtifactSummary,
   DemoArtifact,
+  PrerequisiteResult,
+  ErrorEntry,
+  WarningEntry,
 } from './entities.js';
 import { StageStatus } from './entities.js';
 import type {
@@ -93,21 +96,95 @@ export function createDemoDirectory(): string {
 }
 
 // ─────────────────────────────────────────────────────────────
+// T031: Prerequisite Validation
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Validates that all prerequisites are met before running the pipeline.
+ * Checks: command availability, config validity, feature description.
+ */
+export async function validatePrerequisites(
+  config: DemoConfiguration,
+  deps: DemoDependencies
+): Promise<PrerequisiteResult> {
+  const errors: string[] = [];
+
+  // Check speckit command is available
+  const speckitAvailable = await deps.processExecutor.isCommandAvailable('speckit');
+  if (!speckitAvailable) {
+    errors.push('Required command "speckit" is not available in PATH. Install Spec Kit first.');
+  }
+
+  // Check timeout is valid
+  if (!config.timeout || config.timeout <= 0) {
+    errors.push(`Invalid timeout value: ${config.timeout}. Must be a positive number.`);
+  }
+
+  // Check feature description is non-empty
+  if (!config.exampleFeature || config.exampleFeature.trim().length === 0) {
+    errors.push('Feature description is empty. Provide a feature description to specify.');
+  }
+
+  // Check demoDir is under specs/
+  if (!config.demoDir.startsWith('specs/') && !config.demoDir.startsWith('specs\\')) {
+    errors.push(`Demo directory "${config.demoDir}" must be under specs/.`);
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
 // Orchestrator Core
 // ─────────────────────────────────────────────────────────────
+
+/**
+ * Options for controlling pipeline execution.
+ */
+export interface RunDemoOptions {
+  /** T032: AbortSignal for graceful shutdown on SIGINT */
+  signal?: AbortSignal;
+}
 
 /**
  * Executes the demo pipeline end-to-end.
  *
  * @param config - Demo configuration with flags and paths
  * @param deps - Injected dependencies for I/O operations
+ * @param options - Optional execution controls (abort signal)
  * @returns Execution report with timing, artifacts, and status
  */
 export async function runDemo(
   config: DemoConfiguration,
-  deps: DemoDependencies
+  deps: DemoDependencies,
+  options?: RunDemoOptions
 ): Promise<ExecutionReport> {
   const startTime = Date.now();
+  const errors: ErrorEntry[] = [];
+  const warnings: WarningEntry[] = [];
+
+  // T031: Validate prerequisites before running
+  const prereqs = await validatePrerequisites(config, deps);
+  if (!prereqs.valid) {
+    return {
+      totalTimeMs: Date.now() - startTime,
+      stagesCompleted: 0,
+      stagesFailed: 0,
+      artifacts: [],
+      cleanupPerformed: false,
+      errorSummary: `Prerequisite check failed: ${prereqs.errors.join('; ')}`,
+      errors: prereqs.errors.map(msg => ({
+        stage: 'prerequisites',
+        message: msg,
+        code: 'PREREQUISITE_FAILED',
+        timestamp: new Date().toISOString(),
+      })),
+      warnings: [],
+    };
+  }
+
   const stages = createPipelineStages(config);
   const completedArtifacts: DemoArtifact[] = [];
 
@@ -119,6 +196,17 @@ export async function runDemo(
 
   // Execute stages sequentially with explicit status transitions
   for (const stage of stages) {
+    // T032: Check for abort signal before each stage
+    if (options?.signal?.aborted) {
+      errorSummary = errorSummary ?? 'Pipeline interrupted by user (SIGINT)';
+      warnings.push({
+        stage: stage.name,
+        message: 'Stage skipped due to pipeline interruption',
+        timestamp: new Date().toISOString(),
+      });
+      break;
+    }
+
     const stageStartTime = Date.now();
 
     // Transition: pending → running
@@ -135,6 +223,17 @@ export async function runDemo(
     const stageEndTime = Date.now();
     stage.endTime = stageEndTime;
     stage.elapsedMs = stageEndTime - stageStartTime;
+
+    // T032: Check for abort after execution completes
+    if (options?.signal?.aborted) {
+      errorSummary = 'Pipeline interrupted by user (SIGINT)';
+      warnings.push({
+        stage: stage.name,
+        message: 'Pipeline interrupted during stage execution',
+        timestamp: new Date().toISOString(),
+      });
+      break;
+    }
 
     // Capture stdout/stderr in stage result
     stage.output = {
@@ -158,6 +257,12 @@ export async function runDemo(
         stage.error = `Artifact validation failed (${formatElapsedTime(stage.elapsedMs!)}): ${artifact.errors.join(', ')}`;
         stagesFailed++;
         errorSummary = `Artifact validation failed for ${stage.name}: ${artifact.errors.join(', ')}`;
+        errors.push({
+          stage: stage.name,
+          message: stage.error,
+          code: 'ARTIFACT_VALIDATION_FAILED',
+          timestamp: new Date().toISOString(),
+        });
         // Halt pipeline on first failure
         break;
       }
@@ -171,10 +276,23 @@ export async function runDemo(
         `Command: ${stage.command.join(' ')}`,
         `Duration: ${formatElapsedTime(stage.elapsedMs!)}`,
       ];
+      // T033: Report timeout as specific error type
       if (result.timedOut) {
         errorParts.push('Status: Timed out');
+        errors.push({
+          stage: stage.name,
+          message: `Process timed out after ${formatElapsedTime(stage.elapsedMs!)}: ${stage.command.join(' ')}`,
+          code: 'PROCESS_TIMEOUT',
+          timestamp: new Date().toISOString(),
+        });
       } else {
         errorParts.push(`Exit code: ${result.exitCode ?? 'unknown'}`);
+        errors.push({
+          stage: stage.name,
+          message: `Command failed with exit code ${result.exitCode ?? 'unknown'}: ${stage.command.join(' ')}`,
+          code: 'STAGE_EXECUTION_FAILED',
+          timestamp: new Date().toISOString(),
+        });
       }
       if (result.stderr.trim()) {
         errorParts.push(`Error: ${result.stderr.trim().slice(0, 500)}`);
@@ -207,12 +325,15 @@ export async function runDemo(
     artifacts,
     cleanupPerformed: false,
     errorSummary,
+    errors,
+    warnings,
   };
 
   // Automatic cleanup logic:
   // - If keep=false AND all stages succeeded: perform cleanup
   // - If keep=true OR any stage failed: skip cleanup (preserve artifacts for debugging)
-  const allStagesSucceeded = stagesFailed === 0;
+  // - T032: Skip cleanup if pipeline was interrupted
+  const allStagesSucceeded = stagesFailed === 0 && !options?.signal?.aborted;
   if (!config.flags.keep && allStagesSucceeded) {
     report = await deps.cleanupHandler.cleanup(config, report);
   }
