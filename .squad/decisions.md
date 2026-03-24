@@ -605,3 +605,118 @@ The bridge must embed the correct step sequence for integrating SpecKit and Squa
 
 **Status:** Implemented and validated in PR #331; merged.
 
+
+---
+
+### User Directive: Close Knowledge Flywheel with Reverse Sync (2026-03-24T22:39:26Z)
+
+**Author:** Juanma (via Copilot)  
+**Date:** 2026-03-24  
+**Type:** Requirement
+
+**Directive:** After a spec's implementation is complete, Squad learnings and memories must be synced BACK into the spec artifacts (not squad → tasks, but squad-knowledge → spec enrichment). This is the reverse direction of `squask sync`.
+
+**Timing:** Should happen after a "nap" (cooldown period) from the Squad, not immediately after execution. The bridge must control this step so it's reproducible.
+
+**Why:** User request — closes the knowledge flywheel. Specs should get smarter after each implementation cycle. Currently `squask sync` only goes forward (spec → squad context). The reverse path (squad learnings → spec) doesn't exist yet.
+
+**Status:** Approved for Phase 1 MVP (manual ceremony)
+
+**Classification:** Project-specific + architectural (this bridge's reverse sync feature, applies only here)
+
+---
+
+### Decision: Knowledge Feedback Loop Architecture (2026-03-24)
+
+**Author:** Gilfoyle (Research Analyst)  
+**Date:** 2026-03-24  
+**Context:** Juanma's directive identified critical gap: bridge syncs forward only (specs → squad context → implementation). After implementation, learnings stay trapped in Squad memory. Spec artifacts never benefit from team experience.
+
+**Decision:** Implement reverse knowledge sync as a phased feature.
+
+**Phase 1 (MVP v0.1) — Manual Ceremony:**
+```bash
+squask sync-reverse <spec-dir> [--dry-run] [--cooldown 0]
+```
+- Reads recent learnings from `.squad/agents/*/history.md` and `.squad/decisions.md`
+- Applies privacy filtering (regex masks secrets, strips PII)
+- Deduplicates via fingerprints
+- Writes to `specs/{id}/learnings.md`
+- Teams manually trigger after implementation is stable
+
+**Output Structure** (learnings.md):
+- Architectural Insights
+- Integration Patterns
+- Performance Notes
+- Decisions Made During Implementation
+- Reusable Techniques
+- Risks & Workarounds
+
+**Cooldown:** 24 hours default (only processes learnings >24h old). Ceremony can override with `--cooldown 0`.
+
+**Key Design Decisions:**
+1. Manual, not automatic (proven pattern, human judgment needed)
+2. Cooldown is configurable, respects team workflow
+3. Privacy filtering required from day 1 (secrets/PII prevention)
+4. learnings.md is separate artifact, doesn't mutate spec.md
+5. Feature-level scope is explicit in MVP (not heuristic)
+
+**Phase 2+ (v0.2+):** Time-gated automation, Spec Kit hook integration, feature scope detection
+
+**Rationale:** Low risk (manual trigger, human review), closes core feedback gap, enables validation before Phase 2.
+
+**Status:** Approved for implementation
+
+**Classification:** Architectural + project-specific (reverse sync for this bridge; learnings.md pattern may generalize)
+
+---
+
+### Decision: Reverse Knowledge Sync — Standard Practice for All Specs (2026-03-24)
+
+**Author:** Richard (Lead)  
+**Date:** 2026-03-24  
+**Type:** Process Standard
+
+**Decision:** Adopt reverse knowledge sync as standard practice for all feature specs.
+
+After implementation completion, synthesize learnings back into the spec directory by creating a `learnings.md` file and adding an Implementation Notes section to `spec.md`.
+
+**Pattern Applied to Spec 005:**
+
+**learnings.md (528 lines)** includes:
+- Exit Code Contract Violation Pattern: PR #328 regression caught by automated tests
+- Git Permissions Dual-Track: `chmod +x` + `git update-index --chmod=+x` requirement
+- Squash Merge Issue Closure Gap: Manual issue closure needed for PR body preservation
+- Node.js Environment Check Pattern: `command -v` checks for external CLI availability
+- Config-Driven Hook Behavior Pattern: `autoCreateIssues` flag, centralized config control
+
+**spec.md (Implementation Notes section)** includes:
+- Summary of actual vs planned outcomes
+- Key deviations from original spec
+- Links to learnings.md
+- Process metrics: 75% first-time PR approval, 1.25 review cycles per PR, 60-70% time saved via parallel execution
+
+**Benefits:**
+1. **Compound Learning**: Each spec teaches the next. Spec 006 references spec 005 patterns.
+2. **Pattern Library**: Searchable reusable patterns (config-driven behavior, contract tests, permission handling)
+3. **Process Improvement**: Metrics provide baseline for optimization
+4. **Onboarding Value**: New members understand not just what was built, but why
+5. **Knowledge Flywheel**: Spec quality improves over time
+
+**When to Synthesize:** After all tasks complete, PRs merge, tests pass. Before marking "done".
+
+**Who:** Lead role (Richard) or distributed (agents contribute domain sections).
+
+**Effort:** ~2-3 hours per spec (Spec 005 validated this).
+
+**Status:** Adopted for spec 005. Ready to apply to all future specs.
+
+**Next Steps:**
+1. Add "Reverse Sync" as phase in SpecKit task templates
+2. Update ceremonies.md to include learnings synthesis
+3. Train agents to reference `specs/*/learnings.md` when planning
+
+**Classification:** Process standard, project-specific (pattern applies to this project's spec workflow)
+
+---
+
