@@ -102,6 +102,14 @@ export function formatHumanOutput(report: ExecutionReport): string {
   lines.push('');
   if (report.cleanupPerformed) {
     lines.push(`  ${EMOJI.SUCCESS} Demo directory cleaned up`);
+  } else if (report.kept) {
+    lines.push(`  📦 Artifacts preserved (--keep)`);
+    if (report.artifactPaths.length > 0) {
+      lines.push(`     Location: ${report.artifactPaths[0]}`);
+      for (const artifactPath of report.artifactPaths.slice(1)) {
+        lines.push(`       • ${artifactPath}`);
+      }
+    }
   } else {
     lines.push(`  ${EMOJI.RUNNING} Demo artifacts preserved`);
   }
@@ -172,6 +180,8 @@ interface JsonOutputBase {
   stages: JsonStage[];
   demoDir: string;
   cleanupPerformed: boolean;
+  kept: boolean;
+  artifactPaths: string[];
   flags: DemoFlags;
 }
 
@@ -279,6 +289,8 @@ export function formatJsonOutput(report: ExtendedExecutionReport): string {
         stages,
         demoDir: report.demoDir,
         cleanupPerformed: report.cleanupPerformed,
+        kept: report.kept,
+        artifactPaths: report.artifactPaths,
         flags: report.flags,
       }
     : {
@@ -290,6 +302,8 @@ export function formatJsonOutput(report: ExtendedExecutionReport): string {
         errorSummary: report.errorSummary ?? 'Demo failed',
         demoDir: report.demoDir,
         cleanupPerformed: report.cleanupPerformed,
+        kept: report.kept,
+        artifactPaths: report.artifactPaths,
         flags: report.flags,
       };
 
