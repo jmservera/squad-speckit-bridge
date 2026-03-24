@@ -354,7 +354,10 @@ program
 
     // T032: Wire graceful shutdown via AbortController + SIGINT
     const controller = new AbortController();
-    const onSigint = () => { controller.abort(); };
+    const onSigint = () => {
+      controller.abort();
+      process.exitCode = 130;
+    };
     process.on('SIGINT', onSigint);
 
     try {
