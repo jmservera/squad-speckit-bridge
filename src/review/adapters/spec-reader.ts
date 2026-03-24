@@ -1,102 +1,83 @@
 /**
- * T011: SpecReader Adapter
+ * SpecFileReader — Parses FR-XXX requirements from spec markdown.
  *
- * Implements SpecReader port. Parses spec.md files for FR-XXX
- * (Functional Requirement) entries.
+ * Handles multi-paragraph descriptions: collects all text after an FR-
+ * entry until the next FR- entry or end of file.
  *
- * Supported formats:
- *   - **FR-001**: Title text here
- *   - FR-001: Title text here
- *   - `FR-001`: Title text here
- *   - Bullet lines starting with FR-XXX
- *
- * Acceptance criteria are extracted from subsequent bullet lines that
- * start with a number or dash under a requirement heading.
- *
- * Clean Architecture: adapter layer — may import node:fs.
+ * Clean Architecture: implements SpecReader port from ../../bridge/ports.ts.
  */
 
 import { readFile } from 'node:fs/promises';
-import type { SpecReader } from '../ports.js';
-import type { FunctionalRequirement } from '../../types.js';
+import type { SpecReader } from '../../bridge/ports.js';
+import type { SpecRequirement } from '../../types.js';
+
+/** Matches lines like `- **FR-001**: Description text` or `- **FR-001** Description text` */
+const FR_LINE_RE = /^-\s+\*\*(?<id>FR-\d+)\*\*[:\s]*(?<text>.*)$/;
+
+/**
+ * Extracts a category from the nearest preceding markdown heading.
+ * Returns '' if no heading precedes the line.
+ */
+function extractCategory(lines: string[], endIndex: number): string {
+  for (let i = endIndex - 1; i >= 0; i--) {
+    const heading = lines[i].match(/^#{1,6}\s+(.+)/);
+    if (heading) {
+      return heading[1].trim();
+    }
+  }
+  return '';
+}
 
 export class SpecFileReader implements SpecReader {
-  async readRequirements(specPath: string): Promise<FunctionalRequirement[]> {
-    let content: string;
-    try {
-      content = await readFile(specPath, 'utf-8');
-    } catch {
-      return [];
-    }
+  async readRequirements(specPath: string): Promise<SpecRequirement[]> {
+    const content = await readFile(specPath, 'utf-8');
     return parseRequirements(content);
   }
 }
 
-// FR-XXX pattern: captures the ID (FR- followed by digits)
-const FR_LINE_RE =
-  /^[\s*-]*(?:\*\*|`)?(?<id>FR-\d{3,4})(?:\*\*|`)?[:\s]+(?<title>.+)/;
-
 /**
- * Parse functional requirements from spec content.
- * Exported for direct unit-testing without file I/O.
+ * Pure parsing function — exported for direct unit testing.
+ *
+ * Collects multi-paragraph description text: after an FR- line, all
+ * subsequent non-empty lines (and blank lines between paragraphs) are
+ * appended to the description until the next FR- entry or EOF.
  */
-export function parseRequirements(content: string): FunctionalRequirement[] {
-  const requirements: FunctionalRequirement[] = [];
+export function parseRequirements(content: string): SpecRequirement[] {
   const lines = content.split('\n');
+  const requirements: SpecRequirement[] = [];
+  let current: { id: string; textParts: string[]; category: string } | null = null;
 
-  let i = 0;
-  while (i < lines.length) {
-    const match = lines[i].match(FR_LINE_RE);
-    if (!match?.groups) {
-      i++;
-      continue;
-    }
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const match = line.match(FR_LINE_RE);
 
-    const id = match.groups.id;
-    const titleRaw = match.groups.title
-      .replace(/\*\*/g, '')
-      .replace(/`/g, '')
-      .trim();
-
-    // Gather the full description block: the FR line plus continuation lines
-    const descLines = [lines[i].trim()];
-    const criteria: string[] = [];
-
-    i++;
-    // Collect continuation lines (indented, or numbered/dashed sub-items)
-    while (i < lines.length) {
-      const line = lines[i];
-
-      // Stop at next FR entry, heading, or blank line followed by non-continuation
-      if (FR_LINE_RE.test(line)) break;
-      if (/^#{1,4}\s/.test(line)) break;
-
-      const trimmed = line.trim();
-      if (trimmed === '') {
-        // Peek ahead: if the next non-blank line is not indented or a sub-bullet, stop
-        let j = i + 1;
-        while (j < lines.length && lines[j].trim() === '') j++;
-        if (j >= lines.length) break;
-        const nextTrimmed = lines[j].trim();
-        if (!nextTrimmed.startsWith('-') && !nextTrimmed.match(/^\d+\./)) break;
-        i++;
-        continue;
+    if (match?.groups) {
+      // Flush previous requirement
+      if (current) {
+        requirements.push({
+          id: current.id,
+          text: current.textParts.join('\n').trim(),
+          category: current.category,
+        });
       }
 
-      // Acceptance criteria: numbered or dashed sub-bullets
-      if (/^\s*[-•]\s+/.test(line) || /^\s*\d+\.\s+/.test(line)) {
-        criteria.push(trimmed.replace(/^[-•]\s+/, '').replace(/^\d+\.\s+/, ''));
-      }
-
-      descLines.push(trimmed);
-      i++;
+      current = {
+        id: match.groups.id,
+        textParts: match.groups.text.trim() ? [match.groups.text.trim()] : [],
+        category: extractCategory(lines, i),
+      };
+    } else if (current) {
+      // Continue collecting description text (including blank lines)
+      current.textParts.push(line);
     }
+  }
 
+  // Flush last requirement
+  if (current) {
     requirements.push({
-      id,
-      title: titleRaw,
-      description: descLines.join(' '),
-      acceptanceCriteria: criteria,
+      id: current.id,
+      text: current.textParts.join('\n').trim(),
+      category: current.category,
     });
   }
 

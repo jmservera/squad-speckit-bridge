@@ -1,106 +1,108 @@
-/**
- * Integration tests for T011: SpecReader adapter
- *
- * Tests against real fixture spec.md in tests/fixtures/review/.
- * Verifies FR-XXX parsing across multiple formats (bold, backtick, plain).
- */
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { mkdir, writeFile, rm } from 'node:fs/promises';
+import { SpecFileReader, parseRequirements } from '../../src/review/adapters/spec-reader.js';
 
-import { describe, it, expect } from 'vitest';
-import { resolve } from 'node:path';
-import { SpecFileReader } from '../../src/review/adapters/spec-reader.js';
-import { parseRequirements } from '../../src/review/adapters/spec-reader.js';
+const FIXTURE_DIR = 'tests/integration/.fixtures/spec-reader';
 
-const FIXTURE_SPEC = resolve(
-  import.meta.dirname,
-  '..',
-  'fixtures',
-  'review',
-  'spec.md',
-);
+describe('parseRequirements (unit)', () => {
+  it('parses basic FR-XXX requirements', () => {
+    const content = `## Requirements
+- **FR-001**: Must generate context
+- **FR-002**: Must include skills section`;
+    const reqs = parseRequirements(content);
+    expect(reqs).toHaveLength(2);
+    expect(reqs[0].id).toBe('FR-001');
+    expect(reqs[0].text).toBe('Must generate context');
+    expect(reqs[1].id).toBe('FR-002');
+    expect(reqs[1].text).toBe('Must include skills section');
+  });
 
-describe('SpecFileReader', () => {
-  it('reads all FR entries from fixture spec.md', async () => {
+  it('preserves multi-paragraph descriptions', () => {
+    const content = `## Context Generation
+- **FR-001**: First paragraph of description.
+
+  This is the second paragraph that continues
+  the description with more detail.
+
+  And a third paragraph with even more context.
+- **FR-002**: Another requirement`;
+    const reqs = parseRequirements(content);
+    expect(reqs).toHaveLength(2);
+    expect(reqs[0].id).toBe('FR-001');
+    expect(reqs[0].text).toContain('First paragraph');
+    expect(reqs[0].text).toContain('second paragraph');
+    expect(reqs[0].text).toContain('third paragraph');
+    expect(reqs[1].id).toBe('FR-002');
+    expect(reqs[1].text).toBe('Another requirement');
+  });
+
+  it('extracts category from nearest preceding heading', () => {
+    const content = `## Context Generation
+- **FR-001**: Generates context
+
+## Distribution
+- **FR-002**: Analyzes distribution`;
+    const reqs = parseRequirements(content);
+    expect(reqs[0].category).toBe('Context Generation');
+    expect(reqs[1].category).toBe('Distribution');
+  });
+
+  it('handles missing category gracefully', () => {
+    const content = `- **FR-001**: No heading above`;
+    const reqs = parseRequirements(content);
+    expect(reqs[0].category).toBe('');
+  });
+
+  it('handles empty content', () => {
+    expect(parseRequirements('')).toEqual([]);
+  });
+
+  it('handles content with no FR entries', () => {
+    expect(parseRequirements('Just some text\nwithout requirements')).toEqual([]);
+  });
+});
+
+describe('SpecFileReader (integration)', () => {
+  beforeEach(async () => {
+    await mkdir(FIXTURE_DIR, { recursive: true });
+  });
+
+  it('reads and parses requirements from a spec file', async () => {
+    await writeFile(
+      `${FIXTURE_DIR}/spec.md`,
+      `## Requirements
+- **FR-001**: Must generate context
+- **FR-002**: Must include skills section
+`,
+    );
+
     const reader = new SpecFileReader();
-    const reqs = await reader.readRequirements(FIXTURE_SPEC);
-
-    const ids = reqs.map((r) => r.id);
-    expect(ids).toContain('FR-001');
-    expect(ids).toContain('FR-002');
-    expect(ids).toContain('FR-003');
-    expect(ids).toContain('FR-004');
-    expect(ids).toContain('FR-005');
-    expect(reqs).toHaveLength(5);
+    const reqs = await reader.readRequirements(`${FIXTURE_DIR}/spec.md`);
+    expect(reqs).toHaveLength(2);
+    expect(reqs[0].id).toBe('FR-001');
+    expect(reqs[1].id).toBe('FR-002');
   });
 
-  it('extracts titles correctly', async () => {
+  it('preserves multi-paragraph descriptions from file', async () => {
+    await writeFile(
+      `${FIXTURE_DIR}/multi.md`,
+      `## Features
+- **FR-010**: First paragraph.
+
+  Second paragraph with details.
+- **FR-011**: Simple one-liner
+`,
+    );
+
     const reader = new SpecFileReader();
-    const reqs = await reader.readRequirements(FIXTURE_SPEC);
-
-    const fr1 = reqs.find((r) => r.id === 'FR-001');
-    expect(fr1).toBeDefined();
-    expect(fr1!.title).toMatch(/dashboard MUST render/i);
+    const reqs = await reader.readRequirements(`${FIXTURE_DIR}/multi.md`);
+    expect(reqs).toHaveLength(2);
+    expect(reqs[0].text).toContain('First paragraph');
+    expect(reqs[0].text).toContain('Second paragraph');
   });
 
-  it('extracts acceptance criteria from sub-bullets', async () => {
-    const reader = new SpecFileReader();
-    const reqs = await reader.readRequirements(FIXTURE_SPEC);
-
-    const fr1 = reqs.find((r) => r.id === 'FR-001');
-    expect(fr1).toBeDefined();
-    expect(fr1!.acceptanceCriteria.length).toBeGreaterThanOrEqual(2);
-    expect(fr1!.acceptanceCriteria[0]).toMatch(/grid cells/i);
-  });
-
-  it('parses backtick-wrapped FR IDs', async () => {
-    const reader = new SpecFileReader();
-    const reqs = await reader.readRequirements(FIXTURE_SPEC);
-
-    const fr4 = reqs.find((r) => r.id === 'FR-004');
-    expect(fr4).toBeDefined();
-    expect(fr4!.title).toMatch(/Widget plugins/);
-  });
-
-  it('extracts numbered acceptance criteria', async () => {
-    const reader = new SpecFileReader();
-    const reqs = await reader.readRequirements(FIXTURE_SPEC);
-
-    const fr4 = reqs.find((r) => r.id === 'FR-004');
-    expect(fr4).toBeDefined();
-    expect(fr4!.acceptanceCriteria.length).toBeGreaterThanOrEqual(3);
-    expect(fr4!.acceptanceCriteria[0]).toMatch(/asynchronously/i);
-  });
-
-  it('parses plain FR IDs without formatting', async () => {
-    const reader = new SpecFileReader();
-    const reqs = await reader.readRequirements(FIXTURE_SPEC);
-
-    const fr5 = reqs.find((r) => r.id === 'FR-005');
-    expect(fr5).toBeDefined();
-    expect(fr5!.title).toMatch(/role-based access/i);
-  });
-
-  it('returns empty array for non-existent file', async () => {
-    const reader = new SpecFileReader();
-    const reqs = await reader.readRequirements('/no/such/spec.md');
-    expect(reqs).toHaveLength(0);
-  });
-
-  it('returns empty array for spec with no FR entries', () => {
-    const reqs = parseRequirements('# Just a heading\n\nSome text without requirements.\n');
-    expect(reqs).toHaveLength(0);
-  });
-
-  it('handles empty content gracefully', () => {
-    const reqs = parseRequirements('');
-    expect(reqs).toHaveLength(0);
-  });
-
-  it('does not pick up NFR entries', async () => {
-    const reader = new SpecFileReader();
-    const reqs = await reader.readRequirements(FIXTURE_SPEC);
-
-    const ids = reqs.map((r) => r.id);
-    expect(ids).not.toContain('NFR-001');
-    expect(ids).not.toContain('NFR-002');
+  // Clean up
+  afterAll(async () => {
+    await rm(FIXTURE_DIR, { recursive: true, force: true }).catch(() => {});
   });
 });

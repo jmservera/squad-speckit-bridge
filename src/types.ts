@@ -370,20 +370,7 @@ export function detectConstitution(content: string | null): ConstitutionStatus {
   return { exists: true, isTemplate: false, warnings: [] };
 }
 
-// T002: Port DTOs — SquadStateReader extensions
-
-export interface AgentCharter {
-  agentName: string;
-  skills: string[];
-}
-
-export interface SkillFileContent {
-  name: string;
-  content: string;
-  sizeBytes: number;
-}
-
-// T001: New Entity Types — US-7 (Distribution Analysis)
+// T001: Distribution Analysis Types
 
 export interface AgentAssignment {
   issueNumber: number;
@@ -414,121 +401,97 @@ export interface DistributionAnalysis {
   suggestions: RebalanceSuggestion[];
 }
 
-// T001: New Entity Types — US-8 (Skill Matching)
-
-export interface SkillMatch {
-  skillName: string;
-  relevanceScore: number;
-  matchedKeywords: string[];
-  contentSize: number;
-}
-
-export interface SkillInjection {
-  taskId: string;
-  injectedSkills: SkillMatch[];
-  totalContentSize: number;
-  truncated: boolean;
-  budgetBytes: number;
-}
-
-// T001: New Entity Types — US-9 (Dead Code)
-
-export type DeadCodeCategory = 'untested' | 'unreachable' | 'unused_export';
-
-export interface DeadCodeEntry {
-  filePath: string;
-  exportName: string;
-  lineRange: [number, number];
-  category: DeadCodeCategory;
-  associatedCommand: string | null;
-}
-
-export interface DeadCodeReport {
-  entries: DeadCodeEntry[];
-  totalLines: number;
-  exercisedLines: number;
-  removedLines: number;
-  baselineCoverage: number;
-  finalCoverage: number;
-}
-
-// T001: New Entity Types — US-5 (Spec Requirements)
-
-export interface SpecRequirement {
-  id: string;
-  text: string;
-  category: string;
-}
-
-export interface RequirementCoverage {
-  requirement: SpecRequirement;
-  covered: boolean;
-  evidence: string[];
-  gaps: string[];
-}
-
-export interface ImplementationReview {
-  specPath: string;
-  implementationDir: string;
-  requirements: RequirementCoverage[];
-  coveragePercent: number;
-  timestamp: string;
-  summary: string;
-}
-
-// T001: Pure Functions — analyzeDistribution
-
+/**
+ * Analyzes issue distribution across agents for imbalance detection.
+ * Pure function — no I/O.
+ *
+ * @param availableAgents - All known agent names. Agents with 0 assignments
+ *   are included in the ideal-per-agent calculation so they can be suggested
+ *   for rebalancing.
+ */
 export function analyzeDistribution(
   assignments: AgentAssignment[],
-  threshold: number = 0.5,
+  threshold = 0.5,
+  availableAgents?: string[],
 ): DistributionAnalysis {
-  if (threshold <= 0 || threshold > 1) {
-    throw new RangeError(`threshold must be in (0, 1], got ${threshold}`);
-  }
   const agentCounts: Record<string, number> = {};
+
+  // Seed counts from availableAgents so 0-assignment agents are included
+  const allAgents = availableAgents ?? [];
+  for (const name of allAgents) {
+    agentCounts[name] = 0;
+  }
+
   for (const a of assignments) {
     agentCounts[a.agentName] = (agentCounts[a.agentName] ?? 0) + 1;
   }
 
   const totalIssues = assignments.length;
-  const warnings: DistributionWarning[] = [];
   const agentNames = Object.keys(agentCounts);
+  const idealPerAgent = agentNames.length > 0 ? totalIssues / agentNames.length : 0;
 
-  if (totalIssues > 0) {
-    for (const name of agentNames) {
-      const count = agentCounts[name];
-      const pct = count / totalIssues;
-      if (pct > threshold) {
-        warnings.push({
-          agentName: name,
-          assignedCount: count,
-          percentage: pct,
-          message: `Agent "${name}" has ${count}/${totalIssues} issues (${(pct * 100).toFixed(0)}%), exceeding ${(threshold * 100).toFixed(0)}% threshold.`,
-        });
-      }
+  const warnings: DistributionWarning[] = [];
+  const overAssigned: string[] = [];
+  const underAssigned: string[] = [];
+
+  for (const name of agentNames) {
+    const count = agentCounts[name];
+    const percentage = totalIssues > 0 ? count / totalIssues : 0;
+
+    if (percentage > threshold) {
+      warnings.push({
+        agentName: name,
+        assignedCount: count,
+        percentage,
+        message: `Agent '${name}' assigned ${Math.round(percentage * 100)}% of issues (${count}/${totalIssues}) — exceeds ${Math.round(threshold * 100)}% threshold`,
+      });
+      overAssigned.push(name);
+    }
+
+    if (count < idealPerAgent) {
+      underAssigned.push(name);
     }
   }
 
   const suggestions: RebalanceSuggestion[] = [];
-  if (warnings.length > 0 && agentNames.length > 1) {
-    const sorted = [...agentNames].sort((a, b) => agentCounts[a] - agentCounts[b]);
-    const leastLoaded = sorted[0];
-    for (const w of warnings) {
-      const overAgent = w.agentName;
-      const idealPerAgent = Math.ceil(totalIssues / agentNames.length);
-      const excess = agentCounts[overAgent] - idealPerAgent;
-      if (excess > 0) {
-        const issuesToMove = assignments
-          .filter(a => a.agentName === overAgent)
-          .slice(0, excess)
-          .map(a => a.issueNumber);
+  for (const from of overAssigned) {
+    // Collect all issues currently assigned to this over-assigned agent
+    const fromIssues = assignments
+      .filter(a => a.agentName === from)
+      .map(a => a.issueNumber);
+
+    // How many issues this agent has above the (floored) ideal load
+    const excess = agentCounts[from] - Math.floor(idealPerAgent);
+    if (excess <= 0 || fromIssues.length === 0) {
+      continue;
+    }
+
+    // Only consider up to "excess" issues as transferable
+    const transferableIssues = fromIssues.slice(0, excess);
+    let issueOffset = 0;
+
+    // Distribute distinct subsets of transferableIssues across under-assigned agents
+    const targets = underAssigned.filter(to => to !== from);
+    for (let i = 0; i < targets.length && issueOffset < transferableIssues.length; i++) {
+      const to = targets[i];
+      const remaining = transferableIssues.length - issueOffset;
+      const remainingRecipients = targets.length - i;
+
+      // Split remaining issues roughly evenly across remaining recipients
+      const countForTo = Math.max(1, Math.floor(remaining / remainingRecipients));
+      const end = issueOffset + countForTo;
+      const issueNumbers = transferableIssues.slice(issueOffset, end);
+
+      if (issueNumbers.length > 0) {
         suggestions.push({
-          fromAgent: overAgent,
-          toAgent: leastLoaded,
-          issueNumbers: issuesToMove,
-          rationale: `Rebalance: move ${excess} issue(s) to "${leastLoaded}" for even distribution.`,
+          fromAgent: from,
+          toAgent: to,
+          issueNumbers,
+          rationale: `Rebalance: '${from}' has ${agentCounts[from]} issues, '${to}' has ${agentCounts[to]}`,
         });
       }
+
+      issueOffset = end;
     }
   }
 
@@ -542,44 +505,11 @@ export function analyzeDistribution(
   };
 }
 
-// T001: Pure Functions — matchSkillsToTask
-
-export function matchSkillsToTask(
-  task: TaskEntry,
-  skills: SkillEntry[],
-): SkillMatch[] {
-  const taskText = `${task.title} ${task.description}`.toLowerCase();
-  const taskWords = new Set(
-    taskText.split(/\W+/).filter(w => w.length > 2),
-  );
-
-  const matches: SkillMatch[] = [];
-
-  for (const skill of skills) {
-    const skillWords = [
-      ...skill.patterns,
-      ...skill.antiPatterns,
-      skill.name,
-      skill.context,
-    ];
-    const keywords = skillWords.flatMap(s =>
-      s.toLowerCase().split(/\W+/).filter(w => w.length > 2),
-    );
-    const uniqueKeywords = [...new Set(keywords)];
-    const matched = uniqueKeywords.filter(kw => taskWords.has(kw));
-
-    if (matched.length > 0) {
-      const relevanceScore = Math.min(1, matched.length / Math.max(uniqueKeywords.length, 1));
-      matches.push({
-        skillName: skill.name,
-        relevanceScore,
-        matchedKeywords: matched,
-        contentSize: skill.rawSize,
-      });
-    }
-  }
-
-  return matches.sort((a, b) => b.relevanceScore - a.relevanceScore);
+// T001: SpecRequirement entity
+export interface SpecRequirement {
+  id: string;
+  text: string;
+  category: string;
 }
 
 // T010: Default BridgeConfig Factory
