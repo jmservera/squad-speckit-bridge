@@ -109,6 +109,32 @@ describe('scoreSkillRelevance', () => {
     expect(result.matchedKeywords).toContain('verification');
     expect(result.score).toBe(1.0);
   });
+
+  it('does NOT match partial substrings (word boundary matching)', () => {
+    const skill = makeSkill({
+      name: 'auth-service',
+      context: 'Handle user authentication and authorization tokens.',
+      patterns: ['Use JWT bearer tokens'],
+      antiPatterns: [],
+    });
+    // "cat" should NOT match "authentication" or "concatenation"
+    const result = scoreSkillRelevance(['cat'], skill);
+    expect(result.score).toBe(0);
+    expect(result.matchedKeywords).toHaveLength(0);
+  });
+
+  it('matches exact whole words only', () => {
+    const skill = makeSkill({
+      name: 'api-gateway',
+      context: 'The API gateway handles routing.',
+      patterns: [],
+      antiPatterns: [],
+    });
+    const result = scoreSkillRelevance(['api', 'gateway'], skill);
+    expect(result.score).toBe(1.0);
+    expect(result.matchedKeywords).toContain('api');
+    expect(result.matchedKeywords).toContain('gateway');
+  });
 });
 
 // ---------------------------------------------------------------------------

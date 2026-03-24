@@ -72,6 +72,11 @@ export interface SquadMemoryWriter {
   writeDecision(title: string, content: string): Promise<string>;
 }
 
+// Input port: reads spec requirements for fidelity review
+export interface SpecReader {
+  readRequirements(specPath: string): Promise<import('../types.js').SpecRequirement[]>;
+}
+
 // Input port: reads tasks markdown for issue creation
 export interface TasksMarkdownReader {
   readAndParse(path: string): Promise<TaskEntry[]>;

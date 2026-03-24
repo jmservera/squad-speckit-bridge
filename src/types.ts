@@ -370,6 +370,124 @@ export function detectConstitution(content: string | null): ConstitutionStatus {
   return { exists: true, isTemplate: false, warnings: [] };
 }
 
+// T001: Distribution Analysis Types
+
+export interface AgentAssignment {
+  issueNumber: number;
+  agentName: string;
+  labels: string[];
+}
+
+export interface DistributionWarning {
+  agentName: string;
+  assignedCount: number;
+  percentage: number;
+  message: string;
+}
+
+export interface RebalanceSuggestion {
+  fromAgent: string;
+  toAgent: string;
+  issueNumbers: number[];
+  rationale: string;
+}
+
+export interface DistributionAnalysis {
+  agentCounts: Record<string, number>;
+  totalIssues: number;
+  imbalanced: boolean;
+  threshold: number;
+  warnings: DistributionWarning[];
+  suggestions: RebalanceSuggestion[];
+}
+
+/**
+ * Analyzes issue distribution across agents for imbalance detection.
+ * Pure function — no I/O.
+ *
+ * @param availableAgents - All known agent names. Agents with 0 assignments
+ *   are included in the ideal-per-agent calculation so they can be suggested
+ *   for rebalancing.
+ */
+export function analyzeDistribution(
+  assignments: AgentAssignment[],
+  threshold = 0.5,
+  availableAgents?: string[],
+): DistributionAnalysis {
+  const agentCounts: Record<string, number> = {};
+
+  // Seed counts from availableAgents so 0-assignment agents are included
+  const allAgents = availableAgents ?? [];
+  for (const name of allAgents) {
+    agentCounts[name] = 0;
+  }
+
+  for (const a of assignments) {
+    agentCounts[a.agentName] = (agentCounts[a.agentName] ?? 0) + 1;
+  }
+
+  const totalIssues = assignments.length;
+  const agentNames = Object.keys(agentCounts);
+  const idealPerAgent = agentNames.length > 0 ? totalIssues / agentNames.length : 0;
+
+  const warnings: DistributionWarning[] = [];
+  const overAssigned: string[] = [];
+  const underAssigned: string[] = [];
+
+  for (const name of agentNames) {
+    const count = agentCounts[name];
+    const percentage = totalIssues > 0 ? count / totalIssues : 0;
+
+    if (percentage > threshold) {
+      warnings.push({
+        agentName: name,
+        assignedCount: count,
+        percentage,
+        message: `Agent '${name}' assigned ${Math.round(percentage * 100)}% of issues (${count}/${totalIssues}) — exceeds ${Math.round(threshold * 100)}% threshold`,
+      });
+      overAssigned.push(name);
+    }
+
+    if (count < idealPerAgent) {
+      underAssigned.push(name);
+    }
+  }
+
+  const suggestions: RebalanceSuggestion[] = [];
+  for (const from of overAssigned) {
+    for (const to of underAssigned) {
+      const fromIssues = assignments
+        .filter(a => a.agentName === from)
+        .map(a => a.issueNumber);
+      const excess = agentCounts[from] - Math.ceil(idealPerAgent);
+      if (excess > 0 && fromIssues.length > 0) {
+        suggestions.push({
+          fromAgent: from,
+          toAgent: to,
+          issueNumbers: fromIssues.slice(0, excess),
+          rationale: `Rebalance: '${from}' has ${agentCounts[from]} issues, '${to}' has ${agentCounts[to]}`,
+        });
+      }
+    }
+  }
+
+  return {
+    agentCounts,
+    totalIssues,
+    imbalanced: warnings.length > 0,
+    threshold,
+    warnings,
+    suggestions,
+  };
+}
+
+// T001: SpecRequirement entity
+export interface SpecRequirement {
+  id: string;
+  text: string;
+  category: string;
+}
+
 // T010: Default BridgeConfig Factory
 
 export function createDefaultConfig(): BridgeConfig {

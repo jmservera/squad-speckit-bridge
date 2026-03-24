@@ -105,7 +105,8 @@ export function scoreSkillRelevance(
 
   const matched: string[] = [];
   for (const kw of taskKeywords) {
-    if (skillText.includes(kw)) {
+    const pattern = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    if (pattern.test(skillText)) {
       matched.push(kw);
     }
   }
