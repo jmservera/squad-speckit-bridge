@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-We built a sophisticated bridge between Squad and SpecKit — 7 CLI commands, 3 lifecycle hooks, 3 skills, a ceremony definition, and a Spec Kit extension. **The architecture is sound but adoption is low.** Of the 7 bridge commands, only `install` was used via CLI. Issue creation bypassed our own `sqsk issues` command in favor of a hand-written shell script. No `squad-context.md` was ever generated. No Design Review was ever executed through the bridge. The knowledge flow is almost entirely one-way (SpecKit→Squad via tasks.md), with the reverse flow (Squad→SpecKit via context injection) designed but never activated.
+We built a sophisticated bridge between Squad and SpecKit — 7 CLI commands, 3 lifecycle hooks, 3 skills, a ceremony definition, and a Spec Kit extension. **The architecture is sound but adoption is low.** Of the 7 bridge commands, only `install` was used via CLI. Issue creation bypassed our own `squask issues` command in favor of a hand-written shell script. No `squad-context.md` was ever generated. No Design Review was ever executed through the bridge. The knowledge flow is almost entirely one-way (SpecKit→Squad via tasks.md), with the reverse flow (Squad→SpecKit via context injection) designed but never activated.
 
 ---
 
@@ -19,13 +19,13 @@ We built a sophisticated bridge between Squad and SpecKit — 7 CLI commands, 3 
 
 | Command | Purpose | Status |
 |---------|---------|--------|
-| `sqsk install` | Deploy bridge to both frameworks | ✅ **Used** (manifest dated 2026-03-23) |
-| `sqsk context` | Generate squad-context.md for planning | ❌ **Never run** (zero squad-context.md files exist) |
-| `sqsk status` | Show installation status | ⚠️ Unknown (no evidence either way) |
-| `sqsk review` | Design Review cross-referencing | ❌ **Never run** (zero review.md files exist) |
-| `sqsk issues` | Create GitHub issues from tasks.md | ❌ **Never run** (shell script used instead) |
-| `sqsk sync` | Sync learnings back to Squad | ❌ **Never run** (no sync artifacts found) |
-| `sqsk demo` | Run E2E pipeline demo | ❌ **Never run** (code written but command not invoked) |
+| `squask install` | Deploy bridge to both frameworks | ✅ **Used** (manifest dated 2026-03-23) |
+| `squask context` | Generate squad-context.md for planning | ❌ **Never run** (zero squad-context.md files exist) |
+| `squask status` | Show installation status | ⚠️ Unknown (no evidence either way) |
+| `squask review` | Design Review cross-referencing | ❌ **Never run** (zero review.md files exist) |
+| `squask issues` | Create GitHub issues from tasks.md | ❌ **Never run** (shell script used instead) |
+| `squask sync` | Sync learnings back to Squad | ❌ **Never run** (no sync artifacts found) |
+| `squask demo` | Run E2E pipeline demo | ❌ **Never run** (code written but command not invoked) |
 
 **Usage rate: 1 of 7 commands (14%)**
 
@@ -128,11 +128,11 @@ The SpecKit custom agents (speckit.*) operate **independently** from Squad orche
 
 | Component | LOC | Evidence |
 |-----------|-----|----------|
-| `sqsk context` command | ~200 | Zero squad-context.md files |
-| `sqsk review` command | ~200 | Zero review.md files |
-| `sqsk issues` command | ~200 | Shell script used instead |
-| `sqsk sync` command | ~150 | No sync artifacts |
-| `sqsk demo` command | ~400 | Registered but never invoked |
+| `squask context` command | ~200 | Zero squad-context.md files |
+| `squask review` command | ~200 | Zero review.md files |
+| `squask issues` command | ~200 | Shell script used instead |
+| `squask sync` command | ~150 | No sync artifacts |
+| `squask demo` command | ~400 | Registered but never invoked |
 | `project-conventions/SKILL.md` | 57 | Template placeholder |
 | `before-specify.sh` hook | 44 | Never triggered |
 | `after-tasks.sh` hook | 47 | Never triggered |
@@ -142,7 +142,7 @@ The SpecKit custom agents (speckit.*) operate **independently** from Squad orche
 **Estimated dead LOC:** ~1,500 lines of code/config that has never been exercised in production use.
 
 ### Not Dead But Undertested
-- `sqsk install` — used once, but the installed hooks never fired
+- `squask install` — used once, but the installed hooks never fired
 - `speckit-bridge/SKILL.md` — complete content but no evidence it was passed to agent prompts
 - `ceremony.md` — well-designed but no Design Review was ever conducted through it
 
@@ -152,25 +152,25 @@ The SpecKit custom agents (speckit.*) operate **independently** from Squad orche
 
 ### P0 — Dogfood the Bridge (immediate)
 
-1. **Run `sqsk context` before the next planning cycle.** Generate squad-context.md and verify it improves spec quality. This is the bridge's primary value prop — if it doesn't work here, it doesn't work.
+1. **Run `squask context` before the next planning cycle.** Generate squad-context.md and verify it improves spec quality. This is the bridge's primary value prop — if it doesn't work here, it doesn't work.
 
-2. **Use `sqsk issues` instead of shell scripts.** The next feature's issues MUST be created through the bridge. If the UX is bad, fix it. If the command is broken, fix it. Either way, we need the feedback.
+2. **Use `squask issues` instead of shell scripts.** The next feature's issues MUST be created through the bridge. If the UX is bad, fix it. If the command is broken, fix it. Either way, we need the feedback.
 
-3. **Run `sqsk review` on existing tasks.md.** Execute a Design Review ceremony on specs/003. Even retroactively, this validates the review pipeline.
+3. **Run `squask review` on existing tasks.md.** Execute a Design Review ceremony on specs/003. Even retroactively, this validates the review pipeline.
 
 ### P1 — Close the Knowledge Loop (next sprint)
 
 4. **Wire SpecKit agents to read squad-context.md.** The `speckit.specify` and `speckit.plan` agents should check for and consume `squad-context.md` if present. Add to their agent.md prompt: "Before planning, check if `squad-context.md` exists in the spec directory and incorporate its context."
 
-5. **Auto-generate context before planning.** Since hooks don't fire when using Copilot Chat agents (only CLI), add a step to the speckit.specify agent prompt: "Run `npx sqsk context <spec-dir>` first."
+5. **Auto-generate context before planning.** Since hooks don't fire when using Copilot Chat agents (only CLI), add a step to the speckit.specify agent prompt: "Run `npx squask context <spec-dir>` first."
 
-6. **Run `sqsk sync` after implementation.** After feature 003 closes, run sync to prove the learning loop works.
+6. **Run `squask sync` after implementation.** After feature 003 closes, run sync to prove the learning loop works.
 
 ### P2 — Reduce Dead Code (next cycle)
 
 7. **Fill project-conventions/SKILL.md.** Extract actual conventions from the codebase (TypeScript, Vitest, Clean Architecture, ESM modules) and write them down. This is 30 minutes of work with high payoff.
 
-8. **Merge `speckit.taskstoissues` agent with `sqsk issues`.** Having two mechanisms for the same job guarantees one gets ignored. Pick one and deprecate the other.
+8. **Merge `speckit.taskstoissues` agent with `squask issues`.** Having two mechanisms for the same job guarantees one gets ignored. Pick one and deprecate the other.
 
 9. **Add integration tests that exercise the full loop.** The 183 passing tests cover bridge internals but zero tests verify the end-to-end flow (context → plan → tasks → review → issues → sync).
 
@@ -188,14 +188,14 @@ Three factors:
 
 1. **Agent vs CLI gap.** SpecKit agents run in Copilot Chat. Spec Kit hooks run via CLI. Since we used agents (not CLI), hooks never fired. The bridge was designed for a CLI workflow but deployed in an agent workflow.
 
-2. **Friction.** Running `sqsk context specs/003/` before `/speckit.specify` is an extra manual step. Humans skip extra steps. The bridge needs to be automatic or invisible.
+2. **Friction.** Running `squask context specs/003/` before `/speckit.specify` is an extra manual step. Humans skip extra steps. The bridge needs to be automatic or invisible.
 
-3. **Shell scripts are faster for one-off jobs.** Generating `create-issues.sh` with 50 hardcoded `gh issue create` commands was faster than debugging `sqsk issues` for the first time. The bridge CLI pays off on repeat use, but there's been no repeat use yet.
+3. **Shell scripts are faster for one-off jobs.** Generating `create-issues.sh` with 50 hardcoded `gh issue create` commands was faster than debugging `squask issues` for the first time. The bridge CLI pays off on repeat use, but there's been no repeat use yet.
 
 ---
 
 ## Decision Proposal
 
-**Proposed Decision:** Before the next feature spec, the team MUST use the bridge tools (`sqsk context`, `sqsk review`, `sqsk issues`, `sqsk sync`) instead of manual workarounds. Document any UX friction as bugs. This is the only way to validate whether the bridge we built actually works.
+**Proposed Decision:** Before the next feature spec, the team MUST use the bridge tools (`squask context`, `squask review`, `squask issues`, `squask sync`) instead of manual workarounds. Document any UX friction as bugs. This is the only way to validate whether the bridge we built actually works.
 
 **Status:** Proposed — awaiting Lead review
