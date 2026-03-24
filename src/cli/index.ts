@@ -343,7 +343,7 @@ program
   .command('demo')
   .description('Run E2E demo of the pipeline')
   .option('--dry-run', 'Simulate GitHub issue creation without API calls', false)
-  .option('--keep', 'Preserve demo artifacts after completion', false)
+  .option('-k, --keep', 'Preserve demo artifacts after completion', false)
   .option('--verbose', 'Enable verbose output', false)
   .option('--json', 'Output in JSON format', false)
   .action(async (cmdOpts: Record<string, unknown>) => {
