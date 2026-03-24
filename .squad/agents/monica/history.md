@@ -2,82 +2,188 @@
 
 ## Core Context
 
-- **Project:** Research and compare agentic development frameworks, evaluating their capabilities and interoperability
-- **Role:** Technical Writer
-- **Joined:** 2026-03-23T08:50:38.333Z
+- **Role:** Technical Writer & Process Documentarian
+- **Domain:** Framework documentation, installation guides, handoff process documentation
+- **Key Insight:** Abstraction boundaries matter more than features; real-world data is strongest signal
+- **Critical Documentation:**
+  - SpecKit→Squad handoff process (with workflow rules and anti-patterns)
+  - Demo command API reference (JSON schema + human output mapping)
+  - Installation guides with expected outputs + troubleshooting
+  - Framework comparison synthesis (4-agent research consolidated into decision matrices)
+- **Key Patterns:**
+  - **Landing pages are pitches**: Describe problem → value proposition → 2-minute tour → benefits matrix (not just features)
+  - **Examples are mandatory**: Every command needs copy-pasteable examples with expected output (human + JSON)
+  - **Clean Architecture diagrams in product docs**: 4-layer diagram + dependency flow is core story, not just technical
+  - **Port interfaces as documentation anchors**: API surface clarity via simple tables (Interface → Purpose → Responsibility)
+  - **Knowledge flow loops need visual+prose**: Diagram shows structure, prose explains steps, symbols show feedback
+  - **Installation guides need verification**: Prerequisites with commands, step outputs, verification checklist, common errors with solutions
+  - **Schema documentation bridges design+usage**: Show shape AND what each field means; human format → JSON output → schema flow
+- **Status:** Documentation complete; handoff process documented; synthesis patterns established
 
 ## Learnings
 
-### Synthesizing Framework Comparisons (2026-03-23)
+### 2026-03-23: Synthesizing Framework Comparisons into Decision Matrices
 
-1. **Abstraction boundaries matter more than features.** Squad and Spec Kit solve different layers (team orchestration vs. planning), not the same problem. The synthesis forced a shift from "which is better?" to "where does each excel and how do they combine?" This framing makes them immediately complementary rather than competitive.
+**Key Insight:** Documentation is synthesis, not collection. Read all four research papers, extract core insight from each, rebuild narrative from first principles.
 
-2. **Real-world data is the strongest signal.** The comparison of sofia-cli (Spec Kit greenfield) vs aithena (Squad brownfield) revealed that **project type drives framework fit more than framework quality**. Greenfield → Spec Kit. Brownfield → Squad. This pattern wasn't obvious from the frameworks themselves until we examined actual usage.
+**Abstraction Boundaries > Features:**
+- Squad and Spec Kit solve different layers (team orchestration vs planning), not same problem
+- Shifted framing from "which is better?" to "where does each excel and how do they combine?"
+- This framing makes them immediately complementary rather than competitive
 
-3. **State accumulation is a silent architectural risk.** Both frameworks grow state without bounds (Spec Kit: specs, Squad: decisions.md + logs). The 475KB decisions.md in aithena was the clearest friction signal — not because it's "bad," but because it creates context window and understanding burden. State management should be a first-class concern in framework design, not an afterthought.
+**Real-World Data as Strongest Signal:**
+- sofia-cli (Spec Kit greenfield) vs aithena (Squad brownfield) revealed project type drives framework fit more than quality
+- Greenfield → Spec Kit; Brownfield → Squad; this pattern only obvious from actual usage, not frameworks alone
 
-4. **Handoff seams are where integration lives.** `tasks.md` is a nearly perfect integration boundary — it's structured, machine-parseable, and represents exactly the point where Spec Kit's planning work becomes Squad's execution input. This insight simplified the entire integration story from "complex merge" to "thin bridge at a well-defined API."
+**State Accumulation as Silent Architectural Risk:**
+- Both frameworks grow state without bounds (Spec Kit: specs, Squad: decisions.md + logs)
+- 475KB decisions.md in aithena was clearest friction signal — not "bad," but creates context window + understanding burden
+- State management should be first-class framework concern, not afterthought
 
-5. **Documentation is synthesis, not collection.** The initial instinct was to dump all research findings into the report. The cleaner approach was to read all four research papers, extract the core insight from each, and rebuild the narrative from first principles. This forced alignment and revealed where the researchers disagreed (they didn't, much — they were just looking at different angles).
+**Handoff Seams as Integration Points:**
+- tasks.md is nearly perfect integration boundary — structured, machine-parseable, represents exact point where Spec Kit planning → Squad execution
+- This insight simplified integration story from "complex merge" to "thin bridge at well-defined API"
 
-6. **Tables are precision tools for synthesis.** When comparing frameworks across many dimensions, a well-structured table (Head-to-Head Comparison, Risk Matrix, etc.) communicates more efficiently than prose. A table also forces orthogonality — if two columns have the same entries, they're not distinct dimensions.
+**Documentation as Synthesis Pattern:**
+- Initial instinct: dump all research findings into report
+- Cleaner approach: read sources, extract core insight from each, rebuild narrative from first principles
+- This forces alignment and reveals where researchers disagreed (they didn't — looking at different angles)
 
-7. **Recommendations need decision matrices.** Telling a team "here's the best option" is weaker than "here are four options, each best for different contexts." The second approach acknowledges that the best choice depends on unknowns (team size, project type, platform lock-in tolerance) that only the decision-maker can evaluate.
+**Tables as Precision Tools:**
+- When comparing many dimensions, well-structured table (Head-to-Head, Risk Matrix) communicates more efficiently than prose
+- Forces orthogonality — if columns have same entries, they're not distinct dimensions
+- Cleaner communication than prose; harder to be sloppy with structure
 
-### Documentation Patterns & GitHub Pages Content (2026-03-23)
+**Recommendations Need Decision Matrices:**
+- "Here's the best option" is weaker than "here are four options, each best for different contexts"
+- Acknowledges best choice depends on unknowns only decision-maker can evaluate
+- Builds decision confidence
 
-1. **Landing pages are pitches for internal frameworks.** A good landing page for developer tools doesn't describe features—it describes the problem the tool solves and the outcome it enables. The Squad-SpecKit Bridge landing page worked best when structured as: Problem → Value Proposition (knowledge flywheel) → 2-minute tour → Benefits matrix. This pattern applies to any integration or multi-layer system.
+### 2026-03-23: Documentation Patterns & GitHub Pages Content
 
-2. **Copy-pasteable examples are mandatory for CLI tools.** "Documentation should include examples" is weak. Stronger: "Every command should have copy-pasteable examples with expected output (human and JSON)." This forces the writer to think like a user and ensures examples are correct. For the bridge, showing `$ npx squad-speckit-bridge context specs/001-feature/` followed by the exact output it produces prevented users from guessing what worked.
+**Landing Pages Are Pitches for Internal Frameworks:**
+- Good landing page doesn't describe features — describes problem tool solves + outcome enabled
+- Squad-SpecKit Bridge landing page worked best as: Problem → Value Proposition (knowledge flywheel) → 2-minute tour → Benefits matrix
+- Pattern applies to any integration or multi-layer system
 
-3. **Clean Architecture diagrams belong in product documentation.** Engineers often separate "pretty docs for users" from "architecture docs for developers." For infrastructure and frameworks, this is a false split. The Squad-SpecKit Bridge's 4-layer diagram and dependency flow weren't just technical—they were the core story: layers point inward, entities pure, adapters replaceable. Showing this in docs built confidence that the system was maintainable.
+**Copy-Pasteable Examples Are Mandatory for CLI Tools:**
+- "Documentation should include examples" is weak
+- Stronger: "Every command should have copy-pasteable examples with expected output (human and JSON)"
+- Forces writer to think like user; ensures examples are correct
+- For bridge: showing `$ npx squad-speckit-bridge context specs/001-feature/` + exact output prevented user guessing
 
-4. **Port interfaces are documentation anchors.** Instead of prose descriptions of "how components talk," a simple table of Port Interface → Purpose → Responsibility clarifies the system's surface API. This became the single source of truth for what each layer needed from the next layer inward. Combined with DTOs, it described the exact data crossing each boundary.
+**Clean Architecture Diagrams Belong in Product Docs:**
+- Don't separate "pretty docs for users" from "architecture docs for developers"
+- For infrastructure/frameworks, this is false split
+- Squad-SpecKit Bridge's 4-layer diagram + dependency flow weren't just technical — they were core story
+- Showing layers point inward, entities pure, adapters replaceable built confidence in maintainability
 
-5. **Knowledge flow loops need visual+prose.** The "flywheel" concept (planning → execution → learning → better planning) was the bridge's core value. A diagram alone was abstract; prose alone was hard to follow. The combination worked: diagram shows structure, prose explains each step, and the ⤴ symbol shows the loop closes. This pattern applies to any system with feedback or recursion.
+**Port Interfaces as Documentation Anchors:**
+- Instead of prose descriptions of "how components talk," simple table of Port Interface → Purpose → Responsibility clarifies system's API
+- Became single source of truth for what each layer needed from next layer inward
+- Combined with DTOs, described exact data crossing each boundary
 
-6. **GitHub Pages Jekyll themes are sufficient for structure.** No need for custom CSS or React. The minimal theme + semantic HTML + clear navigation (header_pages in _config.yml) provided professional appearance. The content and structure mattered far more than visual design. 
+**Knowledge Flow Loops Need Visual + Prose:**
+- "Flywheel" concept (planning → execution → learning → better planning) was bridge's core value
+- Diagram alone too abstract; prose alone hard to follow
+- Combination worked: diagram shows structure, prose explains each step, ⤴ symbol shows loop closes
+- Pattern applies to any system with feedback or recursion
 
-7. **Installation guides need expected outputs and troubleshooting.** The best installation guide showed: (1) prerequisites with verification commands, (2) each installation step with expected output, (3) verification that all components are in place, (4) common error scenarios with solutions. This prevented "it didn't work" with no context.
+**GitHub Pages Jekyll Themes Sufficient for Structure:**
+- No need for custom CSS or React
+- Minimal theme + semantic HTML + clear navigation (header_pages in _config.yml) provided professional appearance
+- Content + structure mattered far more than visual design
 
-### npm Publication & Documentation Updates (2026-03-23)
+**Installation Guides Need Expected Outputs + Troubleshooting:**
+- Best guides show: (1) prerequisites with verification commands, (2) each step with expected output, (3) verification checklist, (4) common errors with solutions
+- Prevents "it didn't work" with no context; cuts support load
 
-1. **Three installation modes reduce friction.** When a package reaches npm, offering three clear paths (npx for one-off use, global for power users, dev-dependency for teams) removes decision paralysis. Each has a valid use case. The npx path is especially valuable for onboarding—no setup, just works immediately.
+### 2026-03-23: npm Publication & Documentation Updates
 
-2. **Consistency over repetition.** Rather than showing every command example in all three forms, anchor on "preferred pattern" (npx in docs, then note the equivalents). Document how scoping changes: `npx @jmservera/squad-speckit-bridge` vs `squad-speckit-bridge` (global) vs `npx squad-speckit-bridge` (dev-dep). This consistency helps users switch methods without confusion.
+**Three Installation Modes Reduce Friction:**
+- Offering clear paths (npx for one-off, global for power users, dev-dependency for teams) removes decision paralysis
+- Each has valid use case; npx especially valuable for onboarding (no setup, just works)
 
-3. **Documentation is a product feature.** Installation docs are often the first impression. Clear choices, expected output, and troubleshooting that maps errors to solutions converts frustrated users into users who get it working. The installation guide is the gate; make it welcoming.
+**Consistency Over Repetition:**
+- Rather than showing every command in all three forms, anchor on "preferred pattern"
+- Document how scoping changes: `npx @jmservera/squad-speckit-bridge` vs `squad-speckit-bridge` (global) vs `npx squad-speckit-bridge` (dev-dep)
+- Consistency helps users switch methods without confusion
 
-### SpecKit→Squad Handoff Process Documentation (2026-03-24)
+**Documentation Is a Product Feature:**
+- Installation docs are often first impression
+- Clear choices, expected output, troubleshooting mapping errors to solutions converts frustrated users into working users
+- Installation guide is the gate; make it welcoming
 
-**Documented the critical process rule Juanma established:** SpecKit generates tasks.md, Squad creates GitHub issues. SpecKit must NOT create issues directly.
+### 2026-03-24: SpecKit→Squad Handoff Process Documentation
 
-Key learnings from writing this skill:
+**Workflow Rule Encoded:** SpecKit generates tasks.md, Squad creates GitHub issues. SpecKit must NOT create issues directly.
 
-1. **Workflow rules encode human intent.** The "Squad creates issues" rule isn't arbitrary — it exists because Squad owns routing (labels), team awareness, and the ceremony checkpoint where knowledge corrects planning. Writing this out made the rule's dependencies obvious: label awareness, team composition knowledge, the ceremony itself. A rule without rationale is fragile; with rationale, it's defensible.
+**Why the Rule Matters:**
+- Squad owns routing (labels), team awareness, issue lifecycle
+- Ceremony checkpoint where knowledge corrects planning
+- Rule isn't arbitrary — it exists because Squad has dependencies: label awareness, team composition knowledge, the ceremony itself
 
-2. **Handoff boundaries define system integrity.** tasks.md is a near-perfect integration boundary (structured, machine-parseable, represents the exact point where planning becomes execution). Crossing this boundary in the wrong direction (SpecKit creating issues) breaks the contract: it skips squad labels, bypasses the ceremony, and creates invisible work.
+**Key Learnings from Documenting This Skill:**
+- **Workflow rules encode human intent.** Writing this out made the rule's dependencies obvious; without rationale, rules are fragile; with rationale, defensible
+- **Handoff boundaries define system integrity.** tasks.md is near-perfect integration boundary (structured, machine-parseable, represents exact point planning → execution); crossing in wrong direction breaks contract
+- **Anti-patterns reveal design intent.** Writing anti-patterns (SpecKit creating issues, missing labels, bulk-assigning) revealed root cause: someone bypassing ceremony or Squad's routing system
+- **Tables clarify role separation.** Comparison table (SpecKit vs Squad on label awareness, team knowledge, issue lifecycle) made reason for separation self-evident
+- **Examples force implementation thinking.** Correct workflow + anti-pattern examples made clear what bridge code needs to do: parse tasks.md, create issues with squad label, preserve task IDs, let Squad triage (don't pre-assign agents)
 
-3. **Anti-patterns reveal design intent.** Writing the "anti-patterns" section forced clarity on what NOT to do. Each anti-pattern (SpecKit creating issues, missing squad label, bulk-assigning agents) traces back to the same root: someone bypassing the ceremony or squad's routing system. This clarified that the rule's real purpose is protecting the ceremony and triage process.
+### 2026-03-24: Demo Command API Reference Documentation
 
-4. **Tables clarify role separation.** The comparison table (SpecKit vs Squad on label awareness, team knowledge, issue lifecycle) made the reason for role separation self-evident. Text alone doesn't convince; a structured comparison shows why Squad must own issue creation.
+**Schema Documents Bridge Design + Usage:**
+- demo command's JSON output schema (ExecutionReport with success/failure variants, ErrorEntry/WarningEntry arrays, stage metadata) needed documentation showing both **shape** and **what each field means**
+- Human output → JSON output → JSON schema flow made relationship clear: human format is rendering of structured data
+- Pattern scales to any complex output type
 
-5. **Examples force implementation thinking.** Writing Example 1 (correct workflow) and Example 2 (anti-pattern) made it clear what the bridge code needs to do: parse tasks.md, create issues with squad label, preserve task IDs, let Squad triage — and critically, don't pre-assign agents. This transitions Monica's skill into engineering guidance.
+**Failure Cases Are First-Class Documentation:**
+- API reference included "Failure Output (JSON Format)" showing what happens when stage fails (stages → pending, errorSummary populated, cleanupPerformed = false)
+- Without this, users debugging failures would reverse-engineer schema from errors
+- Explicit failure documentation cuts support load
 
-### T046: Demo Command Documentation (2026-03-24)
+**Artifact Cleanup Logic Deserves Explicit Documentation:**
+- Cleanup behavior subtle: default cleanup on success, preserve on failure, override with --keep
+- "Artifact Cleanup" section with three clear cases prevents accidental deletion or user confusion about file location
+- Edge cases in behavior → explicit documentation items
 
-1. **Flags are better documented through usage patterns than flags tables.** Instead of listing `--dry-run: simulate without API calls`, showing `npm run demo -- --dry-run` followed by "Full pipeline trace with preview..." forces the writer to think like a user. The example clarifies intent better than a feature list. This pattern works for any CLI tool documentation.
+### 2026-03-23: Real-World Framework Insights — Synthesis from Team Research
 
-2. **Output descriptions ground examples in reality.** Adding "**Output:** ..." after each command variant acknowledges that users care about what happens next. Without it, copy-pasting commands feels risky. With it, the reader understands consequences and can predict what they'll see on their terminal.
+**Jared's Key Findings (incorporated in synthesis):**
+- Framework weight must match team size (coordination tax for solo dev vs overhead efficiency for teams)
+- State accumulation is the silent killer (475KB decisions.md creates context window poison)
+- Project type drives framework fit more than framework quality (Greenfield vs Brownfield)
+- Spec-per-feature + issue-per-task complementary (new features vs maintenance work)
+- Constitutional governance scales better (one 15KB constitution vs 475KB distributed)
 
-3. **Combination examples unlock power-user workflows.** Most CLI docs show commands in isolation. Adding "Combine Flags" section (e.g., `--verbose --keep --dry-run`) signals to experienced users that flags are orthogonal and composable. This reduces support burden by letting power users self-serve advanced workflows.
+**Gilfoyle's Meta-Analysis Findings (incorporated in synthesis):**
+- Diverge (parallel research) + Converge (sequential pipeline) = optimal knowledge outcomes
+- Workflow friction points: constitution templates, uncustomized gates, setup-plan.sh data loss, pre-pipeline research phase
+- Reverse sync gap: forward-only flow with no reverse enrichment
 
-### T252: Demo Command API Reference (#252) (2026-03-24)
+**Monica's Documentation Insight:**
+- Abstraction boundaries matter more than features
+- Real-world data stronger signal than framework comparison tables
+- Synthesis requires reading sources, extracting core insights, rebuilding narrative
 
-1. **Schema documentation bridges design and usage.** The demo command's JSON output schema (ExecutionReport with success/failure variants, ErrorEntry/WarningEntry arrays, stage metadata) needed documentation that showed *both* the shape and *what each field means*. Capturing this in the API reference with human output → JSON output → JSON schema flow made the relationship clear: the human format is a rendering of the structured data. This pattern scales to any complex output type.
+### 2026-03-23: Team Synthesis — Framework Research Complete
 
-2. **Failure cases are first-class documentation subjects.** The API reference included a "Failure Output (JSON Format)" section showing what happens when a stage fails (stages transition to pending, errorSummary is populated, cleanupPerformed is false). Without this, users debugging failures would reverse-engineer the schema from their errors. Explicit failure documentation cuts support load.
+**Team's Simultaneous Execution:**
+- **Gilfoyle:** Complementary architectural layers (runtime vs planning)
+- **Richard:** Pipeline integration strategy validated
+- **Dinesh:** Technical feasibility confirmed
+- **Jared:** State accumulation risks identified
+- **Monica:** Documentation patterns synthesized
 
-3. **Artifact cleanup logic deserves explicit documentation.** The cleanup behavior is subtle: default cleanup on success, preserve on failure, override with --keep. A bullet-point "Artifact Cleanup" section with three clear cases prevents users from accidentally deleting results or wondering where demo files went. Edge cases in behavior → explicit documentation items.
+**Consolidated Team Decisions (in decisions.md):**
+1. Framework Classification: Complementary, not competitive
+2. Integration Strategy: Pipeline model
+3. Technical Approach: Additive bridge
+4. Critical Risk: State pruning required
+5. Governance: Constitutional governance layer
 
-<!-- Append learnings below -->
+**Generic Patterns Extracted for Personal Squad:**
+- State pruning as framework feature
+- Constitutional governance at scale
+- Progressive GitHub integration
+- Team-size-driven framework configuration

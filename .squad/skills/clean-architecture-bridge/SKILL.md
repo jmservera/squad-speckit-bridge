@@ -239,5 +239,127 @@ These interfaces live in the use case layer and are implemented by adapters:
 | `IssueCreator` | Output | Create issues from approved tasks |
 | `FrameworkDetector` | Input | Detect which frameworks are installed |
 | `FileDeployer` | Output | Deploy bridge components to file system |
-| `LearningReader` | Input | Read post-execution learnings |
-| `LearningWriter` | Output | Write learnings back to Squad state |
+| `AgentHistoryReader` | Input | Read post-execution learnings from agent history files |
+| `ConstitutionWriter` | Output | Append learnings to Spec Kit constitution |
+| `SyncStateReader` | Input | Read sync state for idempotent operations |
+
+## Port Definition Pattern — v0.3.0 Sync Wiring
+
+The sync feature (T001-T008, commits 4693a86, 3aedeb7, 1fedca5) demonstrates the full port/adapter cycle:
+
+### Step 1: Define ports in use case layer
+
+```typescript
+// src/sync/sync-learnings.ts — use case layer
+// ONLY imports from ../types.ts, no framework dependencies
+
+export interface AgentHistoryReader {
+  extractLearnings(agentDir: string, since?: Date): Promise<ExtractedLearning[]>;
+}
+
+export interface ConstitutionWriter {
+  readConstitution(constitutionPath: string): Promise<string | null>;
+  appendLearnings(constitutionPath: string, specId: string, learnings: { title: string; content: string }[]): Promise<string>;
+}
+
+export async function syncLearnings(
+  stateReader: SyncStateReader,           // port interface
+  memoryWriter: SquadMemoryWriter,        // port interface
+  options: SyncOptions,
+  historyReader?: AgentHistoryReader,     // optional port
+  constitutionWriter?: ConstitutionWriter // optional port
+): Promise<SyncResult> {
+  // Pure orchestration logic — no fs, no glob, no framework code
+}
+```
+
+### Step 2: Implement adapters
+
+```typescript
+// src/sync/adapters/agent-history-reader.ts — adapter layer
+// Imports fs/promises, glob (framework dependencies)
+
+import { readFile } from 'node:fs/promises';
+import { glob } from 'glob';
+import type { AgentHistoryReader, ExtractedLearning } from '../sync-learnings.js';
+
+export class AgentHistoryReaderAdapter implements AgentHistoryReader {
+  async extractLearnings(agentDir: string, since?: Date): Promise<ExtractedLearning[]> {
+    // Framework calls: glob, readFile
+    const pattern = join(agentDir, '**', 'history.md');
+    const files = await glob(pattern);
+    // ... parse markdown, extract H3 headings with dates ...
+  }
+}
+```
+
+```typescript
+// src/sync/adapters/constitution-adapter.ts — adapter layer
+// Implements ConstitutionWriter port
+
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import type { ConstitutionWriter } from '../sync-learnings.js';
+
+export class ConstitutionAdapter implements ConstitutionWriter {
+  async appendLearnings(constitutionPath: string, specId: string, learnings: { title: string; content: string }[]): Promise<string> {
+    let existing = await readFile(constitutionPath, 'utf-8');
+    
+    // Constitution amendment protocol (v0.3.0):
+    // 1. Bump minor version: 1.0.0 → 1.1.0
+    existing = existing.replace(
+      /\*\*Version\*\*:\s*(\d+)\.(\d+)\.(\d+)/,
+      (_match, major, minor) => `**Version**: ${major}.${parseInt(minor, 10) + 1}.0`
+    );
+    
+    // 2. Update Last Amended date
+    const today = new Date().toISOString().split('T')[0];
+    existing = existing.replace(/\*\*Last Amended\*\*:\s*\S+/, `**Last Amended**: ${today}`);
+    
+    // 3. Append learnings section
+    await writeFile(constitutionPath, updated, 'utf-8');
+  }
+}
+```
+
+### Step 3: Wire adapters in composition root
+
+```typescript
+// src/main.ts — composition root (outermost layer)
+// The ONLY file that knows about all layers
+
+import { syncLearnings } from './sync/sync-learnings.js';
+import { AgentHistoryReaderAdapter } from './sync/adapters/agent-history-reader.js';
+import { ConstitutionAdapter } from './sync/adapters/constitution-adapter.js';
+
+export function createSyncOrchestrator(options: SyncOptions = {}) {
+  return {
+    async sync(specDir: string, opts: { dryRun?: boolean; noConstitution?: boolean } = {}): Promise<SyncOutput> {
+      const stateReader = new SyncStateAdapter();
+      const memoryWriter = new SquadFileWriter();
+      
+      // Optional ports — conditional wiring based on CLI flags
+      const historyReader = new AgentHistoryReaderAdapter();
+      const constitutionWriter = opts.noConstitution ? undefined : new ConstitutionAdapter();
+      
+      // Constructor injection — all dependencies injected, no "new" in use case
+      const result = await syncLearnings(
+        stateReader,
+        memoryWriter,
+        { specDir, squadDir, dryRun: opts.dryRun ?? false },
+        historyReader,      // optional
+        constitutionWriter  // optional
+      );
+      
+      return formatOutput(result);
+    }
+  };
+}
+```
+
+### Key Patterns from Sync Implementation
+
+1. **Optional ports via undefined** — `historyReader?: AgentHistoryReader` allows graceful degradation when feature is disabled
+2. **Conditional adapter wiring** — `opts.noConstitution ? undefined : new ConstitutionAdapter()` — composition root controls feature flags
+3. **Port interfaces define the contract** — use case doesn't know about `glob` or `readFile`; adapter does
+4. **No "new" in use cases** — all dependencies injected via constructor or function parameters
+5. **Composition root is the wiring diagram** — main.ts shows the full dependency graph at a glance
