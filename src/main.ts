@@ -31,6 +31,7 @@ import { syncReverse } from './sync/sync-reverse.js';
 import { LearningExtractorAdapter } from './sync/adapters/learning-extractor.js';
 import { ReverseSyncStateAdapter } from './sync/adapters/reverse-sync-state-adapter.js';
 import { SpecLearningsWriterAdapter } from './sync/adapters/spec-learnings-writer.js';
+import { ReverseConstitutionAdapter } from './sync/adapters/reverse-constitution-adapter.js';
 import type { StatusReport } from './install/status.js';
 import type { InstallManifest, ContextSummary, DesignReviewRecord, IssueRecord, SyncRecord, ReverseSyncResult, ReverseSyncOptions } from './types.js';
 
@@ -837,11 +838,17 @@ export interface ReverseSyncOutput {
   jsonOutput: ReverseSyncResult;
 }
 
-export function createReverseSyncer(options: { baseDir?: string } = {}) {
+export function createReverseSyncer(options: {
+  baseDir?: string;
+  configPath?: string;
+  noConstitution?: boolean;
+  squadDir?: string;
+} = {}) {
   const baseDir = options.baseDir ?? process.cwd();
   const extractor = new LearningExtractorAdapter();
   const writer = new SpecLearningsWriterAdapter();
   const statePersistence = new ReverseSyncStateAdapter();
+  const constitutionWriter = options.noConstitution ? undefined : new ReverseConstitutionAdapter();
 
   return {
     async sync(syncOptions: ReverseSyncOptions): Promise<ReverseSyncOutput> {
@@ -860,6 +867,7 @@ export function createReverseSyncer(options: { baseDir?: string } = {}) {
         writer,
         statePersistence,
         computeLearningFingerprint,
+        constitutionWriter,
       );
 
       return {

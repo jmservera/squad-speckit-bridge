@@ -8,9 +8,9 @@
  */
 
 import { Command } from 'commander';
-import { createInstaller, createStatusChecker, createContextBuilder, createReviewer, createIssueCreator, createSyncer } from '../main.js';
+import { createInstaller, createStatusChecker, createContextBuilder, createReviewer, createIssueCreator, createSyncer, createReverseSyncer, formatReverseSyncResult } from '../main.js';
 import { ErrorCodes, createStructuredError } from '../types.js';
-import type { ErrorCode } from '../types.js';
+import type { ErrorCode, ReverseSyncSourceType } from '../types.js';
 import { createLogger } from './logger.js';
 import { createDemoRunner, createDemoDirectory } from '../demo/factory.js';
 import { formatHumanOutput, formatJsonOutput, type ExtendedExecutionReport } from '../demo/formatters.js';
@@ -64,6 +64,7 @@ function classifyError(message: string, context: string): ErrorCode {
     review: ErrorCodes.TASKS_NOT_FOUND,
     issues: ErrorCodes.TASKS_NOT_FOUND,
     sync: ErrorCodes.SYNC_FAILED,
+    'sync-reverse': ErrorCodes.REVERSE_SYNC_FAILED,
     demo: ErrorCodes.PARSE_ERROR,
   };
   return contextDefaults[context] ?? ErrorCodes.PARSE_ERROR;
@@ -407,6 +408,128 @@ program
       process.exitCode = 1;
     } finally {
       process.removeListener('SIGINT', onSigint);
+    }
+  });
+
+// Sync-Reverse subcommand (T010)
+program
+  .command('sync-reverse')
+  .description(
+    'Reverse sync: extract implementation learnings from Squad memory back to spec directory',
+  )
+  .argument('<spec-dir>', 'Spec directory to write learnings to (e.g., specs/009-knowledge-feedback-loop)')
+  .option('--dry-run', 'Preview output without writing any files', false)
+  .option('--cooldown <hours>', 'Minimum age in hours for learnings to be included (0 = include all)', '24')
+  .option('--sources <types>', 'Comma-separated source types: histories, decisions, skills', 'histories,decisions,skills')
+  .option('--no-constitution', 'Skip constitution enrichment')
+  .option('--squad-dir <path>', 'Override Squad directory path')
+  .action(async (specDir: string, cmdOpts: Record<string, unknown>) => {
+    const globalOpts = program.opts();
+    const jsonOutput = globalOpts.json as boolean;
+    const quiet = globalOpts.quiet as boolean;
+    const verbose = globalOpts.verbose as boolean;
+    const logger = createLogger({ verbose, quiet });
+
+    try {
+      // T016: Validate spec directory exists
+      const { existsSync } = await import('node:fs');
+      const { resolve: resolvePath } = await import('node:path');
+      const resolvedSpecDir = resolvePath(process.cwd(), specDir);
+      if (!existsSync(resolvedSpecDir)) {
+        const err = createStructuredError(
+          ErrorCodes.SPEC_DIR_NOT_FOUND,
+          `Spec directory not found: ${specDir}`,
+          `Create the spec directory first, e.g. mkdir -p ${specDir}/`,
+        );
+        if (jsonOutput) {
+          console.error(JSON.stringify(err, null, 2));
+        } else {
+          console.error(`Error [${err.code}]: ${err.message}`);
+          console.error(`  Suggestion: ${err.suggestion}`);
+        }
+        process.exitCode = 1;
+        return;
+      }
+
+      // Resolve Squad directory
+      const squadDir = (cmdOpts.squadDir as string | undefined) ?? '.squad';
+      const resolvedSquadDir = resolvePath(process.cwd(), squadDir);
+
+      // T016: Validate Squad directory exists
+      if (!existsSync(resolvedSquadDir)) {
+        const err = createStructuredError(
+          ErrorCodes.SQUAD_NOT_FOUND,
+          `No Squad installation detected at ${squadDir}/`,
+          `Initialize Squad first, or use --squad-dir to specify a custom path.`,
+        );
+        if (jsonOutput) {
+          console.error(JSON.stringify(err, null, 2));
+        } else {
+          console.error(`Error [${err.code}]: ${err.message}`);
+          console.error(`  Suggestion: ${err.suggestion}`);
+        }
+        process.exitCode = 1;
+        return;
+      }
+
+      // T014: Parse --sources flag
+      const sourcesStr = cmdOpts.sources as string;
+      const validSourceTypes: ReverseSyncSourceType[] = ['histories', 'decisions', 'skills'];
+      const parsedSources = sourcesStr.split(',').map(s => s.trim()).filter(Boolean) as ReverseSyncSourceType[];
+      const invalidSources = parsedSources.filter(s => !validSourceTypes.includes(s));
+      if (invalidSources.length > 0) {
+        emitError(
+          `Invalid source type(s): ${invalidSources.join(', ')}. Valid values: histories, decisions, skills`,
+          'sync-reverse',
+          jsonOutput,
+        );
+        process.exitCode = 1;
+        return;
+      }
+
+      // T015: Parse --cooldown flag
+      const cooldownHours = parseFloat(cmdOpts.cooldown as string);
+      if (isNaN(cooldownHours) || cooldownHours < 0) {
+        emitError('Invalid cooldown value. Must be a non-negative number of hours.', 'sync-reverse', jsonOutput);
+        process.exitCode = 1;
+        return;
+      }
+      const cooldownMs = cooldownHours * 3600 * 1000;
+
+      const skipConstitution = cmdOpts.constitution === false;
+
+      logger.verbose(`Reverse syncing to ${specDir} from ${squadDir}`);
+      logger.verbose(`Sources: ${parsedSources.join(', ')}, Cooldown: ${cooldownHours}h, Skip constitution: ${skipConstitution}`);
+
+      const syncer = createReverseSyncer({
+        configPath: globalOpts.config as string | undefined,
+        noConstitution: skipConstitution,
+        squadDir: cmdOpts.squadDir as string | undefined,
+      });
+
+      const constitutionPath = skipConstitution ? undefined : resolvePath(resolvedSquadDir, '..', '.specify', 'memory', 'constitution.md');
+
+      const result = await syncer.sync({
+        specDir,
+        squadDir,
+        dryRun: cmdOpts.dryRun as boolean,
+        cooldownMs,
+        sources: parsedSources,
+        skipConstitution,
+        constitutionPath,
+      });
+
+      if (jsonOutput) {
+        console.log(JSON.stringify(result.jsonOutput, null, 2));
+      } else if (!quiet) {
+        console.log(result.humanOutput);
+      }
+
+      process.exitCode = 0;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      emitError(message, 'sync-reverse', jsonOutput);
+      process.exitCode = 1;
     }
   });
 

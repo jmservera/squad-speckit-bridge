@@ -7,7 +7,7 @@
  * Adapter layer — uses fs/promises (framework), implements port.
  */
 
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import type { ReverseSyncStatePersistence } from '../sync-reverse.js';
 import type { ReverseSyncState } from '../../types.js';
@@ -31,7 +31,10 @@ export class ReverseSyncStateAdapter implements ReverseSyncStatePersistence {
 
   async save(specDir: string, state: ReverseSyncState): Promise<void> {
     const fullPath = join(specDir, STATE_FILE);
+    const tempPath = fullPath + '.tmp';
     await mkdir(dirname(fullPath), { recursive: true });
-    await writeFile(fullPath, JSON.stringify(state, null, 2) + '\n', 'utf-8');
+    // T016: Atomic write via temp file + rename to avoid corruption on concurrent access
+    await writeFile(tempPath, JSON.stringify(state, null, 2) + '\n', 'utf-8');
+    await rename(tempPath, fullPath);
   }
 }

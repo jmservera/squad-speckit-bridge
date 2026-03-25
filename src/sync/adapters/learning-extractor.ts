@@ -72,42 +72,47 @@ export class LearningExtractorAdapter implements LearningExtractor {
   ): ExtractedReverseLearning[] {
     const entries: ExtractedReverseLearning[] = [];
 
-    // Find the "## Learnings" section
+    // T016: Gracefully skip if no "## Learnings" section
     const learningsMatch = content.match(/^## Learnings\s*$/m);
     if (!learningsMatch) return entries;
 
     const learningsStart = learningsMatch.index! + learningsMatch[0].length;
-    // Content from ## Learnings to the next ## or end
     const remainingContent = content.slice(learningsStart);
     const nextSectionMatch = remainingContent.match(/^## (?!#)/m);
     const learningsContent = nextSectionMatch
       ? remainingContent.slice(0, nextSectionMatch.index)
       : remainingContent;
 
-    // Parse ### YYYY-MM-DD: Title entries
+    // T016: Skip if learnings section is empty
+    if (learningsContent.trim().length === 0) return entries;
+
     const sections = learningsContent.split(/^### /m).filter(s => s.trim());
 
     for (const section of sections) {
-      const lines = section.split('\n');
-      const heading = lines[0].trim();
-      const dateMatch = heading.match(/^(\d{4}-\d{2}-\d{2}):\s*(.+)/);
-      if (!dateMatch) continue;
+      try {
+        const lines = section.split('\n');
+        const heading = lines[0].trim();
+        const dateMatch = heading.match(/^(\d{4}-\d{2}-\d{2}):\s*(.+)/);
+        if (!dateMatch) continue;
 
-      const timestamp = dateMatch[1];
-      const title = dateMatch[2].trim();
-      const body = lines.slice(1).join('\n').trim();
+        const timestamp = dateMatch[1];
+        const title = dateMatch[2].trim();
+        const body = lines.slice(1).join('\n').trim();
 
-      if (title) {
-        entries.push({
-          title,
-          content: body || title,
-          sourceType: 'histories',
-          attribution: agentName,
-          timestamp,
-          fingerprint: '',
-          classification: 'learnings-only',
-          category: 'architectural-insights',
-        });
+        if (title) {
+          entries.push({
+            title,
+            content: body || title,
+            sourceType: 'histories',
+            attribution: agentName,
+            timestamp,
+            fingerprint: '',
+            classification: 'learnings-only',
+            category: 'architectural-insights',
+          });
+        }
+      } catch {
+        // T016: Skip malformed entries gracefully
       }
     }
 

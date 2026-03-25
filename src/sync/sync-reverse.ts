@@ -45,6 +45,10 @@ export interface ReverseSyncStatePersistence {
   save(specDir: string, state: ReverseSyncState): Promise<void>;
 }
 
+export interface ReverseConstitutionWriter {
+  append(path: string, entries: ExtractedReverseLearning[]): Promise<number>;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Use case                                                           */
 /* ------------------------------------------------------------------ */
@@ -55,6 +59,7 @@ export async function syncReverse(
   writer: SpecLearningsWriter,
   statePersistence: ReverseSyncStatePersistence,
   fingerprinter: (title: string, content: string) => string,
+  constitutionWriter?: ReverseConstitutionWriter,
 ): Promise<ReverseSyncResult> {
   // 1. Validate options
   if (!isValidReverseSyncOptions(options)) {
@@ -157,6 +162,7 @@ export async function syncReverse(
   const constitutionEntries = categorized.filter(l => l.classification === 'constitution-worthy');
 
   let outputPath: string | null = null;
+  let constitutionEntriesAdded = 0;
 
   // 9. If not dryRun, write learnings.md via writer port
   if (!options.dryRun && categorized.length > 0) {
@@ -181,6 +187,14 @@ export async function syncReverse(
     outputPath = await writer.write(options.specDir, markdownContent, metadata);
   }
 
+  // 9b. Constitution enrichment: append constitution-worthy entries
+  if (!options.dryRun && !options.skipConstitution && constitutionEntries.length > 0 && constitutionWriter && options.constitutionPath) {
+    constitutionEntriesAdded = await constitutionWriter.append(options.constitutionPath, constitutionEntries);
+  } else if (options.dryRun || options.skipConstitution) {
+    // In dry-run or skip mode, report potential count without writing
+    constitutionEntriesAdded = options.skipConstitution ? 0 : constitutionEntries.length;
+  }
+
   // 10. Update sync state via statePersistence port
   if (!options.dryRun) {
     const newFingerprints = categorized.map(l => l.fingerprint);
@@ -194,7 +208,7 @@ export async function syncReverse(
           syncTimestamp: new Date().toISOString(),
           learningsWritten: categorized.length,
           learningsDeduplicated: deduplicated,
-          constitutionEntriesAdded: constitutionEntries.length,
+          constitutionEntriesAdded,
           sourcesProcessed: options.sources,
           outputPath,
         },
@@ -214,7 +228,7 @@ export async function syncReverse(
     cooledDown,
     fullyRedacted,
     learningsWritten: categorized.length,
-    constitutionEntriesAdded: constitutionEntries.length,
+    constitutionEntriesAdded,
     sourcesProcessed,
     outputPath,
     dryRun: options.dryRun,
