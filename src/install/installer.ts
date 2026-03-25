@@ -35,6 +35,7 @@ export async function installBridge(
     };
   },
   options: InstallOptions,
+  version: string,
 ): Promise<InstallResult> {
   const { config, force = false } = options;
   const warnings: string[] = [];
@@ -136,7 +137,7 @@ export async function installBridge(
 
   const now = new Date().toISOString();
   const manifest: InstallManifest = {
-    version: '0.2.0',
+    version,
     installedAt: now,
     updatedAt: now,
     components,
