@@ -4,6 +4,27 @@ All notable changes to this project are documented here. See [CONTRIBUTING.md](.
 
 ---
 
+## [v0.3.2] - 2026-03-25
+
+### Bug Fixes
+
+- **Dynamic version resolution:** All CLI version displays (`squask -V`, `squask install`, `squask status`) now read dynamically from `package.json` instead of hardcoded strings (#332)
+- **Removed stale version literals:** Zero hardcoded version strings remain in `src/` — `'0.2.0'` and `'0.3.0'` replaced with runtime resolution
+- **Version parameter threading:** `installBridge()`, `checkStatus()`, and `FileSystemDeployer` now require explicit `version: string` parameter — no defaults, no fallbacks
+
+### Improvements
+
+- **Internal version resolver:** `resolveVersion()` in `src/version.ts` — shared by CLI, install, and status surfaces with proper error handling
+- **CI matrix:** Dropped Node 18 (EOL April 2025) — CI now tests Node 20 and 22 only
+
+### Tests
+
+- New: `tests/unit/version.test.ts` — 5 tests for `resolveVersion()` including error paths
+- New: `tests/e2e/version-consistency.test.ts` — 5 tests verifying all CLI surfaces report identical version
+- Updated: installer, file-deployer, status tests — dynamic version assertions (856 → 866)
+
+---
+
 ## [v0.3.1] - 2026-03-24
 
 ### Bug Fixes

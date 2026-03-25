@@ -160,3 +160,27 @@
 - State accumulation (#1 risk) requires automatic pruning
 - Progressive GitHub integration based on project type
 - Constitutional governance scales better than distributed decisions
+
+### 2025-07-15: Spec 008 — Version Consistency Fix (Source Changes)
+
+**Tasks Completed:** T001, T002, T003, T004, T006, T008, T010, T013
+
+**Changes (5 files, 46 insertions, 11 deletions):**
+- `src/main.ts`: Added `resolveVersion()` using `createRequire(import.meta.url)` to read `package.json` version at runtime. Threaded version through `createInstaller()` and `createStatusChecker()` factory functions. Removed stale `v0.2.0` header comment.
+- `src/cli/index.ts`: Replaced hardcoded `'0.3.0'` in `program.version()` with dynamic `createRequire` resolution.
+- `src/install/installer.ts`: Added `version: string` parameter to `installBridge()`, replacing hardcoded `'0.2.0'`.
+- `src/install/status.ts`: Added optional `version?: string` parameter to `checkStatus()`, replacing hardcoded `'0.2.0'`.
+- `src/install/adapters/file-deployer.ts`: `FileSystemDeployer` constructor now accepts `version` parameter, propagated to `writeManifest()`.
+
+**Architecture Decisions:**
+- Version resolved once at factory level (`createInstaller`/`createStatusChecker`), not per-call — avoids redundant `require()` invocations
+- `FileSystemDeployer` stores version via constructor injection rather than port interface change — keeps `FileDeployer` port stable
+- `checkStatus()` version parameter is optional with `'unknown'` fallback — backward-compatible for direct callers
+- All version flows as plain `string` — no framework types crossing boundaries (Principle IV)
+
+**Test Impact:** 3 expected failures in test files (installer.test.ts, status.test.ts, file-deployer.test.ts) — Jared handles test updates. Build passes clean (zero tsc errors).
+
+**Learnings:**
+- `createRequire(import.meta.url)` resolves identically from both `src/` (tsx) and `dist/` (node) because both are at the same depth relative to project root
+- Constructor injection on adapters is preferable to port interface changes when only one adapter implementation exists
+- Resolving version at factory creation (not per-request) is correct for a CLI — version doesn't change during process lifetime

@@ -59,3 +59,19 @@ Wrote 60 unit tests for demo entity layer in `tests/demo/entities.test.ts`:
 All 243 tests pass (183 existing + 60 new). Pushed to `squad/241-entity-tests`, closes #241.
 
 **Pattern:** Test factories (makeConfig, makeStage, makeReport) with Partial<T> overrides — consistent with existing types.test.ts pattern.
+
+### 2026-07-14: T005/T007/T009/T011/T012 — Version Display Test Updates (#337–#344)
+
+Wrote and updated 5 test files for the dynamic version resolution feature (spec 008):
+
+- **tests/unit/version.test.ts** (new, 5 tests): Happy path + error cases for `resolveVersion()` using `vi.doMock('node:module')` to simulate missing package.json, empty version, non-string version.
+- **tests/unit/installer.test.ts** (updated): All `installBridge()` calls now pass `expectedVersion` from package.json. Hardcoded `'0.2.0'` assertion replaced.
+- **tests/integration/file-deployer.test.ts** (updated): All `FileSystemDeployer` constructions pass dynamic version. Manifest assertion uses `expectedVersion`.
+- **tests/unit/status.test.ts** (updated): All `checkStatus()` calls pass `undefined, expectedVersion` for the new version param. Assertion replaced.
+- **tests/e2e/version-consistency.test.ts** (new, 4 tests): Verifies `resolveVersion()`, `install --dry-run --json`, and `status --json` all report the same version matching package.json.
+
+All 865 tests pass (50 files). Pushed to `squad/008-phase1`.
+
+**Key technique:** Mocking `node:module`'s `createRequire` via `vi.doMock` + `vi.resetModules()` + dynamic `import()` to test error paths in `resolveVersion()` without modifying source. Each error test gets a fresh module graph.
+
+**Pattern:** Read expected version dynamically with `createRequire(import.meta.url)('../../package.json').version` — avoids hardcoded version strings in tests (FR-009 compliance).
