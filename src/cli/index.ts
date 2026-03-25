@@ -8,6 +8,7 @@
  */
 
 import { Command } from 'commander';
+import { createRequire } from 'node:module';
 import { createInstaller, createStatusChecker, createContextBuilder, createReviewer, createIssueCreator, createSyncer } from '../main.js';
 import { ErrorCodes, createStructuredError } from '../types.js';
 import type { ErrorCode } from '../types.js';
@@ -16,6 +17,9 @@ import { createDemoRunner, createDemoDirectory } from '../demo/factory.js';
 import { formatHumanOutput, formatJsonOutput, type ExtendedExecutionReport } from '../demo/formatters.js';
 import type { DemoConfiguration } from '../demo/entities.js';
 
+const cliRequire = createRequire(import.meta.url);
+const cliVersion = (cliRequire('../../package.json') as { version: string }).version;
+
 const program = new Command();
 
 program
@@ -23,7 +27,7 @@ program
   .description(
     'Hybrid integration package connecting Squad team memory with Spec Kit planning pipeline',
   )
-  .version('0.3.0')
+  .version(cliVersion)
   .option('--config <path>', 'Path to bridge configuration file')
   .option('--json', 'Output in JSON format', false)
   .option('--quiet', 'Suppress informational output', false)
