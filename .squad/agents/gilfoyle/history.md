@@ -164,3 +164,63 @@
 - **Spec-per-feature + issue-per-task complementary.** Specs for new features; issues for maintenance; combined model serves both
 - **Constitutional governance scales better.** One 15KB constitution vs 475KB+ distributed decisions
 - **Quantitative overhead signals:** 350+ Squad config files vs ~30 Spec Kit; 239 log files vs 0; overhead ratio ~10:1
+
+### 2026-03-24: Bridge Architecture Gaps — Adoption Crisis Root Cause Analysis
+
+**Request:** Juanma (Product Lead) asked for deep technical analysis of spec 008 cycle architecture gaps.
+
+**Findings Across 5 Dimensions:**
+
+1. **Hook Execution Gap (Architectural, not a bug):**
+   - Hooks are correctly designed to fire when SpecKit CLI runs (speckit.specify, speckit.tasks, speckit.implement)
+   - But Squad's workflow bypasses CLI entirely, using agents directly (speckit.specify agent, speckit.plan agent, speckit.tasks agent)
+   - Result: Zero hook executions in spec 008 despite correct installation and permissions
+   - Root cause is not a design flaw; it's a fundamental mismatch (CLI-first tool hooks vs agent-first Squad orchestration)
+
+2. **SpecKit Agent vs CLI Gap (Intentional Squad choice):**
+   - Squad deliberately chose agent-first over CLI-first (correct architectural decision for parallel orchestration)
+   - But the bridge was designed assuming CLI-first (inherent to how SpecKit extension hooks work)
+   - Agents execute in isolation, don't trigger OS-level hook machinery, don't set SPECKIT_SPEC_DIR environment variable
+   - This is not a bug in either tool; it's a gap in the bridge's coverage of integration modes
+
+3. **Missing Automation (5 manual steps):**
+   - Context injection: Manual `squask context` call before planning (should be automatic)
+   - Issue creation: Hand-written shell script (50 `gh issue create` commands) instead of `squask issues`
+   - Learning sync: Never happened (no `squask sync` post-implementation, no feedback loop activated)
+   - Version management: CLI reports 0.2.0; package.json is 0.3.0 (version stale)
+   - Merge-trigger automation: No GH Action to sync learnings after PRs merged
+
+4. **Decision Conflict (Critical):**
+   - Team decision: "Squad Lead reviews tasks in Design Review ceremony before creating issues"
+   - after-tasks.sh hook: Automatically creates issues with no ceremony, no review, no lead approval
+   - This is a direct contradiction between bridge automation and governance decision
+   - Fix: Make issue creation ceremony-gated, not automated
+
+5. **Silent Failures (Template bugs):**
+   - Permissions bug: Hook templates are 644 (not executable) — should be 755
+   - Command name inconsistency: before-specify.sh uses `squask`, after-tasks.sh uses scoped name
+   - These combine to create silent failures when SpecKit CLI tries to execute hooks
+
+**Key Insight:** The bridge is well-engineered but targets the wrong integration point. It assumes Spec Kit's CLI pipeline will be used; Squad deliberately bypassed that in favor of agent-based orchestration. The bridge is not "broken" — it's "orphaned" by a workflow decision that the bridge's designers didn't anticipate.
+
+**Adoption reality:**
+- Hook execution: 0/3 hooks fired (not because they're broken, but because CLI pipeline never ran)
+- CLI command usage: 1/7 commands used (`install`); `context`, `issues`, `sync` never called
+- Automation rate: 0% of intended automations activated
+- Knowledge feedback loop: Never completed a single rotation
+
+**Recommendations (3 priority levels):**
+- **P0 (Fix decision conflict):** Align after-tasks hook with Design Review decision; make issue creation ceremony-gated, not automatic
+- **P0 (Fix bugs):** Template permissions 644→755, version mismatch 0.2.0→0.3.0, command name consistency
+- **P1 (Agent integration):** Add Mode B (agent-based) integration so context injection and learning sync work in Squad's workflow (MCP tools or SKILL.md guidance)
+- **P2 (Ceremony integration):** Wire Design Review ceremony into task workflow, make it gated before issue creation
+- **P3 (Automation):** Merge-trigger sync, auto-route suggestions, version validation
+
+**Detailed analysis:** `.squad/decisions/inbox/gilfoyle-bridge-architecture-gaps.md` (9 sections, root cause matrix, maturity assessment, kill list for v0.4)
+
+**Pattern for personal squad extraction:**
+- Tool architecture (CLI-based hooks) doesn't automatically adapt when users choose different integration modes (agents, MCP, direct tool calls)
+- Framework adoption requires both correct tool design AND alignment with user's chosen workflow
+- When adoption is 0%, first check if the integration mode assumption is wrong, not if the tool is broken
+- Decision conflicts (automation vs governance) are the most dangerous because they're silently violated (nobody notices the policy breach)
+- Silent failures (permission, version, naming) compound into "just doesn't work" without clear error signals

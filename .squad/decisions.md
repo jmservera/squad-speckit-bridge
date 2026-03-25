@@ -720,3 +720,179 @@ After implementation completion, synthesize learnings back into the spec directo
 
 ---
 
+
+---
+
+### Bridge Hook Redesign Required — Agent Workflows Bypass CLI (2026-03-25)
+
+**Author:** Richard + Gilfoyle (Lead + Research Analyst)  
+**Date:** 2026-03-25  
+**Type:** Architecture Decision  
+**Severity:** Critical (knowledge flywheel blocked)
+
+**Decision:** Current bridge hooks (`before-specify.sh`, `after-tasks.sh`, `after-implement.sh`) are designed for SpecKit CLI workflows but are **dead code in agent-driven workflows**. Team uses Squad agents (`/speckit.specify`, `/speckit.plan`, `/speckit.tasks`) which bypass the Spec Kit CLI entirely, preventing hooks from ever firing.
+
+**Root Cause (Architectural):**
+- Hooks are registered with SpecKit CLI and fire when CLI commands execute
+- Squad agents invoke SpecKit services directly (no CLI invocation)
+- `SPECKIT_SPEC_DIR` environment variable is not set in agent context
+- No mechanism for agents to signal hook execution to OS/CI
+
+**Impact:**
+- `before-specify.sh` never runs: context must be generated manually
+- `after-tasks.sh` never runs: issue creation is manual shell script, not automated
+- `after-implement.sh` never runs: `squask sync` never auto-triggers, breaking knowledge flywheel
+
+**This Is Not a Bug:** It's a fundamental mismatch between tool philosophies (CLI-first vs agent-first). Neither is wrong; they optimize for different workflows.
+
+**Recommendation:** Choose one of three paths:
+1. **Coordinator post-step** — After agent orchestration completes, Coordinator spawns final step: `squask sync` + `squask install`
+2. **Scribe responsibility** — Expand Scribe handoff to include mandatory `squask sync` call
+3. **Orchestration manifest entry** — Add "bridge-sync" spawn to orchestration template as final step before marking done
+
+**Status:** Identified as critical blocker. Awaiting leadership decision on redesign path.
+
+**Classification:** Project-specific (applies to squad-speckit bridge integration architecture)
+
+---
+
+### Knowledge Flywheel Blocked — Sync Not Run After Spec 008 (2026-03-25)
+
+**Author:** Richard (Lead)  
+**Date:** 2026-03-25  
+**Type:** Process Decision  
+**Severity:** High (breaks compound learning)
+
+**Decision:** Spec 008 completed execution but `squask sync` was never run post-cycle. Learnings are trapped in orchestration logs instead of flowing back into team knowledge system (constitution, agent histories, decision framework).
+
+**Evidence:**
+- No `learnings.md` created for spec 008
+- No `squask sync` run; no `.squad/.sync-state` file
+- Constitution still at v1.1.0 (from spec 005)
+- Three valuable learnings captured only in logs:
+  1. **Version threading via constructor injection** (Clean Architecture pattern)
+  2. **Squash merge artifact destruction** (recurring issue from spec 005)
+  3. **Label routing gap** (informal distribution vs formal Ralph routing)
+
+**Impact:** Spec 008 knowledge cannot compound into spec 009. Constitutional governance stagnates.
+
+**Required Actions:**
+1. Create `specs/008-fix-version-display/learnings.md` (restore from git history if needed)
+2. Run `squask sync specs/008-fix-version-display`
+3. Verify constitution bumped to v1.2.0+
+
+**Process Requirement:** Make `squask sync` a **mandatory post-cycle step**, not optional. Add to:
+- Orchestration manifest template (post-cycle checklist)
+- Scribe handoff responsibilities
+- Definition of "spec done"
+
+**Status:** Requires immediate remediation. Future specs should include this in orchestration manifest from start.
+
+**Classification:** Project-specific (addresses spec workflow for this codebase)
+
+---
+
+### Post-Cycle Checklist Required (2026-03-25)
+
+**Author:** Richard (Lead)  
+**Date:** 2026-03-25  
+**Type:** Process Standard
+
+**Decision:** Establish mandatory post-cycle checklist to complete the knowledge flywheel and bridge integration.
+
+**Checklist:**
+```
+## Post-Cycle: Learnings & Sync
+
+Before marking spec done:
+- [ ] Create learnings.md with implementation notes, patterns, and decisions
+- [ ] Update spec.md with Implementation Notes section (actual vs planned)
+- [ ] Run `squask sync specs/NNN-feature`
+- [ ] Verify constitution version bumped (from sync)
+- [ ] Run `squask install` (if hooks modified)
+- [ ] Archive spec artifacts if squash merge is planned
+```
+
+**Who:** Lead (Richard role) with support from domain agents.
+
+**Timing:** After all PRs merge, tests pass, release tagged. Before orchestration session closes.
+
+**Effort:** 2-3 hours per spec (spec 005 validated this).
+
+**Status:** Adopted for future specs. Spec 008 requires remediation.
+
+**Classification:** Process standard, project-specific (pattern applies to this project's spec workflow)
+
+---
+
+### Squash Merge Breaks Spec Artifact Continuity — Recurring Issue (2026-03-25)
+
+**Author:** Richard (Lead)  
+**Date:** 2026-03-25  
+**Type:** Technical Issue  
+**Severity:** Medium (recurring from spec 005)
+
+**Decision:** Squash merge of implementation PR deletes spec artifacts from the repository tree. This happened in spec 005 (documented in learnings) and again in spec 008.
+
+**Evidence (Spec 008):**
+- Spec 008 directory created in commit `74dfbcd`: `specs/008-fix-version-display/` with spec.md, plan.md, tasks.md
+- PR #347 merged as squash commit `d751484`
+- Squash merge created new commit from PR branch (which didn't include spec files — they were in main separately)
+- Result: spec.md, plan.md, tasks.md deleted from tree after merge
+
+**Root Cause:** Squash merges linearize the PR branch history but don't preserve files that exist only in main (not in the PR branch).
+
+**Workaround Options:**
+1. **Non-squashed merge for spec PRs** — Use regular merge commits (not squash) for implementation PRs to preserve spec artifact links
+2. **Spec artifacts committed before branching** — Commit spec.md, plan.md, tasks.md to main in a separate commit before creating implementation branch
+3. **CI check** — Add verification that spec artifacts aren't deleted by PR merge
+
+**Status:** Documented but not yet resolved. Should be fixed before spec 009.
+
+**Classification:** Project-specific (applies to this project's git workflow + spec structure)
+
+---
+
+### Parallel Execution Works Well — 95% Efficiency Achievable (2026-03-25)
+
+**Author:** Jared (Data Analyst)  
+**Date:** 2026-03-25  
+**Type:** Operational Pattern
+
+**Decision:** Spec 008 achieved 95% parallelization efficiency by running source + test work in parallel with zero serialization. This is the baseline for single-concern features.
+
+**Metrics:**
+- **Cycle time:** 7h 48m (spec to release)
+- **Parallelism:** 95% (near theoretical max; only unavoidable dependencies: tasks→implementation, code→review)
+- **Issue throughput:** 2.2 issues/hour (47% improvement vs spec 005)
+- **Test density:** 88% coverage (50 new tests across 5 files)
+- **Review cycles:** 1 (rework, zero rejections)
+
+**Key Success Factors:**
+1. **Feature scope matched task granularity** (14 tasks for single-concern feature)
+2. **No dependencies between source and test work** (Dinesh and Jared started simultaneously)
+3. **Unified PR strategy** (all 14 tasks in single merge, not fragmented)
+
+**Stage-Level Breakdown:**
+| Stage | Duration | Agents | Overlap |
+|-------|----------|--------|---------|
+| Spec→Tasks | 31m | — | — |
+| Implementation | 21m | Dinesh (src 14m) + Jared (tests 21m) | 100% |
+| Review | 40m | Richard + Dinesh | 100% |
+| Release | 4m | — | 100% |
+| **Total** | **96m** | — | — |
+
+**Comparison:** Spec 005 took ~8h (20% longer) with 4 agents and 3+ review cycles. Spec 008's 7h 48m with 2 agents sets new baseline.
+
+**Recommendations for Future:**
+1. Target 7h cycle time for single-concern features (matching spec 008)
+2. Plan 10-12h for multi-concern features (like spec 005)
+3. Run architecture review before coding to reduce review-cycle rework
+4. Maintain current parallel discipline (src + tests concurrent)
+
+**Status:** Pattern established. Ready for adoption across team.
+
+**Classification:** Generic (applies to any parallel feature development, not squad-speckit specific)
+
+---
+

@@ -8,6 +8,37 @@
 
 ## Learnings
 
+### 2026-03-25: Spec 008 Pipeline Metrics Analysis
+
+Analyzed dynamic version resolution (v0.3.1 → v0.3.2) feature execution across 7h 48m cycle.
+
+**Key findings:**
+- **95% parallelization efficiency:** Dinesh (source, 14m) and Jared (tests, 21m) ran fully in parallel with zero dependencies. No serialization waste.
+- **Issue throughput +47%:** 14 issues closed in 6h 42m = 2.2 issues/hour vs. spec 005's 1.5 issues/hour. Single-concern scope enables faster cycles.
+- **Test density 88%:** 50 new tests across 5 test files, covering version threading through 3 CLI commands + deployer + e2e. +10 net growth (856→866).
+- **Review cycle cost 1.4x implementation:** 40m rework (API design feedback) vs. 35m implementation. This is acceptable; suggests architecture review pre-coding could help.
+- **Unified PR strategy wins:** 1 PR (#347) with 1 rework beats spec 005's 4 PRs with 3+ review cycles.
+- **No regressions:** All tests passed immediately; zero merge conflicts.
+
+**Comparison to spec 005:**
+- Spec 008: 7h 48m, 2 agents, 1 PR, 1 review cycle
+- Spec 005: ~8h, 4 agents, 4 PRs, 3+ review cycles
+- **Difference:** Narrow scope (single-concern) + unified architecture = tighter feedback loop
+
+**Operational insights:**
+- Single-concern features (resolveVersion threading) reach 7–8h cycle time baseline
+- Multi-concern features (hooks, config, docs) stretch to 10–12h due to agent coordination overhead
+- Peak parallelism achieved at 21m (implementation phase): both agents 100% utilized
+- Review bottleneck: 40m for 5 comments = 8m per comment, mostly API design feedback
+
+**Recommendation for future cycles:**
+- Architecture review pre-coding (clarification phase) to catch API design issues before implementation
+- Maintain parallelism discipline: source + tests in parallel, zero serialization
+- Use unified PR strategy for tightly-scoped features (better than fragmented PRs)
+- Document review-cost patterns: high-touch API design (1.4x implementation) vs. straightforward features (0.5x implementation)
+
+**Deliverable:** `.squad/decisions/inbox/jared-pipeline-metrics-008.md` — Full quantitative analysis with metrics tables, comparisons, and recommendations.
+
 <!-- Append learnings below -->
 
 ### 2026-03-23: Real-World Framework Comparison (sofia-cli vs aithena)
