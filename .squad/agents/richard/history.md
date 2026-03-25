@@ -183,3 +183,35 @@
 **Recommendations:** Add `squask sync` to Scribe handoff as required step. Design hook trigger for agent workflows. Protect spec artifacts from squash merge deletion. Add post-cycle checklist to orchestration manifest template.
 
 **Artifact:** `.squad/decisions/inbox/richard-bridge-retro-008.md`
+
+### 2026-03-25: Spec 009 — GitHub Issue Creation (17 Tasks)
+
+**Task:** Create 17 GitHub issues from `specs/009-knowledge-feedback-loop/tasks.md` with full dependency wiring.
+
+**Issues Created:**
+
+| Task | Issue | Phase | Depends On |
+|------|-------|-------|------------|
+| T001 | #349 | Setup | — |
+| T002 | #350 | Foundational | #349 |
+| T003 | #351 | Foundational | #350 |
+| T004 | #352 | Foundational | #350 |
+| T005 | #353 | US1 | #351, #352 |
+| T006 | #354 | US1 | #353 |
+| T007 | #355 | US1 (parallel) | #354 |
+| T008 | #356 | US1 (parallel) | #354 |
+| T009 | #357 | US1 checkpoint | #355, #356 |
+| T010 | #358 | US2 | #357 |
+| T011 | #359 | US2 checkpoint | #358 |
+| T012 | #360 | US3 | #357 |
+| T013 | #361 | US3 checkpoint | #360 |
+| T014 | #362 | US4 (parallel) | #358 |
+| T015 | #363 | US5 (parallel) | #358 |
+| T016 | #364 | Polish (parallel) | #362, #363 |
+| T017 | #365 | Polish (parallel) | #362, #363 |
+
+**Dependency Wiring:** All 17 issues reference upstream issue numbers in their body. Parallel tasks labeled `parallelizable`. All issues labeled `squad` for triage.
+
+**Parallel Pairs:** T007∥T008, T014∥T015, T016∥T017.
+
+**Checkpoints:** US1 after #357, US2 after #359, US3 after #361, US4+US5 after #362+#363.

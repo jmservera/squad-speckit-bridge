@@ -4,6 +4,40 @@ All notable changes to this project are documented here. See [CONTRIBUTING.md](.
 
 ---
 
+## [v0.4.0] - 2026-03-25
+
+### New Features
+
+- **Reverse sync CLI command:** `squask sync-reverse <spec-dir>` closes the knowledge feedback loop by syncing Squad implementation learnings back to spec artifacts (#349–#365)
+- **Privacy filtering:** Automatic redaction of secrets (API keys, tokens, passwords, connection strings, AWS keys) and PII (emails, phone numbers) before writing learnings
+- **Constitution enrichment:** Only spec/plan-level non-negotiables are written to `.specify/memory/constitution.md` — coding patterns stay in team charters/skills (FR-004a classification gate)
+- **Dry-run mode:** Preview reverse sync output without writing files (`--dry-run`)
+- **Source selection:** Choose which knowledge sources to sync (`--sources histories,decisions,skills`)
+- **Cooldown filtering:** Exclude recent learnings to allow agents to finish documenting (`--cooldown <hours>`)
+- **Constitution opt-out:** Skip constitution enrichment with `--no-constitution`
+- **JSON output:** Machine-readable output for CI/CD integration (`--json`)
+
+### Architecture
+
+- **Clean Architecture compliance:** 3 new port interfaces, 4 adapter implementations, 1 use case function
+- **Entity-layer pure functions:** `applyPrivacyFilter()`, `classifyLearning()` (FR-004a), `categorizeLearning()`, `generateLearningsMarkdown()`
+- **Fingerprint deduplication:** Reuses existing `computeLearningFingerprint()` pattern for idempotent syncs
+- **Separate state tracking:** `.bridge-sync-reverse.json` for reverse sync state (independent from forward sync)
+
+### Tests
+
+- **169 new tests** (866 → 1035 total) across 12 new test files
+- Unit tests for privacy filter, learning classifier, markdown generator, use case
+- Integration tests for all adapters and constitution enrichment
+- E2E tests for full pipeline including dry-run, source filtering, and cooldown
+
+### Documentation
+
+- README updated with reverse sync usage, options, examples, and post-cycle workflow
+- JSDoc added to all new public exports
+
+---
+
 ## [v0.3.2] - 2026-03-25
 
 ### Bug Fixes
