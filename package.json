@@ -11,7 +11,7 @@
     "squad-speckit-bridge": "./dist/cli/index.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "scripts": {
     "build": "tsc && cp -r src/install/templates dist/install/",

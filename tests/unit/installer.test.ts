@@ -4,6 +4,10 @@ import { join, resolve } from 'node:path';
 import { installBridge } from '../../src/install/installer.js';
 import type { FrameworkDetector, FileDeployer } from '../../src/bridge/ports.js';
 import { createDefaultConfig } from '../../src/types.js';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const expectedVersion = (require('../../package.json') as { version: string }).version;
 
 function makeDetector(
   overrides: Partial<FrameworkDetector> = {},
@@ -42,7 +46,7 @@ describe('installBridge', () => {
     const deployer = makeDeployer();
     const config = createDefaultConfig();
 
-    const result = await installBridge(detector, deployer, templates, { config });
+    const result = await installBridge(detector, deployer, templates, { config }, expectedVersion);
 
     expect(result.manifest.components.squadSkill).toBe(true);
     expect(result.manifest.components.specKitExtension).toBe(true);
@@ -58,7 +62,7 @@ describe('installBridge', () => {
     const deployer = makeDeployer();
     const config = createDefaultConfig();
 
-    const result = await installBridge(detector, deployer, templates, { config });
+    const result = await installBridge(detector, deployer, templates, { config }, expectedVersion);
 
     expect(result.manifest.components.squadSkill).toBe(true);
     expect(result.manifest.components.specKitExtension).toBe(false);
@@ -75,7 +79,7 @@ describe('installBridge', () => {
     const deployer = makeDeployer();
     const config = createDefaultConfig();
 
-    const result = await installBridge(detector, deployer, templates, { config });
+    const result = await installBridge(detector, deployer, templates, { config }, expectedVersion);
 
     expect(result.manifest.components.squadSkill).toBe(false);
     expect(result.manifest.components.specKitExtension).toBe(true);
@@ -94,7 +98,7 @@ describe('installBridge', () => {
     const config = createDefaultConfig();
 
     await expect(
-      installBridge(detector, deployer, templates, { config }),
+      installBridge(detector, deployer, templates, { config }, expectedVersion),
     ).rejects.toThrow('No frameworks detected');
   });
 
@@ -103,9 +107,9 @@ describe('installBridge', () => {
     const deployer = makeDeployer();
     const config = createDefaultConfig();
 
-    const result = await installBridge(detector, deployer, templates, { config });
+    const result = await installBridge(detector, deployer, templates, { config }, expectedVersion);
 
-    expect(result.manifest.version).toBe('0.2.0');
+    expect(result.manifest.version).toBe(expectedVersion);
     expect(result.manifest.installedAt).toBeTruthy();
     expect(result.manifest.updatedAt).toBeTruthy();
   });
@@ -118,7 +122,7 @@ describe('installBridge', () => {
     const deployer = makeDeployer({ deploy: deployMock });
     const config = createDefaultConfig();
 
-    await installBridge(detector, deployer, templates, { config });
+    await installBridge(detector, deployer, templates, { config }, expectedVersion);
 
     const deployedFiles = deployMock.mock.calls[0][0];
     expect(deployedFiles).toHaveLength(3);
@@ -137,7 +141,7 @@ describe('installBridge', () => {
     config.paths.squadDir = 'custom-squad';
     config.paths.specifyDir = 'custom-specify';
 
-    await installBridge(detector, deployer, templates, { config });
+    await installBridge(detector, deployer, templates, { config }, expectedVersion);
 
     const deployedFiles = deployMock.mock.calls[0][0];
     expect(deployedFiles[0].targetPath).toContain('custom-squad');
@@ -153,7 +157,7 @@ describe('installBridge', () => {
     });
     const config = createDefaultConfig();
 
-    const result = await installBridge(detector, deployer, templates, { config });
+    const result = await installBridge(detector, deployer, templates, { config }, expectedVersion);
 
     // Should succeed without errors — re-install is idempotent
     expect(result.manifest.files).toHaveLength(3);

@@ -15,6 +15,9 @@ import { createLogger } from './logger.js';
 import { createDemoRunner, createDemoDirectory } from '../demo/factory.js';
 import { formatHumanOutput, formatJsonOutput, type ExtendedExecutionReport } from '../demo/formatters.js';
 import type { DemoConfiguration } from '../demo/entities.js';
+import { resolveVersion } from '../version.js';
+
+const cliVersion = resolveVersion();
 
 const program = new Command();
 
@@ -23,7 +26,7 @@ program
   .description(
     'Hybrid integration package connecting Squad team memory with Spec Kit planning pipeline',
   )
-  .version('0.3.0')
+  .version(cliVersion)
   .option('--config <path>', 'Path to bridge configuration file')
   .option('--json', 'Output in JSON format', false)
   .option('--quiet', 'Suppress informational output', false)

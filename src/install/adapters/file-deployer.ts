@@ -14,9 +14,11 @@ const MANIFEST_FILENAME = '.bridge-manifest.json';
 
 export class FileSystemDeployer implements FileDeployer {
   private readonly baseDir: string;
+  private readonly version: string;
 
-  constructor(baseDir: string = process.cwd()) {
+  constructor(baseDir: string, version: string) {
     this.baseDir = baseDir;
+    this.version = version;
   }
 
   async deploy(files: DeploymentFile[]): Promise<string[]> {
@@ -66,7 +68,7 @@ export class FileSystemDeployer implements FileDeployer {
 
     const now = new Date().toISOString();
     const manifest: InstallManifest = {
-      version: '0.2.0',
+      version: this.version,
       installedAt: existing?.installedAt ?? now,
       updatedAt: now,
       components: {
