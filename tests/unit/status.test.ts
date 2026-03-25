@@ -6,6 +6,10 @@ import type {
   ConfigLoader,
 } from '../../src/bridge/ports.js';
 import { createDefaultConfig } from '../../src/types.js';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const expectedVersion = (require('../../package.json') as { version: string }).version;
 
 function makeDetector(
   overrides: Partial<FrameworkDetector> = {},
@@ -43,6 +47,8 @@ describe('checkStatus', () => {
       makeDetector(),
       makeDeployer(),
       makeConfigLoader(),
+      undefined,
+      expectedVersion,
     );
 
     expect(report.frameworks.squad.detected).toBe(true);
@@ -59,6 +65,8 @@ describe('checkStatus', () => {
       detector,
       makeDeployer(),
       makeConfigLoader(),
+      undefined,
+      expectedVersion,
     );
 
     expect(report.frameworks.squad.detected).toBe(false);
@@ -78,6 +86,8 @@ describe('checkStatus', () => {
       makeDetector(),
       deployer,
       makeConfigLoader(),
+      undefined,
+      expectedVersion,
     );
 
     expect(report.components.squadSkill.installed).toBe(true);
@@ -92,6 +102,8 @@ describe('checkStatus', () => {
       makeDetector(),
       makeDeployer(),
       makeConfigLoader(),
+      undefined,
+      expectedVersion,
     );
 
     expect(report.components.squadSkill.installed).toBe(false);
@@ -106,6 +118,8 @@ describe('checkStatus', () => {
       makeDetector(),
       makeDeployer(),
       makeConfigLoader(),
+      undefined,
+      expectedVersion,
     );
 
     expect(report.config.contextMaxBytes).toBe(8192);
@@ -117,9 +131,11 @@ describe('checkStatus', () => {
       makeDetector(),
       makeDeployer(),
       makeConfigLoader(),
+      undefined,
+      expectedVersion,
     );
 
-    expect(report.version).toBe('0.2.0');
+    expect(report.version).toBe(expectedVersion);
   });
 
   it('uses paths from config for detection', async () => {
@@ -134,6 +150,8 @@ describe('checkStatus', () => {
       { detectSquad, detectSpecKit },
       makeDeployer(),
       { load: vi.fn().mockResolvedValue(customConfig) },
+      undefined,
+      expectedVersion,
     );
 
     expect(detectSquad).toHaveBeenCalledWith('my-squad');

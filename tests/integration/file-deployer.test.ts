@@ -3,6 +3,10 @@ import { mkdir, rm, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { FileSystemDeployer } from '../../src/install/adapters/file-deployer.js';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const expectedVersion = (require('../../package.json') as { version: string }).version;
 
 describe('FileSystemDeployer', () => {
   let testDir: string;
@@ -17,7 +21,7 @@ describe('FileSystemDeployer', () => {
   });
 
   it('creates files with correct content', async () => {
-    const deployer = new FileSystemDeployer(testDir);
+    const deployer = new FileSystemDeployer(testDir, expectedVersion);
 
     const paths = await deployer.deploy([
       { targetPath: 'sub/dir/file.md', content: '# Hello' },
@@ -29,7 +33,7 @@ describe('FileSystemDeployer', () => {
   });
 
   it('creates parent directories automatically', async () => {
-    const deployer = new FileSystemDeployer(testDir);
+    const deployer = new FileSystemDeployer(testDir, expectedVersion);
 
     await deployer.deploy([
       { targetPath: 'deep/nested/path/file.txt', content: 'content' },
@@ -43,7 +47,7 @@ describe('FileSystemDeployer', () => {
   });
 
   it('writes .bridge-manifest.json after deploy', async () => {
-    const deployer = new FileSystemDeployer(testDir);
+    const deployer = new FileSystemDeployer(testDir, expectedVersion);
 
     await deployer.deploy([
       { targetPath: 'test/SKILL.md', content: '# Skill' },
@@ -54,13 +58,13 @@ describe('FileSystemDeployer', () => {
       'utf-8',
     );
     const manifest = JSON.parse(raw);
-    expect(manifest.version).toBe('0.2.0');
+    expect(manifest.version).toBe(expectedVersion);
     expect(manifest.files).toContain('test/SKILL.md');
     expect(manifest.components.squadSkill).toBe(true);
   });
 
   it('returns deployed file list from listDeployed()', async () => {
-    const deployer = new FileSystemDeployer(testDir);
+    const deployer = new FileSystemDeployer(testDir, expectedVersion);
 
     await deployer.deploy([
       { targetPath: 'a.md', content: 'a' },
@@ -73,13 +77,13 @@ describe('FileSystemDeployer', () => {
   });
 
   it('returns empty array from listDeployed() when no manifest', async () => {
-    const deployer = new FileSystemDeployer(testDir);
+    const deployer = new FileSystemDeployer(testDir, expectedVersion);
     const listed = await deployer.listDeployed();
     expect(listed).toEqual([]);
   });
 
   it('handles idempotent re-deploy', async () => {
-    const deployer = new FileSystemDeployer(testDir);
+    const deployer = new FileSystemDeployer(testDir, expectedVersion);
 
     await deployer.deploy([
       { targetPath: 'file.md', content: 'v1' },
@@ -101,7 +105,7 @@ describe('FileSystemDeployer', () => {
   });
 
   it('preserves original installedAt on re-deploy', async () => {
-    const deployer = new FileSystemDeployer(testDir);
+    const deployer = new FileSystemDeployer(testDir, expectedVersion);
 
     await deployer.deploy([{ targetPath: 'a.md', content: 'a' }]);
 
@@ -128,7 +132,7 @@ describe('FileSystemDeployer', () => {
 
   describe('deployExecutable — T004 permission tests', () => {
     it('sets 0o755 permissions on deployed hook scripts', async () => {
-      const deployer = new FileSystemDeployer(testDir);
+      const deployer = new FileSystemDeployer(testDir, expectedVersion);
 
       await deployer.deployExecutable([
         { targetPath: 'hooks/after-tasks.sh', content: '#!/usr/bin/env bash\nexit 0' },
@@ -140,7 +144,7 @@ describe('FileSystemDeployer', () => {
     });
 
     it('sets 0o755 on all hook templates deployed together', async () => {
-      const deployer = new FileSystemDeployer(testDir);
+      const deployer = new FileSystemDeployer(testDir, expectedVersion);
 
       const hooks = [
         { targetPath: 'hooks/after-tasks.sh', content: '#!/usr/bin/env bash\nexit 0' },
@@ -158,7 +162,7 @@ describe('FileSystemDeployer', () => {
     });
 
     it('creates parent directories for executable files', async () => {
-      const deployer = new FileSystemDeployer(testDir);
+      const deployer = new FileSystemDeployer(testDir, expectedVersion);
 
       await deployer.deployExecutable([
         { targetPath: 'deep/nested/hook.sh', content: '#!/usr/bin/env bash' },
