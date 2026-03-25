@@ -23,12 +23,16 @@ import { buildSquadContext } from './bridge/context.js';
 import { createIssuesFromTasks } from './issues/create-issues.js';
 import { TasksMarkdownParser } from './issues/task-parser.js';
 import { GitHubIssueAdapter } from './issues/adapters/github-issue-adapter.js';
-import { syncLearnings } from './sync/sync-learnings.js';
+import { syncLearnings, computeLearningFingerprint } from './sync/sync-learnings.js';
 import { SyncStateAdapter } from './sync/adapters/sync-state-adapter.js';
 import { AgentHistoryReaderAdapter } from './sync/adapters/agent-history-reader.js';
 import { ConstitutionAdapter } from './sync/adapters/constitution-adapter.js';
+import { syncReverse } from './sync/sync-reverse.js';
+import { LearningExtractorAdapter } from './sync/adapters/learning-extractor.js';
+import { ReverseSyncStateAdapter } from './sync/adapters/reverse-sync-state-adapter.js';
+import { SpecLearningsWriterAdapter } from './sync/adapters/spec-learnings-writer.js';
 import type { StatusReport } from './install/status.js';
-import type { InstallManifest, ContextSummary, DesignReviewRecord, IssueRecord, SyncRecord } from './types.js';
+import type { InstallManifest, ContextSummary, DesignReviewRecord, IssueRecord, SyncRecord, ReverseSyncResult, ReverseSyncOptions } from './types.js';
 
 // Resolve template directory relative to this module
 const __filename = fileURLToPath(import.meta.url);
@@ -821,6 +825,97 @@ function formatSyncHuman(record: SyncRecord, dryRun: boolean): string {
   if (dryRun) {
     lines.push('');
     lines.push(`${prefix}No changes were made.`);
+  }
+
+  return lines.join('\n');
+}
+
+// --- T009: Reverse Sync command composition ---
+
+export interface ReverseSyncOutput {
+  humanOutput: string;
+  jsonOutput: ReverseSyncResult;
+}
+
+export function createReverseSyncer(options: { baseDir?: string } = {}) {
+  const baseDir = options.baseDir ?? process.cwd();
+  const extractor = new LearningExtractorAdapter();
+  const writer = new SpecLearningsWriterAdapter();
+  const statePersistence = new ReverseSyncStateAdapter();
+
+  return {
+    async sync(syncOptions: ReverseSyncOptions): Promise<ReverseSyncOutput> {
+      const resolvedOptions: ReverseSyncOptions = {
+        ...syncOptions,
+        specDir: resolve(baseDir, syncOptions.specDir),
+        squadDir: resolve(baseDir, syncOptions.squadDir),
+        constitutionPath: syncOptions.constitutionPath
+          ? resolve(baseDir, syncOptions.constitutionPath)
+          : undefined,
+      };
+
+      const result = await syncReverse(
+        resolvedOptions,
+        extractor,
+        writer,
+        statePersistence,
+        computeLearningFingerprint,
+      );
+
+      return {
+        humanOutput: formatReverseSyncResult(result),
+        jsonOutput: result,
+      };
+    },
+  };
+}
+
+export function formatReverseSyncResult(result: ReverseSyncResult): string {
+  const lines: string[] = [];
+  const prefix = result.dryRun ? '[DRY RUN] ' : '';
+
+  lines.push(`${prefix}Reverse Sync`);
+  lines.push('');
+
+  lines.push('Sources processed:');
+  for (const source of result.sourcesProcessed) {
+    lines.push(`  ✓ ${source.type}: ${source.count} entries`);
+  }
+  lines.push('');
+
+  if (result.deduplicated > 0 || result.cooledDown > 0 || result.redactionSummary.totalRedactions > 0) {
+    lines.push('Filtering:');
+    if (result.deduplicated > 0) {
+      lines.push(`  • Deduplicated: ${result.deduplicated} (already synced)`);
+    }
+    if (result.cooledDown > 0) {
+      lines.push(`  • Cooldown excluded: ${result.cooledDown}`);
+    }
+    if (result.redactionSummary.totalRedactions > 0) {
+      lines.push(`  • Privacy redacted: ${result.redactionSummary.totalRedactions} items (${result.redactionSummary.types.join(', ')})`);
+    }
+    lines.push('');
+  }
+
+  lines.push('Results:');
+  if (result.learningsWritten > 0 && result.outputPath) {
+    lines.push(`  → ${result.learningsWritten} learnings written to ${result.outputPath}`);
+  } else if (result.dryRun && result.learningsWritten > 0) {
+    lines.push(`  → Would write ${result.learningsWritten} learnings`);
+  } else {
+    lines.push(`  → No new learnings to write`);
+  }
+
+  if (result.constitutionEntriesAdded > 0) {
+    lines.push(`  → ${result.constitutionEntriesAdded} entries added to constitution`);
+  }
+
+  lines.push('');
+  lines.push(`Summary: ${result.summary}`);
+
+  if (result.dryRun) {
+    lines.push('');
+    lines.push(`${prefix}No files were created or modified.`);
   }
 
   return lines.join('\n');
