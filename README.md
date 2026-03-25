@@ -101,6 +101,7 @@ All hooks are optional and can be disabled via configuration.
 ### 🎯 Issues & Sync Commands (v0.2+)
 - `issues` — Convert approved tasks into GitHub issues with one command (`--dry-run`, `--labels`, `--json` flags)
 - `sync` — Capture execution learnings from Squad history back into memory bridge for next planning cycle
+- `sync-reverse` — Extract learnings from Squad sources and write to learnings.md, closing the feedback loop
 
 ### 📊 Enhanced Diagnostics (v0.2+)
 - `--verbose` — Detailed output including file paths and processing details
@@ -109,6 +110,97 @@ All hooks are optional and can be disabled via configuration.
 
 ### 🏗️ Clean Architecture
 All core logic separated by dependency inversion. Easy to test, extend, and maintain independently of both frameworks.
+
+---
+
+## Reverse Sync: Closing the Knowledge Feedback Loop
+
+The **reverse sync** feature extracts implementation learnings from Squad memory (agent histories, decisions, skills) and writes them back to your spec directory as `learnings.md`, completing the bidirectional knowledge loop.
+
+### Usage
+
+```bash
+squask sync-reverse <spec-dir> [options]
+```
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--dry-run` | false | Preview output without writing any files |
+| `--cooldown <hours>` | 24 | Minimum age (in hours) for learnings to be included; 0 = include all |
+| `--sources <types>` | histories,decisions,skills | Comma-separated source types to include |
+| `--no-constitution` | false | Skip constitution enrichment |
+| `--squad-dir <path>` | .squad | Override Squad directory path |
+| `--json` | false | Output structured JSON |
+
+### Examples
+
+**Basic reverse sync after implementation:**
+```bash
+squask sync-reverse specs/009-feature/
+```
+
+**Preview before writing (dry-run):**
+```bash
+squask sync-reverse specs/009-feature/ --dry-run
+```
+
+**Immediate sync with no cooldown (ceremony-driven):**
+```bash
+squask sync-reverse specs/009-feature/ --cooldown 0
+```
+
+**Sync only from decisions, skip histories and skills:**
+```bash
+squask sync-reverse specs/009-feature/ --sources decisions
+```
+
+**Skip constitution enrichment:**
+```bash
+squask sync-reverse specs/009-feature/ --no-constitution
+```
+
+**JSON output for scripting:**
+```bash
+squask sync-reverse specs/009-feature/ --json
+```
+
+### Output
+
+Reverse sync produces:
+
+1. **learnings.md** — Structured markdown document with extracted learnings organized into categories:
+   - Architectural Insights
+   - Integration Patterns
+   - Performance Notes
+   - Decisions Made During Implementation
+   - Reusable Techniques
+   - Risks Encountered
+
+2. **Constitution enrichment** (optional) — Constitution-worthy entries are appended to `.specify/memory/constitution.md` for project-wide principles
+
+### Post-Cycle Workflow
+
+Reverse sync completes the full planning and execution cycle:
+
+```
+✅ Spec Created
+    ↓
+📋 Squad Memory Injected (via context command)
+    ↓
+📝 Plan Created & Reviewed
+    ↓
+✅ Tasks Approved
+    ↓
+⚡ Implementation (Squad executes)
+    ↓
+🔄 Reverse Sync (capture learnings)
+    ↓
+📚 learnings.md + Constitution Updated
+    ↓
+(Next cycle informed by this knowledge)
+```
 
 ---
 
@@ -126,8 +218,12 @@ cd specs/001-feature/
 # Once approved, create GitHub issues
 npx @jmservera/squad-speckit-bridge issues specs/001-feature/tasks.md
 
-# After Squad executes and learns, sync knowledge back (optional, v0.2+)
-npx @jmservera/squad-speckit-bridge sync
+# After Squad executes and learns, extract learnings back to spec directory
+npx @jmservera/squad-speckit-bridge sync-reverse specs/001-feature/
+
+# Check learnings.md and commit
+git add specs/001-feature/learnings.md
+git commit -m "docs(001-feature): Learning artifacts from implementation"
 ```
 
 See [Usage Guide](./docs/usage.md) for complete workflows, advanced options, and manual command reference.

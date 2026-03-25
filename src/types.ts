@@ -7,6 +7,162 @@
 
 // T005: Entity Types
 
+// 009-T002: Reverse Sync Entity Types
+
+/**
+ * Source types that can feed into reverse sync.
+ * Represents the three buckets of Squad knowledge that can be extracted.
+ */
+export type ReverseSyncSourceType = 'histories' | 'decisions' | 'skills';
+
+/**
+ * Options DTO for reverse sync use case.
+ * Controls which sources to extract, filtering thresholds, and output targets.
+ */
+export interface ReverseSyncOptions {
+  /** Absolute path to spec directory (e.g., specs/009-knowledge-feedback-loop). */
+  specDir: string;
+  /** Absolute path to Squad root directory (e.g., .squad/). */
+  squadDir: string;
+  /** If true, display output but write nothing to disk. */
+  dryRun: boolean;
+  /** Minimum age in milliseconds — learnings newer than this are excluded. 0 = no cooldown. */
+  cooldownMs: number;
+  /** Which source types to include. Default: all three. */
+  sources: ReverseSyncSourceType[];
+  /** If true, skip constitution enrichment even for constitution-worthy entries. */
+  skipConstitution: boolean;
+  /** Absolute path to constitution file. Required if skipConstitution is false. */
+  constitutionPath?: string;
+}
+
+/** Classification of a learning for routing to the correct target.
+ * Determines whether to write to constitution or learnings-only document.
+ */
+export type LearningClassification = 'constitution-worthy' | 'learnings-only';
+
+/**
+ * Category bucket for organizing learnings in the output document.
+ * Groups related learnings for structured, readable output.
+ */
+export type LearningCategory =
+  | 'architectural-insights'
+  | 'integration-patterns'
+  | 'performance-notes'
+  | 'decisions'
+  | 'reusable-techniques'
+  | 'risks';
+
+/**
+ * A single extracted learning entry with metadata.
+ * Represents one piece of knowledge extracted from Squad sources.
+ */
+export interface ExtractedReverseLearning {
+  /** Short descriptive title. */
+  title: string;
+  /** Full content body (markdown). */
+  content: string;
+  /** Which Squad source this came from. */
+  sourceType: ReverseSyncSourceType;
+  /** Agent name if from history, 'team' if from decisions, skill name if from skills. */
+  attribution: string;
+  /** ISO 8601 timestamp of the original entry. */
+  timestamp: string;
+  /** Computed fingerprint (DJB2 hash) for deduplication. */
+  fingerprint: string;
+  /** Classification: constitution-worthy or learnings-only (FR-004a). */
+  classification: LearningClassification;
+  /** Content category for output document grouping. */
+  category: LearningCategory;
+}
+
+/**
+ * Record of a single reverse sync execution.
+ * Tracks what happened during one sync run for audit trail.
+ */
+export interface ReverseSyncRecord {
+  /** ISO 8601 timestamp of this sync run. */
+  syncTimestamp: string;
+  /** Number of new learnings written. */
+  learningsWritten: number;
+  /** Number of entries deduplicated (skipped). */
+  learningsDeduplicated: number;
+  /** Number of entries added to constitution. */
+  constitutionEntriesAdded: number;
+  /** Source types processed. */
+  sourcesProcessed: ReverseSyncSourceType[];
+  /** Output file path (or null if dry-run). */
+  outputPath: string | null;
+}
+
+/**
+ * Persistent state for reverse sync idempotency.
+ * Enables deduplication and loop prevention across multiple sync runs.
+ */
+export interface ReverseSyncState {
+  /** ISO 8601 timestamp of last successful reverse sync. */
+  lastReverseSyncTimestamp: string;
+  /** Set of fingerprints already synced — prevents duplicate writes. */
+  syncedFingerprints: string[];
+  /** Tracks sync generation to prevent circular feedback loops. */
+  syncGeneration: number;
+  /** History of reverse sync runs for audit trail. */
+  syncHistory: ReverseSyncRecord[];
+}
+
+/**
+ * Outcome of a reverse sync execution.
+ * Complete result summary including counts, paths, and human-readable message.
+ */
+export interface ReverseSyncResult {
+  /** Total learnings extracted from all sources. */
+  totalExtracted: number;
+  /** Learnings skipped due to deduplication. */
+  deduplicated: number;
+  /** Learnings skipped due to cooldown (too recent). */
+  cooledDown: number;
+  /** Learnings skipped due to privacy redaction removing all content. */
+  fullyRedacted: number;
+  /** New learnings written to learnings.md. */
+  learningsWritten: number;
+  /** Entries added to constitution (0 if skipConstitution). */
+  constitutionEntriesAdded: number;
+  /** Sources processed with counts. */
+  sourcesProcessed: { type: ReverseSyncSourceType; count: number }[];
+  /** Absolute path to generated learnings.md (null if dry-run or no learnings). */
+  outputPath: string | null;
+  /** Whether this was a dry run. */
+  dryRun: boolean;
+  /** Privacy redaction summary. */
+  redactionSummary: { totalRedactions: number; types: string[] };
+  /** Human-readable summary string. */
+  summary: string;
+}
+
+/**
+ * Result of applying privacy filters to content.
+ * Redacts secrets, PII, and API keys before syncing to specs.
+ */
+export interface PrivacyFilterResult {
+  /** Content with secrets and PII replaced by redaction markers. */
+  filtered: string;
+  /** Total number of redactions applied. */
+  redactionCount: number;
+  /** Types of redactions found (e.g., 'api-key', 'email', 'token'). */
+  redactionTypes: string[];
+}
+
+/**
+ * Metadata for the generated learnings.md document.
+ * Captures context about when, from whom, and for which feature learnings were extracted.
+ */
+export interface LearningsMetadata {
+  featureName: string;
+  specId: string;
+  executionPeriod: { start: string; end: string };
+  agents: string[];
+}
+
 export interface BridgeConfig {
   contextMaxBytes: number;
   sources: {
@@ -27,6 +183,14 @@ export interface BridgeConfig {
   sync: {
     autoSync: boolean;
     targetDir: string;
+    reverse: {
+      cooldownHours: number;
+      sources: ReverseSyncSourceType[];
+      privacy: {
+        maskSecrets: boolean;
+        stripPII: boolean;
+      };
+    };
   };
   issues: {
     defaultLabels: string[];
@@ -235,6 +399,7 @@ export const ErrorCodes = {
   ISSUE_CREATE_FAILED: 'ISSUE_CREATE_FAILED',
   SYNC_FAILED: 'SYNC_FAILED',
   HOOK_DEPLOY_FAILED: 'HOOK_DEPLOY_FAILED',
+  REVERSE_SYNC_FAILED: 'REVERSE_SYNC_FAILED',
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
@@ -258,6 +423,7 @@ export const ErrorSuggestions: Record<ErrorCode, string> = {
   ISSUE_CREATE_FAILED: 'Check repository permissions and GitHub API access.',
   SYNC_FAILED: 'Check file write permissions in the Squad directory.',
   HOOK_DEPLOY_FAILED: 'Check file permissions in the Spec Kit extensions directory.',
+  REVERSE_SYNC_FAILED: 'Check source file access and output directory write permissions.',
 };
 
 export function createStructuredError(
@@ -682,6 +848,14 @@ export function createDefaultConfig(): BridgeConfig {
     sync: {
       autoSync: false,
       targetDir: '.squad',
+      reverse: {
+        cooldownHours: 24,
+        sources: ['histories', 'decisions', 'skills'],
+        privacy: {
+          maskSecrets: true,
+          stripPII: true,
+        },
+      },
     },
     issues: {
       defaultLabels: ['squad', 'speckit'],
@@ -692,4 +866,267 @@ export function createDefaultConfig(): BridgeConfig {
       specifyDir: '.specify',
     },
   };
+}
+
+// 009-T003: Privacy Filter Pure Function
+
+const PRIVACY_PATTERNS: { pattern: RegExp; replacement: string; type: string }[] = [
+  { pattern: /(?:AKIA|ABIA|ACCA|ASIA)[A-Z0-9]{16}/g, replacement: '[REDACTED:AWS_KEY]', type: 'aws-key' },
+  { pattern: /(?:mongodb|postgres|mysql|redis):\/\/[^\s]+/gi, replacement: '[REDACTED:CONNECTION_STRING]', type: 'connection-string' },
+  { pattern: /(?:api[_-]?key|apikey)\s*[:=]\s*['"]?[A-Za-z0-9_\-]{16,}['"]?/gi, replacement: '[REDACTED:API_KEY]', type: 'api-key' },
+  { pattern: /(?:token|bearer|jwt)\s*[:=]\s*['"]?[A-Za-z0-9_\-\.]{20,}['"]?/gi, replacement: '[REDACTED:TOKEN]', type: 'token' },
+  { pattern: /(?:password|passwd|pwd)\s*[:=]\s*['"]?[^\s'"]{4,}['"]?/gi, replacement: '[REDACTED:PASSWORD]', type: 'password' },
+  { pattern: /(?:secret|private[_-]?key)\s*[:=]\s*['"]?[A-Za-z0-9_\-]{8,}['"]?/gi, replacement: '[REDACTED:SECRET]', type: 'secret' },
+  { pattern: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, replacement: '[REDACTED:EMAIL]', type: 'email' },
+  { pattern: /(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g, replacement: '[REDACTED:PHONE]', type: 'phone' },
+];
+
+/** Applies regex-based privacy masking for secrets and PII.
+ * Pure function — redacts API keys, tokens, credentials, and PII.
+ */
+export function applyPrivacyFilter(content: string): PrivacyFilterResult {
+  let filtered = content;
+  let redactionCount = 0;
+  const redactionTypesSet = new Set<string>();
+
+  for (const { pattern, replacement, type } of PRIVACY_PATTERNS) {
+    const regex = new RegExp(pattern.source, pattern.flags);
+    const matches = filtered.match(regex);
+    if (matches && matches.length > 0) {
+      redactionCount += matches.length;
+      redactionTypesSet.add(type);
+      filtered = filtered.replace(regex, replacement);
+    }
+  }
+
+  return {
+    filtered,
+    redactionCount,
+    redactionTypes: Array.from(redactionTypesSet),
+  };
+}
+
+// 009-T004: Classification, Categorization, and Validation Pure Functions
+
+const CONSTITUTION_SIGNALS = [
+  'non-negotiable',
+  'MUST',
+  'all features',
+  'every spec',
+  'project-wide',
+  'architectural constraint',
+  'API contract',
+  'compatibility requirement',
+  'version negotiation',
+  'breaking change',
+];
+
+const LEARNINGS_ONLY_SIGNALS = [
+  'code pattern',
+  'testing technique',
+  'debug',
+  'workaround',
+  'vi.doMock',
+  'implementation detail',
+  'config tweak',
+  'hot fix',
+  'refactor',
+  'import path',
+];
+
+const FILE_REFERENCE_PATTERN = /(?:\b\w+\.\w{1,5}:\d+|line \d+|\.\w{2,4}\b(?:\/|\\))/i;
+
+/**
+ * FR-004a classification gate. Determines constitution-worthy vs learnings-only.
+ * Conservative: learnings-only wins if both signal types match.
+ */
+export function classifyLearning(title: string, content: string): LearningClassification {
+  const combined = `${title} ${content}`;
+
+  const hasLearningsSignal = LEARNINGS_ONLY_SIGNALS.some(signal =>
+    combined.includes(signal),
+  ) || FILE_REFERENCE_PATTERN.test(combined);
+
+  if (hasLearningsSignal) {
+    return 'learnings-only';
+  }
+
+  const hasConstitutionSignal = CONSTITUTION_SIGNALS.some(signal => {
+    if (signal === 'MUST') {
+      return combined.includes('MUST');
+    }
+    return combined.toLowerCase().includes(signal.toLowerCase());
+  });
+
+  if (hasConstitutionSignal) {
+    return 'constitution-worthy';
+  }
+
+  return 'learnings-only';
+}
+
+const CATEGORY_KEYWORDS: { keywords: string[]; category: LearningCategory }[] = [
+  { keywords: ['risk', 'vulnerability', 'failure', 'edge case', 'regression'], category: 'risks' },
+  { keywords: ['decision', 'chose', 'adopted', 'rejected', 'trade-off'], category: 'decisions' },
+  { keywords: ['integration', 'api', 'endpoint', 'protocol', 'handoff'], category: 'integration-patterns' },
+  { keywords: ['performance', 'latency', 'throughput', 'memory', 'speed'], category: 'performance-notes' },
+  { keywords: ['pattern', 'technique', 'reusable', 'skill', 'utility'], category: 'reusable-techniques' },
+  { keywords: ['architecture', 'layer', 'dependency', 'structure', 'clean architecture'], category: 'architectural-insights' },
+];
+
+/** Groups a learning into one of six output categories using keyword heuristics.
+ * Pure function for organizing learnings in structured output document.
+ */
+export function categorizeLearning(title: string, content: string): LearningCategory {
+  const combined = `${title} ${content}`.toLowerCase();
+
+  for (const { keywords, category } of CATEGORY_KEYWORDS) {
+    if (keywords.some(kw => combined.includes(kw))) {
+      return category;
+    }
+  }
+
+  return 'architectural-insights';
+}
+
+const VALID_SOURCES: ReverseSyncSourceType[] = ['histories', 'decisions', 'skills'];
+
+/** Validates the ReverseSyncOptions DTO. Pure function — checks all required fields are present.
+ */
+export function isValidReverseSyncOptions(options: ReverseSyncOptions): boolean {
+  if (!options.specDir || options.specDir.trim().length === 0) return false;
+  if (!options.squadDir || options.squadDir.trim().length === 0) return false;
+  if (options.cooldownMs < 0) return false;
+  if (!options.sources || options.sources.length === 0) return false;
+  if (!options.sources.every(s => VALID_SOURCES.includes(s))) return false;
+  if (!options.skipConstitution && (!options.constitutionPath || options.constitutionPath.trim().length === 0)) return false;
+  return true;
+}
+
+// 009-T005: generateLearningsMarkdown — renders structured learnings.md
+
+const CATEGORY_SECTION_TITLES: Record<LearningCategory, string> = {
+  'architectural-insights': 'Architectural Insights',
+  'integration-patterns': 'Integration Patterns',
+  'performance-notes': 'Performance Notes',
+  'decisions': 'Decisions Made During Implementation',
+  'reusable-techniques': 'Reusable Techniques',
+  'risks': 'Risks Encountered',
+};
+
+const CATEGORY_ORDER: LearningCategory[] = [
+  'architectural-insights',
+  'integration-patterns',
+  'performance-notes',
+  'decisions',
+  'reusable-techniques',
+  'risks',
+];
+
+const MAX_ENTRIES_PER_CATEGORY = 10;
+const MAX_CONTENT_LENGTH = 500;
+
+function truncateContent(content: string): string {
+  if (content.length <= MAX_CONTENT_LENGTH) return content;
+  return content.slice(0, MAX_CONTENT_LENGTH) + '[...]';
+}
+
+function formatSourceType(sourceType: ReverseSyncSourceType): string {
+  if (sourceType === 'histories') return 'history';
+  if (sourceType === 'decisions') return 'decision';
+  return 'skill';
+}
+
+/**
+ * Renders the structured learnings.md from categorized entries.
+ * Pure function — generates markdown document with metadata frontmatter and categorized learnings.
+ */
+export function generateLearningsMarkdown(
+  entries: ExtractedReverseLearning[],
+  metadata: LearningsMetadata,
+): string {
+  const grouped: Record<LearningCategory, ExtractedReverseLearning[]> = {
+    'architectural-insights': [],
+    'integration-patterns': [],
+    'performance-notes': [],
+    'decisions': [],
+    'reusable-techniques': [],
+    'risks': [],
+  };
+
+  for (const entry of entries) {
+    grouped[entry.category].push(entry);
+  }
+
+  // Count sources
+  const sourceCounts: Record<ReverseSyncSourceType, number> = {
+    histories: 0,
+    decisions: 0,
+    skills: 0,
+  };
+  for (const entry of entries) {
+    sourceCounts[entry.sourceType]++;
+  }
+
+  const constitutionCount = entries.filter(e => e.classification === 'constitution-worthy').length;
+  const now = new Date().toISOString();
+
+  const lines: string[] = [];
+
+  // YAML frontmatter
+  lines.push('---');
+  lines.push(`generated: ${now}`);
+  lines.push(`spec_id: ${metadata.specId}`);
+  lines.push(`sync_generation: 1`);
+  lines.push(`sources:`);
+  lines.push(`  histories: ${sourceCounts.histories}`);
+  lines.push(`  decisions: ${sourceCounts.decisions}`);
+  lines.push(`  skills: ${sourceCounts.skills}`);
+  lines.push(`total_learnings: ${entries.length}`);
+  lines.push(`constitution_entries: ${constitutionCount}`);
+  lines.push(`redactions: 0`);
+  lines.push('---');
+  lines.push('');
+
+  // Title
+  lines.push(`# Implementation Learnings — ${metadata.featureName}`);
+  lines.push('');
+
+  // Metadata block
+  lines.push(`**Spec**: ${metadata.specId}  `);
+  lines.push(`**Execution Period**: ${metadata.executionPeriod.start} to ${metadata.executionPeriod.end}  `);
+  lines.push(`**Agents**: ${metadata.agents.join(', ')}  `);
+  lines.push(`**Reverse Sync**: ${now}`);
+  lines.push('');
+
+  // Category sections (only non-empty)
+  for (const category of CATEGORY_ORDER) {
+    const categoryEntries = grouped[category];
+    if (categoryEntries.length === 0) continue;
+
+    // Limit to MAX_ENTRIES_PER_CATEGORY, most recent first
+    const sorted = [...categoryEntries].sort(
+      (a, b) => b.timestamp.localeCompare(a.timestamp),
+    );
+    const limited = sorted.slice(0, MAX_ENTRIES_PER_CATEGORY);
+
+    lines.push(`## ${CATEGORY_SECTION_TITLES[category]}`);
+    lines.push('');
+
+    for (const entry of limited) {
+      const dateStr = entry.timestamp.split('T')[0];
+      lines.push(`### ${entry.title}`);
+      lines.push(`_Source: ${entry.attribution} (${formatSourceType(entry.sourceType)}) | ${dateStr}_`);
+      lines.push('');
+      lines.push(truncateContent(entry.content));
+      lines.push('');
+    }
+  }
+
+  // Footer
+  lines.push('---');
+  lines.push('');
+  lines.push('_Generated by `squask sync-reverse` — [fingerprints tracked in .bridge-sync-reverse.json]_');
+
+  return lines.join('\n');
 }
