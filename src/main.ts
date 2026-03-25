@@ -1,13 +1,37 @@
 /**
- * Composition Root — v0.2.0
+ * Composition Root
  *
  * Wires real adapters into use cases via constructor injection.
  * The ONLY file that knows about all layers. No business logic here.
  */
 
+import { createRequire } from 'node:module';
 import { readFile } from 'node:fs/promises';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+const require = createRequire(import.meta.url);
+
+/**
+ * Resolve the package version from package.json at runtime.
+ * Single source of truth — no hardcoded version strings.
+ */
+export function resolveVersion(): string {
+  try {
+    const pkg = require('../package.json') as { version?: string };
+    if (!pkg.version || typeof pkg.version !== 'string' || pkg.version.trim() === '') {
+      throw new Error(
+        'package.json "version" field is missing or empty. Cannot determine CLI version.',
+      );
+    }
+    return pkg.version;
+  } catch (err) {
+    if (err instanceof Error && err.message.includes('package.json')) throw err;
+    throw new Error(
+      `Failed to read package.json: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+}
 import { FileSystemFrameworkDetector } from './install/adapters/framework-detector.js';
 import { FileSystemDeployer } from './install/adapters/file-deployer.js';
 import { ConfigFileLoader } from './install/adapters/config-loader.js';
@@ -86,8 +110,9 @@ export interface ReviewOutput {
 
 export function createInstaller(options: InstallerOptions = {}) {
   const baseDir = options.baseDir ?? process.cwd();
+  const version = resolveVersion();
   const detector = new FileSystemFrameworkDetector(baseDir);
-  const deployer = new FileSystemDeployer(baseDir);
+  const deployer = new FileSystemDeployer(baseDir, version);
   const configLoader = new ConfigFileLoader({
     configPath: options.configPath,
     baseDir,
@@ -116,7 +141,7 @@ export function createInstaller(options: InstallerOptions = {}) {
 
         const humanOutput = formatInstallHuman(
           {
-            version: '0.2.0',
+            version,
             installedAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             components: { squadSkill: hasSquad, specKitExtension: hasSpecKit, ceremonyDef: hasSpecKit },
@@ -128,7 +153,7 @@ export function createInstaller(options: InstallerOptions = {}) {
         );
         const jsonOutput = formatInstallJson(
           {
-            version: '0.2.0',
+            version,
             installedAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             components: { squadSkill: hasSquad, specKitExtension: hasSpecKit, ceremonyDef: hasSpecKit },
@@ -167,6 +192,7 @@ export function createInstaller(options: InstallerOptions = {}) {
           },
         },
         { config, force: opts.force },
+        version,
       );
 
       const humanOutput = formatInstallHuman(result.manifest, result.warnings, config, false);
@@ -181,8 +207,9 @@ export function createStatusChecker(
   options: { configPath?: string; baseDir?: string } = {},
 ) {
   const baseDir = options.baseDir ?? process.cwd();
+  const version = resolveVersion();
   const detector = new FileSystemFrameworkDetector(baseDir);
-  const deployer = new FileSystemDeployer(baseDir);
+  const deployer = new FileSystemDeployer(baseDir, version);
   const configLoader = new ConfigFileLoader({
     configPath: options.configPath,
     baseDir,
@@ -194,7 +221,7 @@ export function createStatusChecker(
       const config = await configLoader.load();
       const squadDirPath = resolve(baseDir, config.paths.squadDir);
       const squadReader = new SquadFileReader(squadDirPath);
-      const report = await checkStatus(detector, deployer, configLoader, squadReader);
+      const report = await checkStatus(detector, deployer, configLoader, squadReader, version);
       return {
         humanOutput: formatStatusHuman(report, dryRun),
         jsonOutput: { ...report, dryRun },
