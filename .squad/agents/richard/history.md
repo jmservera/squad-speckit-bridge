@@ -168,3 +168,18 @@
 - `knowledge-flywheel`: medium confidence (proven in spec 005, but only one full cycle completed so far)
 
 **Next:** Skills are ready for use in future agent prompts. The knowledge-flywheel skill should guide spec 006+ planning to ensure learnings from prior cycles are properly integrated.
+
+### 2026-03-25: Bridge Retrospective — Spec 008 Cycle Analysis
+
+**Task:** Analyze how squask performed during the spec 008 (fix version display) cycle.
+
+**Key Findings:**
+1. **Forward path works well** — `squask context` → SpecKit planning → Squad issue creation → parallel execution delivered v0.3.2 with 14 tasks, 866 tests passing.
+2. **Return path is broken** — No `squask sync` run post-cycle. No `learnings.md` created. Constitution stuck at v1.1.0. Knowledge flywheel stops after execution.
+3. **Hooks are dead code** — `before-specify`, `after-tasks`, `after-implement` hooks never fire in agent-driven workflows (only trigger via SpecKit CLI). Need alternative activation for Copilot agent commands.
+4. **Squash merge artifact destruction recurred** — Spec 008 directory (`specs/008-fix-version-display/`) deleted by squash merge of PR #347, same problem documented in spec 005 learnings.
+5. **Issue routing gap** — All 14 issues labeled `squad:richard` instead of distributed by Ralph. Worked for a focused bug fix but doesn't scale.
+
+**Recommendations:** Add `squask sync` to Scribe handoff as required step. Design hook trigger for agent workflows. Protect spec artifacts from squash merge deletion. Add post-cycle checklist to orchestration manifest template.
+
+**Artifact:** `.squad/decisions/inbox/richard-bridge-retro-008.md`
