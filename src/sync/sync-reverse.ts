@@ -32,19 +32,35 @@ import { computeLearningFingerprint } from './sync-learnings.js';
 /*  Port interfaces (Dependency Inversion)                             */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Port interface for extracting learnings from Squad sources.
+ * Adapter implements this to read histories, decisions, and skills.
+ */
 export interface LearningExtractor {
   extract(squadDir: string, sources: ReverseSyncSourceType[]): Promise<ExtractedReverseLearning[]>;
 }
 
+/**
+ * Port interface for writing learnings.md to spec directory.
+ * Adapter implements this to persist extracted and filtered learnings.
+ */
 export interface SpecLearningsWriter {
   write(specDir: string, content: string, metadata: LearningsMetadata): Promise<string>;
 }
 
+/**
+ * Port interface for persisting reverse sync state.
+ * Adapter implements this to store fingerprints and sync metadata for deduplication.
+ */
 export interface ReverseSyncStatePersistence {
   load(specDir: string): Promise<ReverseSyncState | null>;
   save(specDir: string, state: ReverseSyncState): Promise<void>;
 }
 
+/**
+ * Port interface for enriching project constitution with constitution-worthy entries.
+ * Adapter implements this to append learnings to the constitution document.
+ */
 export interface ReverseConstitutionWriter {
   append(path: string, entries: ExtractedReverseLearning[]): Promise<number>;
 }
@@ -53,6 +69,10 @@ export interface ReverseConstitutionWriter {
 /*  Use case                                                           */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Orchestrates the reverse sync pipeline: extract → filter → classify → write learnings + constitution.
+ * Closes the knowledge feedback loop by syncing implementation learnings back to Squad memory.
+ */
 export async function syncReverse(
   options: ReverseSyncOptions,
   extractor: LearningExtractor,

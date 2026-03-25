@@ -838,6 +838,9 @@ export interface ReverseSyncOutput {
   jsonOutput: ReverseSyncResult;
 }
 
+/** Wires the reverse sync ports into adapters and returns a syncer object.
+ * Factory function for creating a reverse syncer with dependency injection.
+ */
 export function createReverseSyncer(options: {
   baseDir?: string;
   configPath?: string;
@@ -878,6 +881,9 @@ export function createReverseSyncer(options: {
   };
 }
 
+/** Formats a ReverseSyncResult into human-readable output for terminal display.
+ * Includes source counts, filtering summary, and result paths.
+ */
 export function formatReverseSyncResult(result: ReverseSyncResult): string {
   const lines: string[] = [];
   const prefix = result.dryRun ? '[DRY RUN] ' : '';

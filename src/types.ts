@@ -9,10 +9,16 @@
 
 // 009-T002: Reverse Sync Entity Types
 
-/** Source types that can feed into reverse sync. */
+/**
+ * Source types that can feed into reverse sync.
+ * Represents the three buckets of Squad knowledge that can be extracted.
+ */
 export type ReverseSyncSourceType = 'histories' | 'decisions' | 'skills';
 
-/** Options DTO for reverse sync use case. */
+/**
+ * Options DTO for reverse sync use case.
+ * Controls which sources to extract, filtering thresholds, and output targets.
+ */
 export interface ReverseSyncOptions {
   /** Absolute path to spec directory (e.g., specs/009-knowledge-feedback-loop). */
   specDir: string;
@@ -30,10 +36,15 @@ export interface ReverseSyncOptions {
   constitutionPath?: string;
 }
 
-/** Classification of a learning for routing to the correct target. */
+/** Classification of a learning for routing to the correct target.
+ * Determines whether to write to constitution or learnings-only document.
+ */
 export type LearningClassification = 'constitution-worthy' | 'learnings-only';
 
-/** Category bucket for organizing learnings in the output document. */
+/**
+ * Category bucket for organizing learnings in the output document.
+ * Groups related learnings for structured, readable output.
+ */
 export type LearningCategory =
   | 'architectural-insights'
   | 'integration-patterns'
@@ -42,7 +53,10 @@ export type LearningCategory =
   | 'reusable-techniques'
   | 'risks';
 
-/** A single extracted learning entry with metadata. */
+/**
+ * A single extracted learning entry with metadata.
+ * Represents one piece of knowledge extracted from Squad sources.
+ */
 export interface ExtractedReverseLearning {
   /** Short descriptive title. */
   title: string;
@@ -62,7 +76,10 @@ export interface ExtractedReverseLearning {
   category: LearningCategory;
 }
 
-/** Record of a single reverse sync execution. */
+/**
+ * Record of a single reverse sync execution.
+ * Tracks what happened during one sync run for audit trail.
+ */
 export interface ReverseSyncRecord {
   /** ISO 8601 timestamp of this sync run. */
   syncTimestamp: string;
@@ -78,7 +95,10 @@ export interface ReverseSyncRecord {
   outputPath: string | null;
 }
 
-/** Persistent state for reverse sync idempotency. */
+/**
+ * Persistent state for reverse sync idempotency.
+ * Enables deduplication and loop prevention across multiple sync runs.
+ */
 export interface ReverseSyncState {
   /** ISO 8601 timestamp of last successful reverse sync. */
   lastReverseSyncTimestamp: string;
@@ -90,7 +110,10 @@ export interface ReverseSyncState {
   syncHistory: ReverseSyncRecord[];
 }
 
-/** Outcome of a reverse sync execution. */
+/**
+ * Outcome of a reverse sync execution.
+ * Complete result summary including counts, paths, and human-readable message.
+ */
 export interface ReverseSyncResult {
   /** Total learnings extracted from all sources. */
   totalExtracted: number;
@@ -116,7 +139,10 @@ export interface ReverseSyncResult {
   summary: string;
 }
 
-/** Result of applying privacy filters to content. */
+/**
+ * Result of applying privacy filters to content.
+ * Redacts secrets, PII, and API keys before syncing to specs.
+ */
 export interface PrivacyFilterResult {
   /** Content with secrets and PII replaced by redaction markers. */
   filtered: string;
@@ -126,7 +152,10 @@ export interface PrivacyFilterResult {
   redactionTypes: string[];
 }
 
-/** Metadata for the generated learnings.md document. */
+/**
+ * Metadata for the generated learnings.md document.
+ * Captures context about when, from whom, and for which feature learnings were extracted.
+ */
 export interface LearningsMetadata {
   featureName: string;
   specId: string;
@@ -852,7 +881,9 @@ const PRIVACY_PATTERNS: { pattern: RegExp; replacement: string; type: string }[]
   { pattern: /(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g, replacement: '[REDACTED:PHONE]', type: 'phone' },
 ];
 
-/** Applies regex-based privacy masking for secrets and PII. Pure function, no I/O. */
+/** Applies regex-based privacy masking for secrets and PII.
+ * Pure function — redacts API keys, tokens, credentials, and PII.
+ */
 export function applyPrivacyFilter(content: string): PrivacyFilterResult {
   let filtered = content;
   let redactionCount = 0;
@@ -906,8 +937,8 @@ const LEARNINGS_ONLY_SIGNALS = [
 const FILE_REFERENCE_PATTERN = /(?:\b\w+\.\w{1,5}:\d+|line \d+|\.\w{2,4}\b(?:\/|\\))/i;
 
 /**
- * FR-004a classification gate. Determines whether a learning is constitution-worthy
- * or learnings-only. Conservative: if BOTH signals match, learnings-only wins.
+ * FR-004a classification gate. Determines constitution-worthy vs learnings-only.
+ * Conservative: learnings-only wins if both signal types match.
  */
 export function classifyLearning(title: string, content: string): LearningClassification {
   const combined = `${title} ${content}`;
@@ -943,7 +974,9 @@ const CATEGORY_KEYWORDS: { keywords: string[]; category: LearningCategory }[] = 
   { keywords: ['architecture', 'layer', 'dependency', 'structure', 'clean architecture'], category: 'architectural-insights' },
 ];
 
-/** Groups a learning into one of six output categories using keyword heuristics. */
+/** Groups a learning into one of six output categories using keyword heuristics.
+ * Pure function for organizing learnings in structured output document.
+ */
 export function categorizeLearning(title: string, content: string): LearningCategory {
   const combined = `${title} ${content}`.toLowerCase();
 
@@ -958,7 +991,8 @@ export function categorizeLearning(title: string, content: string): LearningCate
 
 const VALID_SOURCES: ReverseSyncSourceType[] = ['histories', 'decisions', 'skills'];
 
-/** Validates the ReverseSyncOptions DTO. Pure function. */
+/** Validates the ReverseSyncOptions DTO. Pure function — checks all required fields are present.
+ */
 export function isValidReverseSyncOptions(options: ReverseSyncOptions): boolean {
   if (!options.specDir || options.specDir.trim().length === 0) return false;
   if (!options.squadDir || options.squadDir.trim().length === 0) return false;
@@ -1005,7 +1039,7 @@ function formatSourceType(sourceType: ReverseSyncSourceType): string {
 
 /**
  * Renders the structured learnings.md from categorized entries.
- * Pure function — no I/O.
+ * Pure function — generates markdown document with metadata frontmatter and categorized learnings.
  */
 export function generateLearningsMarkdown(
   entries: ExtractedReverseLearning[],
