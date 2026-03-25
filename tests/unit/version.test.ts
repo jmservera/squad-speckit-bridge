@@ -18,12 +18,12 @@ describe('resolveVersion', () => {
   });
 
   it('returns the correct version string from package.json', async () => {
-    const { resolveVersion } = await import('../../src/main.js');
+    const { resolveVersion } = await import('../../src/version.js');
     expect(resolveVersion()).toBe(pkg.version);
   });
 
   it('returns a valid semver string', async () => {
-    const { resolveVersion } = await import('../../src/main.js');
+    const { resolveVersion } = await import('../../src/version.js');
     expect(resolveVersion()).toMatch(/^\d+\.\d+\.\d+/);
   });
 
@@ -44,7 +44,7 @@ describe('resolveVersion', () => {
         },
       };
     });
-    const { resolveVersion } = await import('../../src/main.js');
+    const { resolveVersion } = await import('../../src/version.js');
     expect(() => resolveVersion()).toThrow(/package\.json/);
   });
 
@@ -63,7 +63,7 @@ describe('resolveVersion', () => {
         },
       };
     });
-    const { resolveVersion } = await import('../../src/main.js');
+    const { resolveVersion } = await import('../../src/version.js');
     expect(() => resolveVersion()).toThrow(/version/i);
   });
 
@@ -82,7 +82,7 @@ describe('resolveVersion', () => {
         },
       };
     });
-    const { resolveVersion } = await import('../../src/main.js');
+    const { resolveVersion } = await import('../../src/version.js');
     expect(() => resolveVersion()).toThrow(/version/i);
   });
 });

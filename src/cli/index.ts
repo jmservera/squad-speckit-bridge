@@ -8,7 +8,6 @@
  */
 
 import { Command } from 'commander';
-import { createRequire } from 'node:module';
 import { createInstaller, createStatusChecker, createContextBuilder, createReviewer, createIssueCreator, createSyncer } from '../main.js';
 import { ErrorCodes, createStructuredError } from '../types.js';
 import type { ErrorCode } from '../types.js';
@@ -16,9 +15,9 @@ import { createLogger } from './logger.js';
 import { createDemoRunner, createDemoDirectory } from '../demo/factory.js';
 import { formatHumanOutput, formatJsonOutput, type ExtendedExecutionReport } from '../demo/formatters.js';
 import type { DemoConfiguration } from '../demo/entities.js';
+import { resolveVersion } from '../version.js';
 
-const cliRequire = createRequire(import.meta.url);
-const cliVersion = (cliRequire('../../package.json') as { version: string }).version;
+const cliVersion = resolveVersion();
 
 const program = new Command();
 

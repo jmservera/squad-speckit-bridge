@@ -16,7 +16,7 @@ export class FileSystemDeployer implements FileDeployer {
   private readonly baseDir: string;
   private readonly version: string;
 
-  constructor(baseDir: string = process.cwd(), version: string = '0.0.0') {
+  constructor(baseDir: string, version: string) {
     this.baseDir = baseDir;
     this.version = version;
   }

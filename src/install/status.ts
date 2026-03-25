@@ -47,8 +47,8 @@ export async function checkStatus(
   detector: FrameworkDetector,
   deployer: FileDeployer,
   configLoader: ConfigLoader,
-  squadReader?: SquadStateReader,
-  version?: string,
+  squadReader: SquadStateReader | undefined,
+  version: string,
 ): Promise<StatusReport> {
   const config = await configLoader.load();
 
@@ -84,7 +84,7 @@ export async function checkStatus(
   }
 
   return {
-    version: version ?? 'unknown',
+    version,
     frameworks: {
       squad: { detected: hasSquad, path: config.paths.squadDir },
       specKit: { detected: hasSpecKit, path: config.paths.specifyDir },
