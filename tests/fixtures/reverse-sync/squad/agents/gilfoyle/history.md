@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Gilfoyle — Agent History
 
 ## Learnings
@@ -36,14 +35,6 @@ Connection pool exhaustion under load was caused by unreleased connections
 in error paths. Always wrap pool.query() in try/finally to ensure
 connections return to the pool. This was the same root cause as the
 outage on 2026-03-10.
-=======
-# gilfoyle — History
-
-## Core Context
-
-Gilfoyle is the research and architecture agent.
-
-## Learnings
 
 ### 2026-03-23: Clean architecture layer separation
 
@@ -56,4 +47,3 @@ When testing adapters, use mkdtemp for isolated temp directories. This reusable 
 ### 2026-03-25: API versioning risk
 
 There is a regression risk when API endpoints change without version negotiation. Edge case: clients on older versions may silently fail.
->>>>>>> squad/009-dinesh-src
