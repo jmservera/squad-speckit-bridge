@@ -1,5 +1,5 @@
 {
-  "lastSyncTimestamp": "2026-03-24T23:31:36.768Z",
+  "lastSyncTimestamp": "2026-03-25T07:30:35.541Z",
   "syncHistory": [
     {
       "syncTimestamp": "2026-03-24T23:31:36.768Z",
@@ -37,9 +37,33 @@
         ".squad/agents/bridge/history.md"
       ],
       "summary": "Synced 30 learning(s) from /home/azureuser/source/squad-speckit-bridge/specs/005-hook-fixes-cli-polish"
+    },
+    {
+      "syncTimestamp": "2026-03-25T07:30:35.541Z",
+      "learningsUpdated": 17,
+      "filesWritten": [
+        ".squad/agents/bridge/history.md",
+        ".squad/agents/bridge/history.md",
+        ".squad/agents/bridge/history.md",
+        ".squad/agents/bridge/history.md",
+        ".squad/agents/bridge/history.md",
+        ".squad/agents/bridge/history.md",
+        ".squad/agents/bridge/history.md",
+        ".squad/agents/bridge/history.md",
+        ".squad/agents/bridge/history.md",
+        ".squad/agents/bridge/history.md",
+        ".squad/agents/bridge/history.md",
+        ".squad/agents/bridge/history.md",
+        ".squad/agents/bridge/history.md",
+        ".squad/agents/bridge/history.md",
+        ".squad/agents/bridge/history.md",
+        ".squad/agents/bridge/history.md",
+        ".squad/agents/bridge/history.md"
+      ],
+      "summary": "Synced 17 learning(s) from /home/azureuser/source/squad-speckit-bridge/specs/008-fix-version-display"
     }
   ],
-  "totalSyncs": 1,
+  "totalSyncs": 2,
   "syncedFingerprints": [
     "fp_w9ikpf",
     "fp_xn3pik",
@@ -70,6 +94,23 @@
     "fp_1sa3v6l",
     "fp_y5w7p3",
     "fp_1jj1gjv",
-    "fp_uicfu"
+    "fp_uicfu",
+    "fp_1h2ddll",
+    "fp_pp0hhe",
+    "fp_1nbpolp",
+    "fp_j4mv60",
+    "fp_17jnyyv",
+    "fp_18wr3eu",
+    "fp_md8g97",
+    "fp_omhftk",
+    "fp_hssfjf",
+    "fp_4oyrt7",
+    "fp_5aj3ty",
+    "fp_si8eqn",
+    "fp_p687ta",
+    "fp_xfh9rn",
+    "fp_7uy1ay",
+    "fp_13zzxv2",
+    "fp_3um03k"
   ]
 }
