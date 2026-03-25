@@ -1,14 +1,48 @@
-# Decision: Skill Extraction from Sync Flywheel Implementation
+# Team Decisions
+
+---
+
+## Decision 001: Version Threading via Constructor Injection on Adapters
+
+**Author:** Dinesh  
+**Date:** 2025-07-15  
+**Spec:** 008-fix-version-display  
+**Status:** Implemented
+
+### Context
+
+Spec 008 required threading a dynamic version string from `package.json` through all CLI surfaces. The `FileSystemDeployer` adapter writes `version` into `.bridge-manifest.json`, but the `FileDeployer` port interface has no version concept.
+
+### Decision
+
+Pass version via `FileSystemDeployer` constructor rather than modifying the `FileDeployer` port interface. The composition root resolves version once at factory creation time and injects it into the deployer.
+
+### Rationale
+
+- Port interface stays stable — no downstream impact on tests or other potential adapter implementations
+- Constructor injection is the standard wiring pattern in this codebase (see `FileSystemFrameworkDetector(baseDir)`)
+- Version doesn't change during process lifetime, so constructor-time resolution is correct
+- `resolveVersion()` is synchronous (`createRequire`), so it can be called at factory creation without async ceremony
+
+### Alternatives Considered
+
+1. **Add version to `FileDeployer.deploy()` signature** — Rejected. Would change the port contract for all callers and tests, higher blast radius for a wiring concern.
+2. **Add `setVersion()` method** — Rejected. Mutable state on the adapter is an anti-pattern when constructor injection works.
+3. **Modify port to include version** — Rejected. Version is a deployment metadata concern, not a file deployment contract concern.
+
+---
+
+## Decision 002: Skill Extraction from Sync Flywheel Implementation
 
 **Date:** 2026-03-24  
 **Decider:** Richard (Lead)  
 **Status:** Implemented
 
-## Context
+### Context
 
 After completing v0.3.0 sync implementation (knowledge flywheel feature), we accumulated new patterns and conventions that should be preserved as skills for future agent use.
 
-## Decision
+### Decision
 
 Extracted and documented reusable patterns into three categories:
 
@@ -22,7 +56,7 @@ Extracted and documented reusable patterns into three categories:
 3. **Skipped non-applicable patterns:**
    - Worktree parallel development was mentioned in task description but not used in actual implementation
 
-## Rationale
+### Rationale
 
 **Why update clean-architecture-bridge:**
 - Sync implementation demonstrated excellent new port/adapter examples not in current skill
@@ -45,13 +79,13 @@ Extracted and documented reusable patterns into three categories:
 - `project-conventions` updates: medium (extracted from real code, team uses)
 - `knowledge-flywheel`: medium (one full cycle completed, proven but not yet habitual)
 
-## Alternatives Considered
+### Alternatives Considered
 
 1. **Wait for more cycles before documenting flywheel** — Rejected: Pattern is working now, documentation prevents drift
 2. **Document worktree patterns even without usage** — Rejected: Skills should reflect actual practice, not aspirational patterns
 3. **Create separate skill for constitution protocol** — Rejected: It's a project convention, belongs in project-conventions skill
 
-## Impact
+### Impact
 
 **Positive:**
 - Future agents have clearer guidance on Clean Architecture wiring patterns
@@ -63,7 +97,7 @@ Extracted and documented reusable patterns into three categories:
 - Update skills as patterns evolve (skills are living documents)
 - Monitor whether agents actually follow documented conventions
 
-## Validation
+### Validation
 
 Verified:
 - All 3 skills updated/created (clean-architecture-bridge: 14KB, project-conventions: 7.3KB, knowledge-flywheel: 9.2KB)
