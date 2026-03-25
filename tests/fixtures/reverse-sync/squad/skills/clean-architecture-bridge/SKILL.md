@@ -1,41 +1,16 @@
-# Skill: Clean Architecture Bridge
+# Clean Architecture Bridge
 
-## Pattern Name
+## Context
 
-Hexagonal Adapter Bridge
+A reusable technique for bridging two framework-independent systems using ports and adapters. This skill captures the utility of dependency inversion at system boundaries.
 
-## Description
+## Patterns
 
-A reusable adapter pattern that bridges Squad's internal data structures
-with SpecKit's specification format. The bridge translates domain events
-into spec-compatible updates without leaking implementation details
-across boundaries.
+- Define port interfaces in the use case layer
+- Implement adapters in the adapter layer
+- Wire everything in the composition root
 
-## Technique
+## Anti-Patterns
 
-1. Define a port interface for each data flow direction (inbound/outbound)
-2. Implement adapters that translate between Squad and SpecKit schemas
-3. Use dependency injection to wire adapters at composition root
-4. Keep the domain logic free of framework-specific imports
-
-## Example
-
-```ts
-interface SquadDataPort {
-  readHistory(agentId: string): Promise<HistoryEntry[]>;
-  readDecisions(): Promise<Decision[]>;
-}
-
-class SpecKitAdapter implements SpecUpdatePort {
-  async applyLearning(entry: HistoryEntry): Promise<void> {
-    const specUpdate = this.transform(entry);
-    await this.writer.append(specUpdate);
-  }
-}
-```
-
-## When to Use
-
-- Syncing data between two systems with different schemas
-- Need to test each side independently with mocks
-- Want to swap out either system without changing business logic
+- Importing framework types in use case functions
+- Leaking adapter concerns into entity types

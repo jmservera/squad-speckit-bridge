@@ -1,32 +1,19 @@
-# Squad Decisions Log
+# Squad Decisions
 
-### 2026-03-12: Adopt Monorepo Structure
+## Active Decisions
 
-Decided to consolidate all packages into a single monorepo using npm
-workspaces. This simplifies dependency management and enables atomic
-cross-package changes. Turborepo handles build orchestration.
+### Use TypeScript strict mode (2026-03-23)
 
-### 2026-03-15: Versioned API Response Contract
+**Status**: Adopted
 
-All API endpoints MUST support versioned responses. Clients send an
-`Accept-Version` header and the server negotiates the highest compatible
-version. Unversioned requests default to the latest stable version.
+The team chose TypeScript strict mode for all new code. This decision ensures type safety across the codebase. The trade-off is slightly more verbose code.
 
-### 2026-03-18: CLI Framework Selection
+---
 
-Team chose Commander over yargs for CLI parsing. Commander has a smaller
-dependency footprint and its fluent API aligns better with our existing
-code style. Migration from yargs took about 2 hours.
+### Reject GraphQL in favor of REST (2026-03-23)
 
-### 2026-03-20: Event-Driven Architecture for Sync
+**Status**: Adopted
 
-Reverse sync will use an event-driven architecture with an event bus
-that decouples producers (Squad data watchers) from consumers (spec
-updaters). This allows independent scaling and easier testing of each
-component.
+We rejected GraphQL for the bridge API. REST endpoints are simpler to implement and test. The decision was driven by the small surface area of the API.
 
-### 2026-03-23: Error Boundary Strategy
-
-All async operations must be wrapped in domain-specific error boundaries
-that translate low-level errors into user-facing messages. Raw stack
-traces should never reach the CLI output.
+---
